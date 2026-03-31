@@ -17,7 +17,7 @@ export default function WorkoutsPage() {
 
   useEffect(() => {
     setLoading(true);
-    getWorkouts(monthStr)
+    getWorkouts({ month: monthStr })
       .then(setWorkouts)
       .finally(() => setLoading(false));
   }, [monthStr]);

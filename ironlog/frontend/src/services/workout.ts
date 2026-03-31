@@ -1,9 +1,11 @@
 import api from "./api";
 import type { Workout, WorkoutSummary, WorkoutExercise } from "@/types";
 
-export async function getWorkouts(month?: string): Promise<WorkoutSummary[]> {
-  const params: Record<string, string> = {};
-  if (month) params.month = month;
+export async function getWorkouts(params?: {
+  month?: string;
+  from?: string;
+  to?: string;
+}): Promise<WorkoutSummary[]> {
   const { data } = await api.get("/workouts", { params });
   return data;
 }

@@ -32,11 +32,14 @@ class Workout(Base, TimestampMixin):
     date: Mapped[date] = mapped_column(Date, nullable=False)
     start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    plan_template_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    plan_template_id: Mapped[int | None] = mapped_column(
+        ForeignKey("plan_templates.id", ondelete="SET NULL"), nullable=True
+    )
     note: Mapped[str | None] = mapped_column(Text)
     mood: Mapped[int | None] = mapped_column(Integer)
 
     user = relationship("User", back_populates="workouts")
+    plan_template = relationship("PlanTemplate", lazy="selectin", foreign_keys=[plan_template_id])
     exercises = relationship(
         "WorkoutExercise", back_populates="workout", lazy="selectin",
         cascade="all, delete-orphan", order_by="WorkoutExercise.sort_order",

@@ -1,9 +1,10 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Home, Dumbbell, User } from "lucide-react";
+import { Home, CalendarDays, User, ClipboardList } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/", icon: Home, label: "首页" },
-  { path: "/workouts", icon: Dumbbell, label: "训练" },
+  { path: "/plans", icon: ClipboardList, label: "计划" },
+  { path: "/calendar", icon: CalendarDays, label: "日历" },
   { path: "/profile", icon: User, label: "我的" },
 ];
 

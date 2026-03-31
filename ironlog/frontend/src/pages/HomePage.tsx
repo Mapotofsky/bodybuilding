@@ -2,25 +2,66 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/auth";
 import { getWorkouts } from "@/services/workout";
-import type { WorkoutSummary } from "@/types";
-import { CATEGORY_LABELS, MOOD_LABELS } from "@/types";
-import { Plus, ChevronRight, Flame, Dumbbell, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { getCalendar } from "@/services/plan";
+import type { WorkoutSummary, CalendarEntry } from "@/types";
+import { MOOD_LABELS } from "@/types";
+import { Plus, ChevronRight, Flame, Dumbbell, Calendar, ClipboardList } from "lucide-react";
+import { format, subDays } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
 export default function HomePage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSummary[]>([]);
+  const [todayEntries, setTodayEntries] = useState<CalendarEntry[]>([]);
+  const [missedEntries, setMissedEntries] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const today = format(new Date(), "yyyy-MM");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const sevenDaysAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
+  const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
 
   useEffect(() => {
-    getWorkouts(today)
-      .then((data) => setRecentWorkouts(data.slice(0, 5)))
+    Promise.all([
+      getWorkouts({ month: today }).then((data) => data.slice(0, 5)),
+      // Today's scheduled plan entries
+      getCalendar(todayStr, todayStr).then((days) => days[0]?.entries || []),
+      // Past 7 days: only weekly-plan entries count as "missed".
+      // An entry is missed only if no workout from scheduled_date→today
+      // contains ANY exercise from the template.
+      Promise.all([
+        getCalendar(sevenDaysAgo, yesterday),
+        getWorkouts({ from: sevenDaysAgo, to: todayStr }),
+      ]).then(([pastDays, pastWorkouts]) => {
+        return pastDays
+          .flatMap((d) =>
+            d.entries.filter((e) => {
+              if (e.plan_mode !== "weekly") return false;
+              if (e.is_completed) return false;
+              const templateSet = new Set(e.template_exercise_ids);
+              return !pastWorkouts.some(
+                (w) =>
+                  w.date >= e.scheduled_date &&
+                  w.date <= todayStr &&
+                  w.exercise_ids.some((eid) => templateSet.has(eid))
+              );
+            })
+          )
+          .slice(-3);
+      }),
+    ])
+      .then(([workouts, entries, missed]) => {
+        setRecentWorkouts(workouts);
+        setTodayEntries(entries);
+        setMissedEntries(missed);
+      })
       .finally(() => setLoading(false));
-  }, [today]);
+  }, [today, todayStr, sevenDaysAgo, yesterday]);
+
+  function handleStartFromPlan(entry: CalendarEntry) {
+    navigate(`/workouts/new?template_id=${entry.template_id}`);
+  }
 
   const thisMonthCount = recentWorkouts.length;
   const thisMonthVolume = recentWorkouts.reduce((sum, w) => sum + w.total_volume, 0);
@@ -47,6 +88,80 @@ export default function HomePage() {
         <Plus size={22} />
         开始训练
       </button>
+
+      {/* Today's Plan + Missed */}
+      {!loading && (todayEntries.length > 0 || missedEntries.length > 0) && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">今日计划</h2>
+            <button
+              onClick={() => navigate("/calendar")}
+              className="text-sm text-blue-500 flex items-center gap-0.5"
+            >
+              日历 <ChevronRight size={16} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {/* Missed entries from past days */}
+            {missedEntries.map((entry, idx) => (
+              <div
+                key={`missed-${idx}`}
+                className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-3 h-10 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: entry.template_color || entry.plan_color }}
+                  />
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded font-medium">补</span>
+                      <p className="font-medium text-sm text-gray-900">{entry.template_name}</p>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {entry.scheduled_date.slice(5).replace("-", "/")} · {entry.plan_name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleStartFromPlan(entry)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-full text-xs font-medium hover:bg-amber-600 transition"
+                >
+                  <Dumbbell size={12} /> 补训
+                </button>
+              </div>
+            ))}
+            {/* Today's entries */}
+            {todayEntries.map((entry, idx) => (
+              <div
+                key={`today-${idx}`}
+                className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-3 h-10 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: entry.template_color || entry.plan_color }}
+                  />
+                  <div>
+                    <p className="font-medium text-sm text-gray-900">{entry.template_name}</p>
+                    <p className="text-xs text-gray-400">{entry.plan_name}</p>
+                  </div>
+                </div>
+                {entry.is_completed ? (
+                  <span className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">已完成</span>
+                ) : (
+                  <button
+                    onClick={() => handleStartFromPlan(entry)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-medium hover:bg-blue-600 transition"
+                  >
+                    <Dumbbell size={12} /> 开始
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3">

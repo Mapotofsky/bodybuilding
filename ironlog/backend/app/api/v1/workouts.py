@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.workout import Workout, WorkoutExercise, WorkoutSet
+from app.models.plan import PlanTemplate
 from app.schemas.workout import (
     CopyWorkoutRequest,
     WorkoutCreate,
@@ -58,6 +59,7 @@ def _build_summary(w: Workout) -> WorkoutSummary:
             total_sets += 1
             if s.weight and s.reps:
                 total_volume += s.weight * s.reps
+    tmpl = w.plan_template
     return WorkoutSummary(
         id=w.id,
         date=w.date,
@@ -68,6 +70,11 @@ def _build_summary(w: Workout) -> WorkoutSummary:
         exercise_count=len(w.exercises),
         total_sets=total_sets,
         total_volume=total_volume,
+        plan_template_id=w.plan_template_id,
+        template_name=tmpl.name if tmpl else None,
+        template_color=tmpl.color if tmpl else None,
+        plan_color=tmpl.plan.color if (tmpl and tmpl.plan) else None,
+        exercise_ids=[we.exercise_id for we in w.exercises],
         created_at=w.created_at,
     )
 
@@ -85,6 +92,7 @@ async def create_workout(
         end_time=body.end_time,
         note=body.note,
         mood=body.mood,
+        plan_template_id=body.plan_template_id,
     )
     db.add(workout)
     await db.flush()
@@ -133,6 +141,7 @@ async def list_workouts(
         .options(
             selectinload(Workout.exercises).selectinload(WorkoutExercise.sets),
             selectinload(Workout.exercises).selectinload(WorkoutExercise.exercise),
+            selectinload(Workout.plan_template).selectinload(PlanTemplate.plan),
         )
     )
 

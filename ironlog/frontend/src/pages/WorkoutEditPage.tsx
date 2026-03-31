@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
@@ -11,7 +11,6 @@ import {
   Search,
   X,
 } from "lucide-react";
-import WorkoutTimer from "@/components/WorkoutTimer";
 import { useToastStore } from "@/components/Toast";
 import { makeEmptySet } from "@/utils/workout";
 
@@ -33,10 +32,8 @@ export default function WorkoutEditPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [weightUnit, setWeightUnit] = useState<"kg" | "lb">("kg");
-  const timerRef = useRef<{ startTime: string | null; endTime: string | null }>({
-    startTime: null,
-    endTime: null,
-  });
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
 
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false);
@@ -56,10 +53,8 @@ export default function WorkoutEditPage() {
         setDate(w.date);
         setNote(w.note || "");
         setMood(w.mood);
-        timerRef.current = {
-          startTime: w.start_time,
-          endTime: w.end_time,
-        };
+        setStartTime(w.start_time ? w.start_time.slice(0, 16) : "");
+        setEndTime(w.end_time ? w.end_time.slice(0, 16) : "");
         // Detect unit from first set
         const firstUnit = w.exercises[0]?.sets[0]?.unit;
         if (firstUnit === "lb") setWeightUnit("lb");
@@ -161,10 +156,6 @@ export default function WorkoutEditPage() {
     );
   };
 
-  const handleTimerUpdate = (startTime: string, endTime: string | null) => {
-    timerRef.current = { startTime, endTime };
-  };
-
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
@@ -173,8 +164,8 @@ export default function WorkoutEditPage() {
         date,
         note: note || null,
         mood: mood || null,
-        start_time: timerRef.current.startTime,
-        end_time: timerRef.current.endTime || (timerRef.current.startTime ? new Date().toISOString() : null),
+        start_time: startTime ? new Date(startTime).toISOString() : null,
+        end_time: endTime ? new Date(endTime).toISOString() : null,
         exercises: exercises.map((e, idx) => ({
           exercise_id: e.exercise_id,
           sort_order: idx,
@@ -227,13 +218,7 @@ export default function WorkoutEditPage() {
       </div>
 
       <div className="p-4 space-y-4 pb-24">
-        {/* Timer */}
-        <WorkoutTimer
-          onTimeUpdate={handleTimerUpdate}
-          initialStartTime={timerRef.current.startTime}
-        />
-
-        {/* Date & Meta */}
+        {/* Date, time & meta */}
         <div className="flex gap-3">
           <input
             type="date"
@@ -255,6 +240,28 @@ export default function WorkoutEditPage() {
                 {["😫", "😕", "😐", "😊", "🔥"][m - 1]}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Start / End time */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-gray-400 mb-0.5 block">开始时间</label>
+            <input
+              type="datetime-local"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-xs text-gray-400 mb-0.5 block">结束时间</label>
+            <input
+              type="datetime-local"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            />
           </div>
         </div>
 

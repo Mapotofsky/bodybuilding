@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getExercises,
   getExerciseHistory,
   type ExerciseHistoryRecord,
 } from "@/services/exercise";
 import { createWorkout, updateWorkout } from "@/services/workout";
-import type { Exercise, WorkoutSet } from "@/types";
+import { getTemplate, getPlans, getPlan } from "@/services/plan";
+import type { Exercise, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
@@ -45,6 +46,8 @@ function formatTimer(seconds: number): string {
 
 export default function WorkoutCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const templateIdParam = searchParams.get("template_id");
 
   /* ---- phase ---- */
   const [phase, setPhase] = useState<Phase>("select");
@@ -60,9 +63,7 @@ export default function WorkoutCreatePage() {
   const [saving, setSaving] = useState(false);
 
   /* ---- accumulated session data ---- */
-  const [sessionExercises, setSessionExercises] = useState<SessionExercise[]>(
-    []
-  );
+  const [sessionExercises, setSessionExercises] = useState<SessionExercise[]>([]);
 
   /* ---- current training state ---- */
   const [currentExercise, setCurrentExercise] = useState<Exercise | null>(null);
@@ -74,9 +75,15 @@ export default function WorkoutCreatePage() {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [searchQ, setSearchQ] = useState("");
   const [filterCat, setFilterCat] = useState("");
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
-    null
-  );
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+
+  /* ---- active template (optional) ---- */
+  const [activeTemplate, setActiveTemplate] = useState<PlanTemplate | null>(null);
+
+  /* ---- plan picker ---- */
+  const [activePlans, setActivePlans] = useState<PlanSummary[]>([]);
+  const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
+  const [planTemplatesCache, setPlanTemplatesCache] = useState<Record<number, PlanTemplate[]>>({});
 
   /* ---- exercise history ---- */
   const [history, setHistory] = useState<ExerciseHistoryRecord[]>([]);
@@ -90,10 +97,40 @@ export default function WorkoutCreatePage() {
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workoutIdRef = useRef<number | null>(null);
 
-  /* ---- load exercises once ---- */
+  /* ---- load exercises, active plans & optional template ---- */
   useEffect(() => {
     getExercises().then(setAllExercises);
+    getPlans().then((plans) => setActivePlans(plans.filter((p) => p.is_active)));
   }, []);
+
+  useEffect(() => {
+    if (!templateIdParam) return;
+    getTemplate(Number(templateIdParam))
+      .then(setActiveTemplate)
+      .catch(() => { /* template not found, proceed without */ });
+  }, [templateIdParam]);
+
+  async function handleExpandPlan(planId: number) {
+    if (expandedPlanId === planId) {
+      setExpandedPlanId(null);
+      return;
+    }
+    setExpandedPlanId(planId);
+    if (!planTemplatesCache[planId]) {
+      const plan = await getPlan(planId);
+      setPlanTemplatesCache((prev) => ({ ...prev, [planId]: plan.templates }));
+    }
+  }
+
+  function handlePickTemplate(tmpl: PlanTemplate) {
+    setActiveTemplate(tmpl);
+    setExpandedPlanId(null);
+  }
+
+  function handleClearTemplate() {
+    setActiveTemplate(null);
+    setExpandedPlanId(null);
+  }
 
   /* ---- cleanup timers ---- */
   useEffect(() => {
@@ -103,7 +140,19 @@ export default function WorkoutCreatePage() {
     };
   }, []);
 
+  /* ---- template helpers ---- */
+  const templateExerciseIds = activeTemplate
+    ? new Set(activeTemplate.exercises.map((te) => te.exercise_id))
+    : new Set<number>();
+
+  function getTemplateNote(exerciseId: number): string | null {
+    if (!activeTemplate) return null;
+    return activeTemplate.exercises.find((te) => te.exercise_id === exerciseId)?.note || null;
+  }
+
+  /* ---- exercise list: filtered to template when active ---- */
   const filteredExercises = allExercises.filter((e) => {
+    if (activeTemplate && !templateExerciseIds.has(e.id)) return false;
     if (filterCat && e.category !== filterCat) return false;
     if (searchQ && !e.name.includes(searchQ)) return false;
     return true;
@@ -189,6 +238,7 @@ export default function WorkoutCreatePage() {
     end_time: extra?.end_time,
     mood: extra?.mood ?? undefined,
     note: extra?.note,
+    plan_template_id: activeTemplate?.id ?? undefined,
     exercises: exercises.map((se, idx) => ({
       exercise_id: se.exercise.id,
       sort_order: idx,
@@ -412,6 +462,66 @@ export default function WorkoutCreatePage() {
         </div>
 
         <div className="flex-1 flex flex-col p-4 pb-36">
+          {/* Plan / Template picker — first select only */}
+          {isFirstSelect && activePlans.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">按计划训练（可选）</p>
+                {activeTemplate && (
+                  <button onClick={handleClearTemplate} className="text-xs text-gray-400 hover:text-red-400 transition">
+                    清除选择
+                  </button>
+                )}
+              </div>
+              {activeTemplate ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-teal-50 border border-teal-200 rounded-xl">
+                  <span
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: activeTemplate.color || "#14B8A6" }}
+                  />
+                  <span className="text-sm text-teal-700 font-medium flex-1">{activeTemplate.name}</span>
+                  <span className="text-xs text-teal-500">相关动作已置顶</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {activePlans.map((plan) => (
+                    <div key={plan.id}>
+                      <button
+                        onClick={() => handleExpandPlan(plan.id)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition ${
+                          expandedPlanId === plan.id
+                            ? "bg-gray-50 border-gray-300"
+                            : "bg-white border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: plan.color }}
+                        />
+                        <span className="text-sm font-medium text-gray-700 flex-1">{plan.name}</span>
+                        <span className="text-xs text-gray-400">{plan.template_count} 个模板</span>
+                        <span className="text-gray-300 text-xs">{expandedPlanId === plan.id ? "▲" : "▼"}</span>
+                      </button>
+                      {expandedPlanId === plan.id && planTemplatesCache[plan.id] && (
+                        <div className="mt-1 ml-3 flex flex-wrap gap-1.5">
+                          {planTemplatesCache[plan.id].map((tmpl) => (
+                            <button
+                              key={tmpl.id}
+                              onClick={() => handlePickTemplate(tmpl)}
+                              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 font-medium hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700 transition"
+                            >
+                              {tmpl.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Date & Unit — first time only */}
           {isFirstSelect && (
             <div className="space-y-3 mb-4">
@@ -612,6 +722,11 @@ export default function WorkoutCreatePage() {
             <p className="text-base font-medium mt-2">
               第 {currentSetNum} 组
             </p>
+            {getTemplateNote(currentExercise.id) && (
+              <p className="mt-2 text-sm text-teal-600 bg-teal-50 rounded-lg px-3 py-1.5">
+                {getTemplateNote(currentExercise.id)}
+              </p>
+            )}
           </div>
 
           {/* Unit toggle */}
@@ -749,6 +864,11 @@ export default function WorkoutCreatePage() {
             {lastCompletedSet.weight ?? 0} {weightUnit} ×{" "}
             {lastCompletedSet.reps ?? 0} 次
           </p>
+          {getTemplateNote(currentExercise.id) && (
+            <p className="mt-3 text-sm text-teal-600 bg-teal-50 rounded-lg px-3 py-2 text-left mx-auto max-w-xs">
+              {getTemplateNote(currentExercise.id)}
+            </p>
+          )}
         </div>
 
         {/* Timer */}

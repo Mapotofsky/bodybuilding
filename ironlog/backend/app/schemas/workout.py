@@ -50,6 +50,7 @@ class WorkoutCreate(BaseModel):
     end_time: datetime.datetime | None = None
     note: str | None = None
     mood: int | None = None
+    plan_template_id: int | None = None
     exercises: list[WorkoutExerciseCreate] = []
 
 
@@ -88,6 +89,11 @@ class WorkoutSummary(BaseModel):
     exercise_count: int = 0
     total_sets: int = 0
     total_volume: float = 0.0
+    plan_template_id: int | None = None
+    template_name: str | None = None
+    template_color: str | None = None
+    plan_color: str | None = None
+    exercise_ids: list[int] = []
     created_at: datetime.datetime
 
     model_config = {"from_attributes": True}

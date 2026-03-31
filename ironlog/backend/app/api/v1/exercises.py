@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -50,6 +50,62 @@ async def create_exercise(
     db.add(exercise)
     await db.flush()
     return exercise
+
+
+@router.get("/{exercise_id}", response_model=dict)
+async def get_exercise(
+    exercise_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return exercise detail with usage statistics for current user."""
+    result = await db.execute(
+        select(Exercise).where(
+            Exercise.id == exercise_id,
+            or_(Exercise.is_custom == False, Exercise.user_id == user.id),
+        )
+    )
+    exercise = result.scalar_one_or_none()
+    if not exercise:
+        raise HTTPException(status_code=404, detail="动作不存在")
+
+    # Count usage and last used date
+    usage_stmt = (
+        select(
+            func.count(WorkoutSet.id).label("usage_count"),
+        )
+        .join(WorkoutExercise, WorkoutExercise.id == WorkoutSet.workout_exercise_id)
+        .join(Workout, Workout.id == WorkoutExercise.workout_id)
+        .where(
+            Workout.user_id == user.id,
+            WorkoutExercise.exercise_id == exercise_id,
+        )
+    )
+    usage_result = await db.execute(usage_stmt)
+    usage_row = usage_result.one()
+
+    last_date_stmt = (
+        select(func.max(Workout.date))
+        .join(WorkoutExercise, WorkoutExercise.workout_id == Workout.id)
+        .where(
+            Workout.user_id == user.id,
+            WorkoutExercise.exercise_id == exercise_id,
+        )
+    )
+    last_result = await db.execute(last_date_stmt)
+    last_date = last_result.scalar_one_or_none()
+
+    return {
+        "id": exercise.id,
+        "name": exercise.name,
+        "category": exercise.category.value,
+        "type": exercise.type.value,
+        "description": exercise.description,
+        "met_value": exercise.met_value,
+        "is_custom": exercise.is_custom,
+        "usage_count": usage_row.usage_count or 0,
+        "last_used_date": str(last_date) if last_date else None,
+    }
 
 
 @router.get("/{exercise_id}/history")

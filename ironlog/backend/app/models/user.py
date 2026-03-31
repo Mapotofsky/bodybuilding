@@ -33,3 +33,4 @@ class User(Base, TimestampMixin):
     role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum), server_default="user")
 
     workouts = relationship("Workout", back_populates="user", lazy="selectin")
+    plans = relationship("TrainingPlan", back_populates="user", lazy="selectin")
