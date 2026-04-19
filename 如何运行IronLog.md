@@ -52,39 +52,23 @@ CREATE DATABASE ironlog;
 cd d:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\backend
 ```
 
-### 2. 创建 Python 虚拟环境
+### 2. 激活 Conda 虚拟环境
+
+本项目后端使用 `appdev` conda 环境：
 
 ```powershell
-python -m venv venv
+conda activate appdev
 ```
 
-### 3. 激活虚拟环境
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-> 如果遇到 PowerShell 执行策略限制，先执行：
->  
-
-```powershell
-> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+> 若 `appdev` 环境尚未创建，先执行：
+>
+> ```powershell
+> conda create -n appdev python=3.11 -y
+> conda activate appdev
+> pip install -r requirements.txt
 > ```
 
-### 4. 安装 Python 依赖
-
-```powershell
-pip install -r requirements.txt
-```
-
-> `pydantic-settings` 如果缺失，需额外安装：
->  
-
-```powershell
-> pip install pydantic-settings
-> ```
-
-### 5. 运行数据库迁移
+### 3. 运行数据库迁移
 
 ```powershell
 alembic upgrade head
@@ -92,20 +76,20 @@ alembic upgrade head
 
 此命令会根据 `alembic/versions/` 中的迁移脚本创建所有数据表。
 
-### 6. 启动后端服务
+### 4. 启动后端服务
 
 ```powershell
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 启动成功后会看到类似输出：
 
 ```
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 INFO:     Started reloader process
 ```
 
-### 7. 验证后端
+### 5. 验证后端
 
 浏览器访问 [http://localhost:8000/health](http://localhost:8000/health)，应返回：
 
@@ -161,13 +145,15 @@ npm run dev
 1. 打开 `http://localhost:5173`，页面会自动跳转到 **登录页**
 2. 点击"注册"创建新账户（邮箱 + 密码，密码至少 6 位）
 3. 注册成功后自动登录，进入**首页**
-4. 点击"开始训练"进入**新建训练页**，可：
-   - 启动计时器
-   - 选择动作、添加组数
+4. **开始训练**：点击"开始训练"进入新建训练页，可：
+   - 选择动作（支持分类筛选和搜索）
+   - 添加组数，记录重量和次数
    - 切换 kg/lb 单位
-   - 记录重量和次数
-5. 保存后可在**训练列表**和**训练详情**中查看
-6. 训练详情页支持：编辑、复制、分享、删除
+   - 手动输入训练开始 / 结束时间
+5. 保存后可在**训练列表**和**训练详情**中查看；详情页支持编辑、复制、删除
+6. **训练计划**：在底部导航"计划"页创建训练计划，配置训练模版和日程规则（weekly / cyclic / flexible）
+   - 首页**今日计划**区域显示当天安排；点击"开始"自动跳转到新建训练页并按模版过滤动作（仅显示模版内动作）
+   - **日历页**用色块展示历史完成情况和未来日程，点击日期可查看详情或直接开始当日训练
 7. **个人中心**可编辑昵称、身高、体重等信息
 
 ---
@@ -176,8 +162,8 @@ npm run dev
 
 | 操作 | 命令 | 工作目录 |
 |------|------|---------|
-| 激活虚拟环境 | `.\venv\Scripts\Activate.ps1` | `backend/` |
-| 启动后端 | `uvicorn app.main:app --reload --port 8000` | `backend/` |
+| 激活 conda 环境 | `conda activate appdev` | — |
+| 启动后端 | `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload` | `backend/` |
 | 启动前端 | `npm run dev` | `frontend/` |
 | 数据库迁移 | `alembic upgrade head` | `backend/` |
 | 前端构建 | `npm run build` | `frontend/` |
@@ -189,11 +175,11 @@ npm run dev
 
 ### Q: `ModuleNotFoundError: No module named 'app'`
 
-A: 确保在 `backend/` 目录下运行命令，并且虚拟环境已激活。
+A: 确保在 `backend/` 目录下运行命令，并且 `appdev` conda 环境已激活（`conda activate appdev`）。
 
-### Q: `ModuleNotFoundError: No module named 'pydantic_settings'`
+### Q: `conda: command not found` 或 conda 不可用
 
-A: 执行 `pip install pydantic-settings` 。
+A: 确保已安装 Anaconda/Miniconda 并将其加入系统 PATH。Windows 下可使用"Anaconda Prompt"终端直接运行。
 
 ### Q: Alembic 迁移失败 / 数据库连接错误
 
@@ -202,7 +188,3 @@ A: 检查 PostgreSQL 是否启动，以及 `backend/.env` 中的 `DATABASE_URL` 
 ### Q: 前端页面白屏或接口 404
 
 A: 确认后端服务正在 8000 端口运行，前端 Vite 代理才能正常转发。
-
-### Q: PowerShell 执行策略报错
-
-A: 执行 `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` 后重试。
