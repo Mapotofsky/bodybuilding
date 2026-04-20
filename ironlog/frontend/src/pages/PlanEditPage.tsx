@@ -88,7 +88,7 @@ export default function PlanEditPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 bg-slate-50 focus:bg-white transition-colors"
             />
           </div>
 
@@ -100,7 +100,7 @@ export default function PlanEditPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 bg-slate-50 focus:bg-white transition-colors resize-none"
             />
           </div>
 
@@ -133,8 +133,8 @@ export default function PlanEditPage() {
               key={m}
               className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
                 mode === m
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 bg-gray-50"
+                  ? "border-emerald-500 bg-emerald-50"
+                  : "border-slate-200 bg-white"
               }`}
             >
               <input
@@ -188,7 +188,7 @@ export default function PlanEditPage() {
         <button
           type="submit"
           disabled={saving}
-          className="w-full py-3.5 bg-blue-500 text-white rounded-2xl font-medium text-base hover:bg-blue-600 transition disabled:opacity-50"
+          className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl font-semibold text-base hover:bg-emerald-600 transition-colors disabled:opacity-50 shadow-sm shadow-emerald-200"
         >
           {saving ? "保存中..." : "保存修改"}
         </button>

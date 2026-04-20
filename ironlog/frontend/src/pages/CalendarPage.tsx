@@ -60,138 +60,148 @@ export default function CalendarPage() {
   const selectedWorkouts = selectedDateStr ? (byDate[selectedDateStr] || []) : [];
 
   return (
-    <div className="pb-24">
+    <div className="pb-24 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 px-4 pt-4 pb-2">
+      <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 px-4 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500"
+              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
-            <h1 className="text-lg font-bold w-28 text-center">
+            <h1 className="text-base font-bold w-28 text-center text-slate-900">
               {format(currentMonth, "yyyy年M月", { locale: zhCN })}
             </h1>
             <button
               onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-500"
+              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={18} />
             </button>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentMonth(new Date())}
-              className="text-xs text-blue-500 border border-blue-200 px-2.5 py-1 rounded-full"
+              className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full font-medium"
             >
               今天
             </button>
             <button
               onClick={() => navigate("/workouts")}
-              className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-2.5 py-1 rounded-full"
+              className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full font-medium"
             >
-              <List size={12} /> 列表
+              <List size={11} /> 列表
             </button>
           </div>
         </div>
 
         {/* Weekday headers */}
-        <div className="grid grid-cols-7 text-center mb-1">
+        <div className="grid grid-cols-7 text-center">
           {["一", "二", "三", "四", "五", "六", "日"].map((d) => (
-            <div key={d} className="text-xs text-gray-400 py-0.5">{d}</div>
+            <div key={d} className="text-[11px] font-semibold text-slate-400 py-0.5">{d}</div>
           ))}
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 px-1">
+      <div className="grid grid-cols-7 px-1.5 pt-1.5 gap-y-0.5">
         {allDays.map((day) => {
           const dateStr = format(day, "yyyy-MM-dd");
           const dayWorkouts = byDate[dateStr] || [];
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
           const isTodayDate = isToday(day);
+          const hasWorkout = dayWorkouts.length > 0;
 
           return (
             <button
               key={dateStr}
               onClick={() => setSelectedDate(isSameDay(day, selectedDate ?? new Date(0)) ? null : day)}
-              className={`relative flex flex-col items-center rounded-xl py-1 px-0.5 min-h-[64px] transition ${
-                isSelected ? "bg-blue-50 ring-1 ring-blue-300" : "hover:bg-gray-50"
-              } ${!isCurrentMonth ? "opacity-30" : ""}`}
+              className={`relative flex flex-col items-center rounded-2xl py-1.5 px-0.5 min-h-[58px] transition-all ${
+                isSelected
+                  ? "bg-emerald-50 ring-2 ring-emerald-400"
+                  : "hover:bg-slate-100"
+              } ${!isCurrentMonth ? "opacity-25" : ""}`}
             >
               {/* Day number */}
               <span
-                className={`text-sm font-medium mb-0.5 w-7 h-7 flex items-center justify-center rounded-full ${
+                className={`text-sm font-bold mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
                   isTodayDate
-                    ? "bg-blue-500 text-white"
+                    ? "bg-emerald-500 text-white shadow-sm shadow-emerald-300"
                     : isSelected
-                    ? "text-blue-600"
-                    : "text-gray-700"
+                    ? "text-emerald-700"
+                    : "text-slate-700"
                 }`}
               >
                 {format(day, "d")}
               </span>
 
-              {/* Template color tags — up to 3 */}
-              <div className="flex flex-col gap-0.5 w-full px-0.5">
-                {dayWorkouts.slice(0, 3).map((w, i) => (
-                  <div
-                    key={i}
-                    className="w-full rounded text-center overflow-hidden"
-                    style={{ backgroundColor: entryColor(w) + "22" }}
-                  >
+              {/* Color dots */}
+              {hasWorkout && (
+                <div className="flex gap-0.5 justify-center flex-wrap max-w-[36px]">
+                  {dayWorkouts.slice(0, 3).map((w, i) => (
                     <span
-                      className="text-[9px] font-semibold leading-tight px-0.5 truncate block"
-                      style={{ color: entryColor(w) }}
-                    >
-                      {w.template_name || "训练"}
+                      key={i}
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: entryColor(w) }}
+                    />
+                  ))}
+                  {dayWorkouts.length > 3 && (
+                    <span className="text-[8px] text-slate-400 font-medium leading-none mt-0.5">
+                      +{dayWorkouts.length - 3}
                     </span>
-                  </div>
-                ))}
-                {dayWorkouts.length > 3 && (
-                  <span className="text-[9px] text-gray-400 text-center">
-                    +{dayWorkouts.length - 3}
-                  </span>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* Selected Day Detail */}
-      {selectedDate && (
-        <div className="px-4 mt-3">
-          <h2 className="text-sm font-semibold text-gray-700 mb-2">
-            {format(selectedDate, "M月d日 EEEE", { locale: zhCN })}
-          </h2>
+      {/* Month summary / selected detail */}
+      <div className="px-4 mt-3">
+        {!selectedDate && !loading && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center">
+            <p className="text-2xl font-bold text-slate-900">{workouts.length}</p>
+            <p className="text-xs text-slate-400 mt-0.5">本月训练次数 · 点击日期查看</p>
+          </div>
+        )}
 
-          {loading ? (
-            <p className="text-center py-6 text-gray-400 text-sm">加载中...</p>
-          ) : selectedWorkouts.length === 0 ? (
-            <div className="text-center py-6 text-gray-400">
-              <Dumbbell size={28} className="mx-auto mb-1 opacity-30" />
-              <p className="text-sm">当日无训练记录</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {selectedWorkouts.map((w) => (
-                <button
-                  key={w.id}
-                  onClick={() => navigate(`/workouts/${w.id}`)}
-                  className="w-full text-left bg-white rounded-2xl p-4 border border-gray-100 hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Color bar */}
+        {selectedDate && (
+          <div>
+            <h2 className="text-sm font-bold text-slate-700 mb-2">
+              {format(selectedDate, "M月d日 EEEE", { locale: zhCN })}
+            </h2>
+
+            {loading ? (
+              <div className="space-y-2">
+                {[1,2].map(i => (
+                  <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 animate-pulse">
+                    <div className="h-4 bg-slate-200 rounded-xl w-2/3" />
+                  </div>
+                ))}
+              </div>
+            ) : selectedWorkouts.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-100 py-8 text-center">
+                <Dumbbell size={24} className="mx-auto mb-2 text-slate-300" />
+                <p className="text-sm text-slate-400">当日无训练记录</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedWorkouts.map((w) => (
+                  <button
+                    key={w.id}
+                    onClick={() => navigate(`/workouts/${w.id}`)}
+                    className="w-full text-left bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex active:scale-[0.99] transition-transform"
+                  >
                     <div
-                      className="w-1 h-10 rounded-full flex-shrink-0"
+                      className="w-1.5 flex-shrink-0"
                       style={{ backgroundColor: entryColor(w) }}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0 p-3 flex items-center justify-between">
+                      <div>
                         {w.template_name && (
                           <span
                             className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -203,36 +213,24 @@ export default function CalendarPage() {
                             {w.template_name}
                           </span>
                         )}
-                        <span className="text-xs text-gray-400">
-                          {w.exercise_count} 个动作 · {w.total_sets} 组 ·{" "}
-                          {Math.round(w.total_volume)}kg
-                        </span>
-                      </div>
-                      {w.start_time && w.end_time && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {format(new Date(w.start_time), "HH:mm")} –{" "}
-                          {format(new Date(w.end_time), "HH:mm")}
+                        <p className="text-xs text-slate-400 mt-1">
+                          {w.exercise_count} 动作 · {w.total_sets} 组 · {Math.round(w.total_volume)}kg
                         </p>
-                      )}
+                        {w.start_time && w.end_time && (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {format(new Date(w.start_time), "HH:mm")} – {format(new Date(w.end_time), "HH:mm")}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight size={15} className="text-slate-300 flex-shrink-0" />
                     </div>
-                    <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Month summary when no date selected */}
-      {!selectedDate && !loading && (
-        <div className="px-4 mt-4">
-          <p className="text-xs text-gray-400 text-center">
-            本月已完成 <span className="font-semibold text-gray-700">{workouts.length}</span> 次训练
-            · 点击日期查看详情
-          </p>
-        </div>
-      )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

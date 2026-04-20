@@ -93,8 +93,13 @@ export default function WorkoutDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
-        加载中...
+      <div className="min-h-screen bg-slate-50 p-4 pt-16 space-y-3">
+        {[1,2,3].map(i => (
+          <div key={i} className="bg-white rounded-2xl p-4 space-y-2 animate-pulse border border-slate-100">
+            <div className="h-4 bg-slate-200 rounded-xl w-1/2" />
+            <div className="h-3 bg-slate-200 rounded-xl w-3/4" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -116,53 +121,47 @@ export default function WorkoutDetailPage() {
       : null;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="p-1">
-          <ArrowLeft size={22} />
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+        >
+          <ArrowLeft size={20} className="text-slate-700" />
         </button>
-        <h1 className="font-semibold">训练详情</h1>
+        <h1 className="font-bold text-base text-slate-900 absolute left-1/2 -translate-x-1/2">训练详情</h1>
         <div className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="p-1">
-            <MoreHorizontal size={22} />
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+          >
+            <MoreHorizontal size={20} className="text-slate-700" />
           </button>
           {showMenu && (
-            <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-32 z-20">
+            <div className="absolute right-0 top-11 bg-white border border-slate-100 rounded-2xl shadow-xl py-1.5 w-36 z-20 animate-scale-in">
               <button
-                onClick={() => {
-                  setShowMenu(false);
-                  navigate(`/workouts/${workout.id}/edit`);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2"
+                onClick={() => { setShowMenu(false); navigate(`/workouts/${workout.id}/edit`); }}
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 font-medium text-slate-700"
               >
-                <Pencil size={15} /> 编辑
+                <Pencil size={15} className="text-slate-500" /> 编辑
               </button>
               <button
-                onClick={() => {
-                  setShowMenu(false);
-                  setShowCopyModal(true);
-                  setCopyDate(format(new Date(), "yyyy-MM-dd"));
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2"
+                onClick={() => { setShowMenu(false); setShowCopyModal(true); setCopyDate(format(new Date(), "yyyy-MM-dd")); }}
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 font-medium text-slate-700"
               >
-                <Copy size={15} /> 复制训练
+                <Copy size={15} className="text-slate-500" /> 复制训练
               </button>
               <button
-                onClick={() => {
-                  setShowMenu(false);
-                  handleShare();
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2"
+                onClick={() => { setShowMenu(false); handleShare(); }}
+                className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-2.5 font-medium text-slate-700"
               >
-                <Share2 size={15} /> 分享
+                <Share2 size={15} className="text-slate-500" /> 分享
               </button>
+              <div className="my-1 mx-3 border-t border-slate-100" />
               <button
-                onClick={() => {
-                  setShowMenu(false);
-                  handleDelete();
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 flex items-center gap-2"
+                onClick={() => { setShowMenu(false); handleDelete(); }}
+                className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 flex items-center gap-2.5 font-medium"
               >
                 <Trash2 size={15} /> 删除
               </button>
@@ -171,23 +170,38 @@ export default function WorkoutDetailPage() {
         </div>
       </div>
 
-      {/* Date & Summary */}
-      <div className="p-4 space-y-5">
-        <div>
-          <h2 className="text-xl font-bold">
+      <div className="p-4 space-y-4">
+        {/* Hero info card */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <h2 className="text-lg font-bold text-slate-900">
             {format(new Date(workout.date), "M月d日 EEEE", { locale: zhCN })}
             {workout.mood ? ` ${MOOD_LABELS[workout.mood]}` : ""}
           </h2>
-          <div className="flex gap-4 mt-2 text-sm text-gray-500">
-            <span className="flex items-center gap-1">
-              <Dumbbell size={14} /> {workout.exercises.length} 个动作
-            </span>
-            <span>{totalSets} 组</span>
-            <span>{Math.round(totalVolume)} kg</span>
+          <div className="flex gap-4 mt-3">
+            <div className="text-center">
+              <p className="text-xl font-bold text-slate-900">{workout.exercises.length}</p>
+              <p className="text-xs text-slate-400 mt-0.5">动作</p>
+            </div>
+            <div className="w-px bg-slate-100" />
+            <div className="text-center">
+              <p className="text-xl font-bold text-slate-900">{totalSets}</p>
+              <p className="text-xs text-slate-400 mt-0.5">总组数</p>
+            </div>
+            <div className="w-px bg-slate-100" />
+            <div className="text-center">
+              <p className="text-xl font-bold text-slate-900">
+                {totalVolume >= 1000 ? `${(totalVolume/1000).toFixed(1)}t` : `${Math.round(totalVolume)}`}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">容量(kg)</p>
+            </div>
             {duration != null && duration > 0 && (
-              <span className="flex items-center gap-1">
-                <Clock size={14} /> {duration} 分钟
-              </span>
+              <>
+                <div className="w-px bg-slate-100" />
+                <div className="text-center">
+                  <p className="text-xl font-bold text-slate-900">{duration}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">分钟</p>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -199,85 +213,90 @@ export default function WorkoutDetailPage() {
             0
           );
           return (
-            <div key={ex.id} className="bg-gray-50 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div key={ex.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
                 <div>
-                  <p className="font-semibold">
+                  <p className="font-bold text-sm text-slate-900">
                     {ex.exercise_name || `动作#${ex.exercise_id}`}
                   </p>
-                  <p className="text-xs text-gray-400">
-                    {CATEGORY_LABELS[ex.exercise_category || ""] || ex.exercise_category}{" "}
-                    · {Math.round(exVolume)} kg
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
+                      {CATEGORY_LABELS[ex.exercise_category || ""] || ex.exercise_category}
+                    </span>
+                    <span className="text-xs text-slate-400">{Math.round(exVolume)} kg</span>
+                  </div>
                 </div>
+                <span className="text-sm font-bold text-slate-500">{ex.sets.length} 组</span>
               </div>
 
-              <div className="grid grid-cols-[40px_1fr_1fr_auto] gap-2 text-xs text-gray-400 px-1 mb-1">
+              <div className="grid grid-cols-[36px_1fr_1fr_52px] gap-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-2 bg-slate-50/60">
                 <span>组</span>
                 <span>重量</span>
                 <span>次数</span>
                 <span>休息</span>
               </div>
 
-              {ex.sets.map((s) => (
-                <div
-                  key={s.id}
-                  className="grid grid-cols-[40px_1fr_1fr_auto] gap-2 items-center py-1.5 border-b border-gray-100 last:border-0"
-                >
-                  <span
-                    className={`text-center text-sm ${
-                      s.is_warmup ? "text-orange-400 font-medium" : "text-gray-500"
-                    }`}
+              <div className="divide-y divide-slate-50">
+                {ex.sets.map((s) => (
+                  <div
+                    key={s.id}
+                    className="grid grid-cols-[36px_1fr_1fr_52px] gap-2 items-center px-4 py-2.5"
                   >
-                    {s.is_warmup ? "W" : s.set_number}
-                  </span>
-                  <span className="text-sm">
-                    {s.weight ?? "-"} {s.unit}
-                  </span>
-                  <span className="text-sm">
-                    {s.reps ?? "-"} 次
-                    {s.rpe ? (
-                      <span className="text-gray-400 text-xs ml-1">@{s.rpe}</span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {s.rest_seconds != null ? `${s.rest_seconds}s` : "-"}
-                  </span>
-                </div>
-              ))}
+                    <span className={`text-center text-sm font-bold ${
+                      s.is_warmup ? "text-amber-500" : "text-slate-500"
+                    }`}>
+                      {s.is_warmup ? "W" : s.set_number}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      {s.weight ?? "—"} {s.unit}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      {s.reps ?? "—"} 次
+                      {s.rpe ? (
+                        <span className="text-slate-400 text-xs ml-1">@{s.rpe}</span>
+                      ) : null}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {s.rest_seconds != null ? `${s.rest_seconds}s` : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })}
 
         {/* Note */}
         {workout.note && (
-          <div className="bg-yellow-50 rounded-xl p-4 text-sm text-gray-700">
-            {workout.note}
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-slate-700">
+            📝 {workout.note}
           </div>
         )}
       </div>
 
-      {/* Copy Modal */}
+      {/* Copy Modal — bottom sheet */}
       {showCopyModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="font-semibold text-lg">复制训练到</h3>
+        <div className="fixed inset-0 z-50 flex items-end justify-center animate-fade-in">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCopyModal(false)} />
+          <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl p-6 space-y-4 animate-slide-up md:max-w-[768px]">
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto" />
+            <h3 className="font-bold text-lg text-slate-900">复制训练到</h3>
             <input
               type="date"
               value={copyDate}
               onChange={(e) => setCopyDate(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400"
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCopyModal(false)}
-                className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium"
+                className="flex-1 py-3.5 bg-slate-100 rounded-2xl font-medium text-sm text-slate-700"
               >
                 取消
               </button>
               <button
                 onClick={handleCopy}
-                className="flex-1 py-2.5 bg-blue-500 text-white rounded-xl font-medium"
+                className="flex-1 py-3.5 bg-emerald-500 text-white rounded-2xl font-semibold text-sm"
               >
                 确定
               </button>
@@ -288,44 +307,39 @@ export default function WorkoutDetailPage() {
 
       {/* Share Modal */}
       {showShareModal && shareData && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 p-6 text-white">
+        <div className="fixed inset-0 z-50 flex items-end justify-center animate-fade-in">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowShareModal(false)} />
+          <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl overflow-hidden animate-slide-up md:max-w-[768px]">
+            <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 text-white">
               <div className="flex items-center gap-2 mb-4">
-                <Dumbbell size={20} />
-                <span className="font-bold text-lg">IronLog</span>
+                <Dumbbell size={18} className="text-white" />
+                <span className="font-bold text-base">IronLog</span>
               </div>
-              <p className="text-blue-100 text-sm">
+              <p className="text-emerald-100 text-sm">
                 {format(new Date(shareData.date), "yyyy年M月d日 EEEE", { locale: zhCN })}
               </p>
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold">{shareData.exercise_count}</p>
-                  <p className="text-xs text-blue-100">动作</p>
-                </div>
-                <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold">{shareData.total_sets}</p>
-                  <p className="text-xs text-blue-100">总组数</p>
-                </div>
-                <div className="bg-white/15 backdrop-blur rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold">
-                    {shareData.total_volume >= 1000
-                      ? `${(shareData.total_volume / 1000).toFixed(1)}t`
-                      : `${Math.round(shareData.total_volume)}`}
-                  </p>
-                  <p className="text-xs text-blue-100">容量(kg)</p>
-                </div>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {[
+                  { v: shareData.exercise_count, l: "动作" },
+                  { v: shareData.total_sets, l: "总组数" },
+                  { v: shareData.total_volume >= 1000 ? `${(shareData.total_volume/1000).toFixed(1)}t` : `${Math.round(shareData.total_volume)}`, l: "容量(kg)" },
+                ].map(({ v, l }) => (
+                  <div key={l} className="bg-white/15 rounded-xl p-3 text-center">
+                    <p className="text-xl font-bold">{v}</p>
+                    <p className="text-xs text-emerald-100 mt-0.5">{l}</p>
+                  </div>
+                ))}
               </div>
               {shareData.duration_minutes != null && shareData.duration_minutes > 0 && (
-                <p className="text-sm text-blue-100 mt-3 flex items-center gap-1">
-                  <Clock size={14} /> 训练时长 {shareData.duration_minutes} 分钟
+                <p className="text-sm text-emerald-100 mt-3 flex items-center gap-1">
+                  <Clock size={13} /> 训练时长 {shareData.duration_minutes} 分钟
                 </p>
               )}
-              <div className="mt-4 space-y-1">
+              <div className="mt-3 space-y-1">
                 {shareData.exercises.map((ex, i) => (
                   <div key={i} className="flex justify-between text-sm">
                     <span>{ex.name}</span>
-                    <span className="text-blue-200">{ex.sets}组 · {Math.round(ex.volume)}kg</span>
+                    <span className="text-emerald-200">{ex.sets}组 · {Math.round(ex.volume)}kg</span>
                   </div>
                 ))}
               </div>
@@ -336,15 +350,15 @@ export default function WorkoutDetailPage() {
             <div className="p-4 flex gap-3">
               <button
                 onClick={() => setShowShareModal(false)}
-                className="flex-1 py-2.5 bg-gray-100 rounded-xl font-medium text-sm flex items-center justify-center gap-1"
+                className="flex-1 py-3 bg-slate-100 rounded-2xl font-medium text-sm text-slate-700 flex items-center justify-center gap-1.5"
               >
-                <X size={16} /> 关闭
+                <X size={15} /> 关闭
               </button>
               <button
                 onClick={() => doShare(shareData)}
-                className="flex-1 py-2.5 bg-blue-500 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-1"
+                className="flex-1 py-3 bg-emerald-500 text-white rounded-2xl font-semibold text-sm flex items-center justify-center gap-1.5"
               >
-                <Share2 size={16} /> 分享
+                <Share2 size={15} /> 分享
               </button>
             </div>
           </div>

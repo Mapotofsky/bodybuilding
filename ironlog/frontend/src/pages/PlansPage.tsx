@@ -35,56 +35,68 @@ export default function PlansPage() {
   }
 
   return (
-    <div className="p-4 space-y-4 pb-24">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">训练计划</h1>
-      </div>
+    <div className="px-4 pt-4 pb-6">
+      <h1 className="text-2xl font-bold text-slate-900 mb-4">训练计划</h1>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">加载中...</div>
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 animate-pulse">
+              <div className="h-4 bg-slate-200 rounded-xl w-1/2 mb-2" />
+              <div className="h-3 bg-slate-200 rounded-xl w-3/4" />
+            </div>
+          ))}
+        </div>
       ) : plans.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ClipboardList size={48} className="mx-auto mb-3 opacity-40" />
-          <p className="font-medium">还没有训练计划</p>
-          <p className="text-sm mt-1">点击下方按钮创建你的第一个计划</p>
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+          <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <ClipboardList size={24} className="text-slate-400" />
+          </div>
+          <p className="font-semibold text-slate-500">还没有训练计划</p>
+          <p className="text-sm text-slate-400 mt-1">点击右下角按鈕创建第一个计划</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+              className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex"
             >
               <div
-                className="h-1.5 w-full"
+                className="w-1.5 flex-shrink-0"
                 style={{ backgroundColor: plan.color }}
               />
-              <div className="p-4">
+              <div className="flex-1 p-4">
                 <div className="flex items-start justify-between">
                   <button
                     className="flex-1 text-left"
                     onClick={() => navigate(`/plans/${plan.id}`)}
                   >
-                    <p className="font-semibold text-gray-900">{plan.name}</p>
+                    <p className="font-bold text-slate-900">{plan.name}</p>
                     {plan.description && (
-                      <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
+                      <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">
                         {plan.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-medium">
                         {PLAN_MODE_LABELS[plan.mode]}
                       </span>
-                      <span className="text-xs text-gray-500">
-                        {plan.template_count} 个模版
+                      <span className="text-xs text-slate-400">
+                        {plan.template_count} 个模板
                       </span>
+                      {plan.is_active && (
+                        <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-medium border border-emerald-100">
+                          启用中
+                        </span>
+                      )}
                     </div>
                   </button>
-                  <div className="flex items-center gap-2 ml-3">
+                  <div className="flex items-center gap-3 ml-3">
                     <button
                       onClick={() => handleToggleActive(plan)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        plan.is_active ? "bg-blue-500" : "bg-gray-200"
+                        plan.is_active ? "bg-emerald-500" : "bg-slate-200"
                       }`}
                     >
                       <span
@@ -95,7 +107,7 @@ export default function PlansPage() {
                     </button>
                     <button
                       onClick={() => navigate(`/plans/${plan.id}`)}
-                      className="text-gray-300"
+                      className="text-slate-300"
                     >
                       <ChevronRight size={18} />
                     </button>
@@ -109,9 +121,9 @@ export default function PlansPage() {
 
       <button
         onClick={() => navigate("/plans/new")}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center hover:bg-blue-600 transition z-40"
+        className="fixed bottom-24 right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all z-40"
       >
-        <Plus size={26} />
+        <Plus size={24} />
       </button>
     </div>
   );

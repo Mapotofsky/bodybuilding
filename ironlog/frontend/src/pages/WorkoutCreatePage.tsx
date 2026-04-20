@@ -18,7 +18,11 @@ import {
   SkipForward,
   Square,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
 } from "lucide-react";
+import StepInput from "@/components/ui/StepInput";
 import { format, parseISO } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { useToastStore } from "@/components/Toast";
@@ -443,21 +447,25 @@ export default function WorkoutCreatePage() {
   /* ================================================================ */
   if (phase === "select") {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="p-1">
-            <ArrowLeft size={22} />
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+          >
+            <ArrowLeft size={20} className="text-slate-700" />
           </button>
-          <h1 className="font-semibold text-lg">
+          <h1 className="font-bold text-base text-slate-900">
             {isFirstSelect ? "准备训练" : "选择动作"}
           </h1>
           {!isFirstSelect ? (
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <Clock size={14} />
-              <span className="font-mono">{formatTimer(totalSeconds)}</span>
+            <div className="flex items-center gap-1 text-sm text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+              <Clock size={12} />
+              <span className="font-mono text-xs">{formatTimer(totalSeconds)}</span>
             </div>
           ) : (
-            <div className="w-8" />
+            <div className="w-9" />
           )}
         </div>
 
@@ -466,21 +474,21 @@ export default function WorkoutCreatePage() {
           {isFirstSelect && activePlans.length > 0 && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">按计划训练（可选）</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">按计划训练（可选）</p>
                 {activeTemplate && (
-                  <button onClick={handleClearTemplate} className="text-xs text-gray-400 hover:text-red-400 transition">
-                    清除选择
+                  <button onClick={handleClearTemplate} className="text-xs text-slate-400 hover:text-red-400 transition-colors">
+                    清除
                   </button>
                 )}
               </div>
               {activeTemplate ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-teal-50 border border-teal-200 rounded-xl">
+                <div className="flex items-center gap-2.5 px-3.5 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
                   <span
                     className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: activeTemplate.color || "#14B8A6" }}
+                    style={{ backgroundColor: activeTemplate.color || "#10b981" }}
                   />
-                  <span className="text-sm text-teal-700 font-medium flex-1">{activeTemplate.name}</span>
-                  <span className="text-xs text-teal-500">相关动作已置顶</span>
+                  <span className="text-sm text-emerald-800 font-semibold flex-1">{activeTemplate.name}</span>
+                  <span className="text-xs text-emerald-500 bg-emerald-100 px-2 py-0.5 rounded-full">已过滤动作</span>
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -488,27 +496,29 @@ export default function WorkoutCreatePage() {
                     <div key={plan.id}>
                       <button
                         onClick={() => handleExpandPlan(plan.id)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition ${
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-3 rounded-2xl border text-left transition-all ${
                           expandedPlanId === plan.id
-                            ? "bg-gray-50 border-gray-300"
-                            : "bg-white border-gray-200 hover:border-gray-300"
+                            ? "bg-white border-slate-300 shadow-sm"
+                            : "bg-white border-slate-200 hover:border-slate-300"
                         }`}
                       >
                         <span
                           className="w-3 h-3 rounded-full flex-shrink-0"
                           style={{ backgroundColor: plan.color }}
                         />
-                        <span className="text-sm font-medium text-gray-700 flex-1">{plan.name}</span>
-                        <span className="text-xs text-gray-400">{plan.template_count} 个模板</span>
-                        <span className="text-gray-300 text-xs">{expandedPlanId === plan.id ? "▲" : "▼"}</span>
+                        <span className="text-sm font-semibold text-slate-700 flex-1">{plan.name}</span>
+                        <span className="text-xs text-slate-400">{plan.template_count} 个模板</span>
+                        {expandedPlanId === plan.id
+                          ? <ChevronUp size={14} className="text-slate-400" />
+                          : <ChevronDown size={14} className="text-slate-400" />}
                       </button>
                       {expandedPlanId === plan.id && planTemplatesCache[plan.id] && (
-                        <div className="mt-1 ml-3 flex flex-wrap gap-1.5">
+                        <div className="mt-1.5 ml-3 flex flex-wrap gap-1.5 animate-slide-down">
                           {planTemplatesCache[plan.id].map((tmpl) => (
                             <button
                               key={tmpl.id}
                               onClick={() => handlePickTemplate(tmpl)}
-                              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 font-medium hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700 transition"
+                              className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition-colors"
                             >
                               {tmpl.name}
                             </button>
@@ -529,19 +539,19 @@ export default function WorkoutCreatePage() {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-emerald-400"
               />
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">重量单位：</span>
-                <div className="flex bg-gray-100 rounded-lg p-0.5">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-500 font-medium">重量单位</span>
+                <div className="flex bg-slate-100 rounded-xl p-0.5">
                   {(["kg", "lb"] as const).map((u) => (
                     <button
                       key={u}
                       onClick={() => setWeightUnit(u)}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition ${
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                         weightUnit === u
-                          ? "bg-white text-teal-600 shadow-sm"
-                          : "text-gray-500"
+                          ? "bg-white text-emerald-600 shadow-sm"
+                          : "text-slate-500"
                       }`}
                     >
                       {u}
@@ -554,20 +564,15 @@ export default function WorkoutCreatePage() {
 
           {/* Session progress — visible after first exercise */}
           {!isFirstSelect && sessionExercises.length > 0 && (
-            <div className="mb-4 bg-gray-50 rounded-xl p-3">
-              <p className="text-xs text-gray-400 mb-1">
-                已完成{" "}
-                {sessionExercises.reduce(
-                  (sum, se) => sum + se.sets.length,
-                  0
-                )}{" "}
-                组
+            <div className="mb-4 bg-white rounded-2xl border border-slate-100 p-3 shadow-sm">
+              <p className="text-xs font-semibold text-slate-400 mb-2">
+                本次已完成 {sessionExercises.reduce((sum, se) => sum + se.sets.length, 0)} 组
               </p>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {sessionExercises.map((se) => (
                   <span
                     key={se.exercise.id}
-                    className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full"
+                    className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full font-medium"
                   >
                     {se.exercise.name} ×{se.sets.length}
                   </span>
@@ -579,26 +584,26 @@ export default function WorkoutCreatePage() {
           {/* Search */}
           <div className="relative mb-3">
             <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={15}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
               type="text"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="搜索动作..."
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-100 rounded-xl text-sm outline-none"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-400 transition-colors"
             />
           </div>
 
           {/* Category filter */}
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+          <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
             <button
               onClick={() => setFilterCat("")}
-              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
                 !filterCat
-                  ? "bg-teal-500 text-white"
-                  : "bg-gray-100 text-gray-500"
+                  ? "bg-emerald-500 text-white"
+                  : "bg-white border border-slate-200 text-slate-600"
               }`}
             >
               全部
@@ -607,10 +612,10 @@ export default function WorkoutCreatePage() {
               <button
                 key={key}
                 onClick={() => setFilterCat(key)}
-                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
                   filterCat === key
-                    ? "bg-teal-500 text-white"
-                    : "bg-gray-100 text-gray-500"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-white border border-slate-200 text-slate-600"
                 }`}
               >
                 {label}
@@ -619,7 +624,7 @@ export default function WorkoutCreatePage() {
           </div>
 
           {/* Exercise list */}
-          <div className="flex-1 overflow-y-auto -mx-1">
+          <div className="flex-1 overflow-y-auto space-y-1">
             {filteredExercises.map((ex) => {
               const isSelected = selectedExercise?.id === ex.id;
               const trained = sessionExercises.find(
@@ -631,50 +636,58 @@ export default function WorkoutCreatePage() {
                   onClick={() =>
                     setSelectedExercise(isSelected ? null : ex)
                   }
-                  className={`w-full text-left px-4 py-3 rounded-xl transition flex items-center justify-between ${
+                  className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center justify-between ${
                     isSelected
-                      ? "bg-teal-50 ring-2 ring-teal-400"
-                      : "hover:bg-gray-50"
+                      ? "bg-emerald-50 border-2 border-emerald-400"
+                      : "bg-white border border-slate-100 hover:border-slate-200"
                   }`}
                 >
-                  <div>
-                    <p className="font-medium text-sm">
-                      {ex.name}
-                      {trained && (
-                        <span className="ml-2 text-xs text-teal-500">
-                          已练{trained.sets.length}组
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {CATEGORY_LABELS[ex.category] || ex.category}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-1.5 h-8 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: isSelected ? "#10b981" : "#e2e8f0",
+                      }}
+                    />
+                    <div>
+                      <p className={`font-semibold text-sm ${
+                        isSelected ? "text-emerald-800" : "text-slate-900"
+                      }`}>
+                        {ex.name}
+                        {trained && (
+                          <span className="ml-2 text-xs text-emerald-500 font-medium">
+                            已练 {trained.sets.length} 组
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {CATEGORY_LABELS[ex.category] || ex.category}
+                      </p>
+                    </div>
                   </div>
                   {isSelected && (
-                    <span className="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center text-white text-xs">
-                      ✓
-                    </span>
+                    <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
                   )}
                 </button>
               );
             })}
             {filteredExercises.length === 0 && (
-              <p className="text-center text-gray-400 py-8 text-sm">
-                没有找到匹配的动作
-              </p>
+              <div className="text-center py-10">
+                <p className="text-slate-400 text-sm">没有找到匹配的动作</p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Start Training button — centered above bottom nav */}
+        {/* Start Training button */}
         {selectedExercise && (
-          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10">
+          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10 animate-slide-up">
             <button
               onClick={handleStartTraining}
-              className="w-full py-4 bg-teal-600 text-white rounded-2xl font-semibold text-base flex items-center justify-center gap-2 shadow-lg shadow-teal-200 hover:bg-teal-700 transition"
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-transform"
             >
-              <Play size={20} />
-              开始训练 · {selectedExercise.name}
+              <Play size={20} fill="white" />
+              开始 · {selectedExercise.name}
             </button>
           </div>
         )}
@@ -687,130 +700,108 @@ export default function WorkoutCreatePage() {
   /* ================================================================ */
   if (phase === "training" && currentExercise) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setPhase("select")} className="p-1">
-            <ChevronLeft size={22} />
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
+          <button
+            onClick={() => setPhase("select")}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+          >
+            <ChevronLeft size={20} className="text-slate-700" />
           </button>
-          <h1 className="font-semibold text-lg">训练中</h1>
-          <div className="flex items-center gap-1 text-sm text-gray-500">
-            <Clock size={14} />
-            <span className="font-mono">{formatTimer(totalSeconds)}</span>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold text-sm text-slate-900">训练中</span>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-full">
+            <Clock size={12} className="text-slate-500" />
+            <span className="font-mono text-xs text-slate-600">{formatTimer(totalSeconds)}</span>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col p-5">
-          {/* Exercise info */}
-          <div className="mb-6">
-            <p className="text-sm text-teal-600">
-              部位：
-              {CATEGORY_LABELS[currentExercise.category] ||
-                currentExercise.category}
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-lg font-semibold text-teal-700">
-                动作：{currentExercise.name}
-              </p>
-              {/* Wiki placeholder (P2) */}
-              <button
-                className="p-1 text-gray-300"
-                title="动作百科（即将推出）"
-              >
-                <BookOpen size={16} />
+        <div className="flex-1 flex flex-col p-4 pb-36">
+          {/* Exercise header card */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="inline-flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full mb-2">
+                  {CATEGORY_LABELS[currentExercise.category] || currentExercise.category}
+                </span>
+                <h2 className="text-xl font-bold text-slate-900">{currentExercise.name}</h2>
+                <p className="text-sm text-slate-500 mt-1">第 <span className="font-bold text-slate-800">{currentSetNum}</span> 组</p>
+              </div>
+              <button className="p-2 text-slate-300 rounded-xl hover:bg-slate-50" title="动作百科（即将推出）">
+                <BookOpen size={18} />
               </button>
             </div>
-            <p className="text-base font-medium mt-2">
-              第 {currentSetNum} 组
-            </p>
             {getTemplateNote(currentExercise.id) && (
-              <p className="mt-2 text-sm text-teal-600 bg-teal-50 rounded-lg px-3 py-1.5">
-                {getTemplateNote(currentExercise.id)}
+              <p className="mt-3 text-sm text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2 border border-emerald-100">
+                📝 {getTemplateNote(currentExercise.id)}
               </p>
             )}
           </div>
 
           {/* Unit toggle */}
-          <div className="flex items-center gap-4 mb-6">
-            <span className="text-sm text-gray-500">单位</span>
-            {(["kg", "lb"] as const).map((u) => (
-              <label
-                key={u}
-                className="flex items-center gap-1.5 cursor-pointer"
-              >
-                <span
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-sm text-slate-500 font-medium">单位</span>
+            <div className="flex bg-slate-100 rounded-xl p-0.5">
+              {(["kg", "lb"] as const).map((u) => (
+                <button
+                  key={u}
+                  onClick={() => setWeightUnit(u)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                     weightUnit === u
-                      ? "border-teal-500"
-                      : "border-gray-300"
+                      ? "bg-white text-emerald-600 shadow-sm"
+                      : "text-slate-500"
                   }`}
                 >
-                  {weightUnit === u && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500" />
-                  )}
-                </span>
-                <span className="text-sm">
-                  {u === "kg" ? "公斤/kg" : "磅/lbs"}
-                </span>
-              </label>
-            ))}
+                  {u}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Weight */}
-          <div className="flex items-center gap-4 mb-4">
-            <span className="text-sm text-gray-500 w-12">重量</span>
-            <input
-              type="number"
-              inputMode="decimal"
+          {/* Step inputs */}
+          <div className="space-y-4 mb-5">
+            <StepInput
+              label={`重量 (${weightUnit})`}
               value={inputWeight}
-              onChange={(e) => setInputWeight(e.target.value)}
+              onChange={setInputWeight}
+              step={weightUnit === "kg" ? 2.5 : 5}
+              inputMode="decimal"
               placeholder="0"
-              className="flex-1 text-lg font-medium px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-400 outline-none"
             />
-          </div>
-
-          {/* Reps */}
-          <div className="flex items-center gap-4 mb-6">
-            <span className="text-sm text-gray-500 w-12">次数</span>
-            <input
-              type="number"
-              inputMode="numeric"
+            <StepInput
+              label="次数"
               value={inputReps}
-              onChange={(e) => setInputReps(e.target.value)}
+              onChange={setInputReps}
+              step={1}
+              inputMode="numeric"
               placeholder="0"
-              className="flex-1 text-lg font-medium px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-400 outline-none"
             />
           </div>
 
-          {/* History for current set number */}
+          {/* History — collapsible */}
           {currentSetHistory.length > 0 && (
-            <div className="mb-6">
-              <p className="text-sm font-medium text-gray-600 mb-2">
-                {currentExercise.name} 第{currentSetNum}组 训练记录：
-              </p>
-              <div className="space-y-1.5 text-sm">
-                {currentSetHistory.slice(0, 5).map((r, i) => {
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-50">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  第 {currentSetNum} 组 历史参考
+                </p>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {currentSetHistory.slice(0, 4).map((r, i) => {
                   let dateLabel = r.date;
                   try {
-                    dateLabel = format(
-                      parseISO(r.date),
-                      "yyyy-MM-dd EEEE",
-                      { locale: zhCN }
-                    );
-                  } catch {
-                    /* keep raw date */
-                  }
+                    dateLabel = format(parseISO(r.date), "M/d EEEE", { locale: zhCN });
+                  } catch { /* keep raw */ }
                   return (
-                    <div
-                      key={i}
-                      className="flex justify-between text-gray-600"
-                    >
-                      <span>{dateLabel}</span>
-                      <span>
-                        {r.weight ?? 0} {r.unit}*{r.reps ?? 0}次
+                    <div key={i} className="flex justify-between items-center px-4 py-2.5 text-sm">
+                      <span className="text-slate-400 text-xs">{dateLabel}</span>
+                      <span className="font-semibold text-slate-700">
+                        {r.weight ?? 0}{r.unit} × {r.reps ?? 0}次
                         {r.rest_seconds != null && (
-                          <span className="text-gray-400 ml-3">
-                            休息: {r.rest_seconds} 秒
-                          </span>
+                          <span className="text-slate-400 text-xs ml-2">休 {r.rest_seconds}s</span>
                         )}
                       </span>
                     </div>
@@ -821,13 +812,13 @@ export default function WorkoutCreatePage() {
           )}
         </div>
 
-        {/* Complete set — centered above bottom nav */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-5 z-10">
+        {/* Complete set button */}
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10">
           <button
             onClick={handleCompleteSet}
-            className="w-full py-4 bg-teal-600 text-white rounded-2xl font-semibold text-base shadow-lg shadow-teal-200 transition hover:bg-teal-700"
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-base shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-transform"
           >
-            完成本组训练
+            ✓ 完成本组
           </button>
         </div>
       </div>
@@ -838,87 +829,97 @@ export default function WorkoutCreatePage() {
   /*  RENDER — REST                                                    */
   /* ================================================================ */
   if (phase === "rest" && currentExercise && lastCompletedSet) {
-    const rm = Math.floor(restSeconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const rs = (restSeconds % 60).toString().padStart(2, "0");
+    const DEFAULT_REST = 300;
+    const progress = Math.max(0, restSeconds / DEFAULT_REST);
+    const circumference = 2 * Math.PI * 56;
+    const strokeDash = circumference * progress;
+    const isOvertime = restSeconds >= DEFAULT_REST;
 
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-          <div className="w-8" />
-          <h1 className="font-semibold text-lg">组间休息</h1>
-          <div className="flex items-center gap-1 text-sm text-gray-500">
-            <Clock size={14} />
-            <span className="font-mono">{formatTimer(totalSeconds)}</span>
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
+          <div className="w-9" />
+          <h1 className="font-bold text-base text-slate-900">组间休息</h1>
+          <div className="flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-full">
+            <Clock size={12} className="text-slate-500" />
+            <span className="font-mono text-xs text-slate-600">{formatTimer(totalSeconds)}</span>
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="text-center pt-8 pb-4 px-5">
-          <p className="text-gray-500 text-sm">已完成</p>
-          <p className="text-lg font-semibold mt-1">
-            {currentExercise.name} 第 {lastCompletedSet.set_number} 组
+        {/* Completed set summary */}
+        <div className="mx-4 mt-4 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <p className="text-xs font-semibold text-emerald-600">已完成</p>
+          </div>
+          <p className="font-bold text-slate-900">{currentExercise.name} 第 {lastCompletedSet.set_number} 组</p>
+          <p className="text-slate-600 text-sm mt-0.5">
+            {lastCompletedSet.weight ?? 0} {weightUnit} × {lastCompletedSet.reps ?? 0} 次
           </p>
-          <p className="text-gray-600 mt-1">
-            {lastCompletedSet.weight ?? 0} {weightUnit} ×{" "}
-            {lastCompletedSet.reps ?? 0} 次
-          </p>
-          {getTemplateNote(currentExercise.id) && (
-            <p className="mt-3 text-sm text-teal-600 bg-teal-50 rounded-lg px-3 py-2 text-left mx-auto max-w-xs">
-              {getTemplateNote(currentExercise.id)}
-            </p>
-          )}
         </div>
 
-        {/* Timer */}
+        {/* SVG Ring Timer */}
         <div className="flex-1 flex flex-col items-center justify-center px-5">
-          <p className="text-sm text-gray-400 mb-3">组间休息</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-7xl font-bold text-gray-900 font-mono tracking-tight">
-              {rm}
-            </span>
-            <span className="text-5xl font-bold text-gray-400">:</span>
-            <span className="text-7xl font-bold text-gray-900 font-mono tracking-tight">
-              {rs}
-            </span>
+          <div className="relative">
+            <svg width={136} height={136} className="-rotate-90">
+              <circle
+                cx={68} cy={68} r={56}
+                fill="none"
+                stroke="#e2e8f0"
+                strokeWidth={10}
+              />
+              <circle
+                cx={68} cy={68} r={56}
+                fill="none"
+                stroke={isOvertime ? "#ef4444" : "#10b981"}
+                strokeWidth={10}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference - strokeDash}
+                style={{ transition: "stroke-dashoffset 1s linear, stroke 0.5s" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className={`text-4xl font-bold font-mono tabular-nums ${
+                isOvertime ? "text-red-500" : "text-slate-900"
+              }`}>
+                {Math.floor(restSeconds / 60).toString().padStart(2, "0")}:{(restSeconds % 60).toString().padStart(2, "0")}
+              </span>
+              <span className="text-xs text-slate-400 mt-0.5">休息中</span>
+            </div>
           </div>
-          {restSeconds >= 120 && (
-            <p className="text-orange-500 text-sm mt-2 animate-pulse">
-              休息时间较长，准备好可以继续了
-            </p>
+
+          {isOvertime && (
+            <div className="mt-4 px-4 py-2 bg-red-50 border border-red-100 rounded-full">
+              <p className="text-red-500 text-sm font-medium">休息太久了！可以继续了</p>
+            </div>
           )}
         </div>
 
-        {/* Actions — centered above bottom nav */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-5 z-10">
-          <div className="grid grid-cols-3 gap-3">
+        {/* Actions */}
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10">
+          <div className="grid grid-cols-3 gap-2.5">
             <button
               onClick={handleNextSet}
-              className="flex flex-col items-center gap-1.5 py-4 bg-teal-50 rounded-2xl transition hover:bg-teal-100"
+              className="flex flex-col items-center gap-1.5 py-4 bg-emerald-500 rounded-2xl shadow-sm shadow-emerald-200 active:scale-95 transition-transform"
             >
-              <Play size={28} className="text-teal-600" />
-              <span className="text-sm font-medium text-teal-700">
-                下一组
-              </span>
+              <Play size={24} className="text-white" fill="white" />
+              <span className="text-xs font-bold text-white">下一组</span>
             </button>
             <button
               onClick={handleChangeExercise}
-              className="flex flex-col items-center gap-1.5 py-4 bg-teal-50 rounded-2xl transition hover:bg-teal-100"
+              className="flex flex-col items-center gap-1.5 py-4 bg-white border border-slate-200 rounded-2xl active:scale-95 transition-transform"
             >
-              <SkipForward size={28} className="text-teal-600" />
-              <span className="text-sm font-medium text-teal-700">
-                换动作
-              </span>
+              <SkipForward size={24} className="text-slate-600" />
+              <span className="text-xs font-semibold text-slate-600">换动作</span>
             </button>
             <button
               onClick={handleEndTraining}
-              className="flex flex-col items-center gap-1.5 py-4 bg-red-50 rounded-2xl transition hover:bg-red-100"
+              className="flex flex-col items-center gap-1.5 py-4 bg-white border border-slate-200 rounded-2xl active:scale-95 transition-transform"
             >
-              <Square size={28} className="text-red-500" />
-              <span className="text-sm font-medium text-red-600">
-                结束训练
-              </span>
+              <Square size={24} className="text-red-400" />
+              <span className="text-xs font-semibold text-red-500">结束</span>
             </button>
           </div>
         </div>
@@ -930,51 +931,86 @@ export default function WorkoutCreatePage() {
   /*  RENDER — FINISH                                                  */
   /* ================================================================ */
   if (phase === "finish") {
+    const totalSets = sessionExercises.reduce((s, se) => s + se.sets.length, 0);
+    const totalVol = sessionExercises.reduce(
+      (sum, se) => sum + se.sets.reduce((s, st) => s + (st.weight ?? 0) * (st.reps ?? 0), 0),
+      0
+    );
+
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setPhase("rest")} className="p-1">
-            <ChevronLeft size={22} />
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
+          <button
+            onClick={() => setPhase("rest")}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+          >
+            <ChevronLeft size={20} className="text-slate-700" />
           </button>
-          <h1 className="font-semibold text-lg">训练完成</h1>
-          <div className="w-8" />
+          <h1 className="font-bold text-base text-slate-900">训练完成</h1>
+          <div className="w-9" />
         </div>
 
-        <div className="flex-1 p-5 space-y-6">
-          {/* Summary */}
-          <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
-            <p className="font-semibold text-gray-700">训练总结</p>
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <Clock size={14} />
-              <span>训练时长：{formatTimer(totalSeconds)}</span>
+        <div className="p-4 space-y-4 pb-6">
+          {/* Celebration banner */}
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-5 text-center shadow-md shadow-emerald-200">
+            <p className="text-4xl mb-2">🌟</p>
+            <p className="text-xl font-bold text-white">训练完成！</p>
+            <p className="text-emerald-100 text-sm mt-1">你太棒了！</p>
+            <div className="flex justify-center gap-6 mt-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{formatTimer(totalSeconds)}</p>
+                <p className="text-emerald-200 text-xs mt-0.5">训练时长</p>
+              </div>
+              <div className="w-px bg-white/20" />
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{totalSets}</p>
+                <p className="text-emerald-200 text-xs mt-0.5">完成组数</p>
+              </div>
+              <div className="w-px bg-white/20" />
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">
+                  {totalVol >= 1000 ? `${(totalVol / 1000).toFixed(1)}t` : `${Math.round(totalVol)}kg`}
+                </p>
+                <p className="text-emerald-200 text-xs mt-0.5">训练容量</p>
+              </div>
             </div>
-            <div className="space-y-1">
-              {sessionExercises.map((se) => (
-                <div
-                  key={se.exercise.id}
-                  className="flex justify-between text-sm"
-                >
-                  <span className="text-gray-600">{se.exercise.name}</span>
-                  <span className="text-gray-400">{se.sets.length} 组</span>
-                </div>
-              ))}
+          </div>
+
+          {/* Exercise breakdown */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-50">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">动作明细</p>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {sessionExercises.map((se) => {
+                const maxW = Math.max(...se.sets.map((s) => s.weight ?? 0));
+                const vol = se.sets.reduce((s, st) => s + (st.weight ?? 0) * (st.reps ?? 0), 0);
+                return (
+                  <div key={se.exercise.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="font-semibold text-sm text-slate-900">{se.exercise.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{se.sets.length} 组 · 最大 {maxW}{weightUnit}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-600">{Math.round(vol)}kg</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
           {/* Mood */}
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              训练感受
-            </p>
-            <div className="flex gap-2">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <p className="text-sm font-semibold text-slate-700 mb-3">训练感受</p>
+            <div className="flex justify-between">
               {[1, 2, 3, 4, 5].map((m) => (
                 <button
                   key={m}
                   onClick={() => setMood(mood === m ? null : m)}
-                  className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition ${
+                  className={`w-13 h-13 flex-1 mx-1 py-2 rounded-2xl text-2xl flex items-center justify-center transition-all active:scale-95 ${
                     mood === m
-                      ? "bg-teal-100 ring-2 ring-teal-400"
-                      : "bg-gray-50"
+                      ? "bg-emerald-50 ring-2 ring-emerald-400 scale-110"
+                      : "bg-slate-50"
                   }`}
                 >
                   {["😫", "😕", "😐", "😊", "🔥"][m - 1]}
@@ -984,28 +1020,24 @@ export default function WorkoutCreatePage() {
           </div>
 
           {/* Note */}
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              训练心得
-            </p>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <p className="text-sm font-semibold text-slate-700 mb-2">训练心得</p>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="记录训练感受..."
+              placeholder="记录一点感受..."
               rows={3}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:border-emerald-400 bg-slate-50 focus:bg-white transition-colors"
             />
           </div>
-
-          <div className="flex-1" />
 
           {/* Save */}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full py-4 bg-teal-600 text-white rounded-2xl font-semibold text-base disabled:opacity-40 transition hover:bg-teal-700"
+            className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-base disabled:opacity-40 shadow-md shadow-emerald-500/25 active:scale-[0.98] transition-transform"
           >
-            {saving ? "保存中..." : "保存训练记录"}
+            {saving ? "保存中...✨" : "保存训练记录"}
           </button>
         </div>
       </div>

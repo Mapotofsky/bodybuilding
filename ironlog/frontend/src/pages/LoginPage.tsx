@@ -26,61 +26,67 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-blue-50 to-white">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center">
-          <Dumbbell className="text-white" size={28} />
+    <div className="min-h-screen min-h-dvh flex flex-col bg-slate-50">
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 pt-16 pb-12 px-6 flex flex-col items-center">
+        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center mb-4 shadow-lg">
+          <Dumbbell className="text-white" size={32} />
         </div>
-        <h1 className="text-3xl font-bold text-gray-900">IronLog</h1>
+        <h1 className="text-3xl font-bold text-white tracking-tight">IronLog</h1>
+        <p className="text-emerald-100 text-sm mt-1">记录每一次突破</p>
       </div>
 
-      <div className="w-full max-w-sm">
-        <h2 className="text-xl font-semibold text-center mb-6">登录</h2>
+      {/* Form card */}
+      <div className="flex-1 px-6 -mt-5">
+        <div className="bg-white rounded-3xl shadow-lg p-6 space-y-5">
+          <h2 className="text-xl font-bold text-slate-900">登录账号</h2>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="请输入邮箱"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="请输入密码"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-blue-500 text-white font-medium rounded-xl hover:bg-blue-600 disabled:opacity-50 transition"
-          >
-            {loading ? "登录中..." : "登录"}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">邮箱</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none transition bg-slate-50 focus:bg-white text-sm"
+                placeholder="请输入邮箱地址"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">密码</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none transition bg-slate-50 focus:bg-white text-sm"
+                placeholder="请输入密码"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-emerald-500 text-white font-semibold rounded-2xl hover:bg-emerald-600 disabled:opacity-50 transition-colors shadow-sm shadow-emerald-200 mt-2"
+            >
+              {loading ? "登录中..." : "登录"}
+            </button>
+          </form>
 
-        <p className="text-center mt-6 text-sm text-gray-500">
-          还没有账号？{" "}
-          <Link to="/register" className="text-blue-500 font-medium">
-            注册
-          </Link>
-        </p>
+          <p className="text-center text-sm text-slate-500">
+            还没有账号？{" "}
+            <Link to="/register" className="text-emerald-600 font-semibold">
+              立即注册
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

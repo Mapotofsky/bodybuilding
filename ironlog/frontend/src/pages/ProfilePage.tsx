@@ -58,146 +58,139 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  const inputCls = "w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-slate-50 focus:bg-white transition-all";
+
   return (
-    <div className="p-4 space-y-6">
-      {/* Avatar & Name */}
-      <div className="flex flex-col items-center pt-4">
-        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-          <UserIcon size={36} className="text-blue-500" />
+    <div className="min-h-screen bg-slate-50 pb-8">
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-6 pt-8 pb-12 flex flex-col items-center text-white">
+        <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3 shadow-lg ring-2 ring-white/30">
+          <UserIcon size={36} className="text-white" />
         </div>
-        <h1 className="text-xl font-bold">{user.nickname || user.email}</h1>
-        <p className="text-sm text-gray-400">{user.email}</p>
+        <h1 className="text-xl font-bold">{user.nickname || "未设置昵称"}</h1>
+        <p className="text-emerald-100 text-sm mt-0.5">{user.email}</p>
       </div>
 
-      {/* Info Card */}
-      <div className="bg-gray-50 rounded-2xl p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">个人资料</h2>
+      <div className="px-4 -mt-5 space-y-4">
+        {/* Stats row */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 grid grid-cols-3 divide-x divide-slate-100">
+          {[
+            { v: user.height ? `${user.height}` : "—", u: "cm", l: "身高" },
+            { v: user.weight ? `${user.weight}` : "—", u: "kg", l: "体重" },
+            { v: user.gender === "male" ? "男" : user.gender === "female" ? "女" : "—", u: "", l: "性别" },
+          ].map(({ v, u, l }) => (
+            <div key={l} className="text-center">
+              <p className="text-xl font-bold text-slate-900">{v}<span className="text-sm font-normal text-slate-400 ml-0.5">{u}</span></p>
+              <p className="text-xs text-slate-400 mt-0.5">{l}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Profile card */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-slate-900">个人资料</h2>
+            {!editing ? (
+              <button
+                onClick={() => setEditing(true)}
+                className="text-sm text-emerald-600 font-semibold bg-emerald-50 px-3 py-1 rounded-full"
+              >
+                编辑
+              </button>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="text-sm text-white font-semibold bg-emerald-500 px-3 py-1 rounded-full flex items-center gap-1 disabled:opacity-50"
+              >
+                <Save size={12} /> {saving ? "保存中" : "保存"}
+              </button>
+            )}
+          </div>
+
           {!editing ? (
-            <button
-              onClick={() => setEditing(true)}
-              className="text-sm text-blue-500"
-            >
-              编辑
-            </button>
+            <div className="space-y-0 divide-y divide-slate-50">
+              {[
+                { l: "昵称", v: user.nickname || "未设置" },
+                { l: "性别", v: user.gender === "male" ? "男" : user.gender === "female" ? "女" : "未设置" },
+                { l: "身高", v: user.height ? `${user.height} cm` : "未设置" },
+                { l: "体重", v: user.weight ? `${user.weight} kg` : "未设置" },
+                { l: "出生日期", v: user.birth_date || "未设置" },
+              ].map(({ l, v }) => (
+                <div key={l} className="flex justify-between items-center py-2.5">
+                  <span className="text-sm text-slate-500">{l}</span>
+                  <span className="text-sm font-semibold text-slate-800">{v}</span>
+                </div>
+              ))}
+            </div>
           ) : (
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="text-sm text-blue-500 flex items-center gap-1"
-            >
-              <Save size={14} /> {saving ? "保存中" : "保存"}
-            </button>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">昵称</label>
+                <input
+                  type="text"
+                  value={form.nickname}
+                  onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                  className={inputCls}
+                  placeholder="如何称呼你？"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">性别</label>
+                <select
+                  value={form.gender}
+                  onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                  className={inputCls}
+                >
+                  <option value="">未设置</option>
+                  <option value="male">男</option>
+                  <option value="female">女</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">身高 (cm)</label>
+                  <input
+                    type="number"
+                    value={form.height}
+                    onChange={(e) => setForm({ ...form, height: e.target.value })}
+                    className={inputCls}
+                    placeholder="170"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5">体重 (kg)</label>
+                  <input
+                    type="number"
+                    value={form.weight}
+                    onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                    className={inputCls}
+                    placeholder="70"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">出生日期</label>
+                <input
+                  type="date"
+                  value={form.birth_date}
+                  onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+            </div>
           )}
         </div>
 
-        {!editing ? (
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">昵称</span>
-              <span>{user.nickname || "未设置"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">性别</span>
-              <span>
-                {user.gender === "male"
-                  ? "男"
-                  : user.gender === "female"
-                  ? "女"
-                  : "未设置"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">身高</span>
-              <span>{user.height ? `${user.height} cm` : "未设置"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">体重</span>
-              <span>{user.weight ? `${user.weight} kg` : "未设置"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">出生日期</span>
-              <span>{user.birth_date || "未设置"}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">昵称</label>
-              <input
-                type="text"
-                value={form.nickname}
-                onChange={(e) =>
-                  setForm({ ...form, nickname: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">性别</label>
-              <select
-                value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
-              >
-                <option value="">未设置</option>
-                <option value="male">男</option>
-                <option value="female">女</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">
-                  身高(cm)
-                </label>
-                <input
-                  type="number"
-                  value={form.height}
-                  onChange={(e) =>
-                    setForm({ ...form, height: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">
-                  体重(kg)
-                </label>
-                <input
-                  type="number"
-                  value={form.weight}
-                  onChange={(e) =>
-                    setForm({ ...form, weight: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">
-                出生日期
-              </label>
-              <input
-                type="date"
-                value={form.birth_date}
-                onChange={(e) =>
-                  setForm({ ...form, birth_date: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
-            </div>
-          </div>
-        )}
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full py-3.5 bg-white border border-red-100 text-red-500 rounded-2xl flex items-center justify-center gap-2 font-semibold text-sm shadow-sm active:scale-[0.98] transition-transform"
+        >
+          <LogOut size={16} />
+          退出登录
+        </button>
       </div>
-
-      {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="w-full py-3 bg-red-50 text-red-500 rounded-xl flex items-center justify-center gap-2 font-medium"
-      >
-        <LogOut size={18} />
-        退出登录
-      </button>
     </div>
   );
 }

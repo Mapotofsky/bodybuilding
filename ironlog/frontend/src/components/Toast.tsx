@@ -29,15 +29,21 @@ export const useToastStore = create<ToastStore>((set) => ({
 }));
 
 const ICON = {
-  success: <CheckCircle size={18} className="text-green-500 shrink-0" />,
-  error: <XCircle size={18} className="text-red-500 shrink-0" />,
-  info: <Info size={18} className="text-blue-500 shrink-0" />,
+  success: <CheckCircle size={16} className="text-emerald-500 shrink-0" />,
+  error: <XCircle size={16} className="text-red-500 shrink-0" />,
+  info: <Info size={16} className="text-sky-500 shrink-0" />,
 };
 
-const BG = {
-  success: "bg-green-50 border-green-200",
-  error: "bg-red-50 border-red-200",
-  info: "bg-blue-50 border-blue-200",
+const STYLE = {
+  success: "bg-white border-emerald-200 shadow-emerald-100",
+  error: "bg-white border-red-200 shadow-red-100",
+  info: "bg-white border-sky-200 shadow-sky-100",
+};
+
+const DOT = {
+  success: "bg-emerald-500",
+  error: "bg-red-500",
+  info: "bg-sky-500",
 };
 
 export default function ToastContainer() {
@@ -47,17 +53,19 @@ export default function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90vw] max-w-sm pointer-events-none">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[92vw] max-w-sm pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-xl border shadow-lg text-sm animate-slide-down ${BG[t.type]}`}
+          className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg text-sm animate-slide-down ${STYLE[t.type]}`}
         >
+          <span className={`w-2 h-2 rounded-full shrink-0 ${DOT[t.type]}`} />
           {ICON[t.type]}
-          <span className="flex-1 text-gray-800">{t.message}</span>
+          <span className="flex-1 text-slate-800 font-medium">{t.message}</span>
           <button
             onClick={() => remove(t.id)}
-            className="text-gray-400 hover:text-gray-600 shrink-0"
+            className="text-slate-300 hover:text-slate-500 shrink-0 transition-colors"
+            aria-label="关闭提示"
           >
             <X size={14} />
           </button>

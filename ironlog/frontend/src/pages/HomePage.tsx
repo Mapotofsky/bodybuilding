@@ -5,9 +5,11 @@ import { getWorkouts } from "@/services/workout";
 import { getCalendar } from "@/services/plan";
 import type { WorkoutSummary, CalendarEntry } from "@/types";
 import { MOOD_LABELS } from "@/types";
-import { Plus, ChevronRight, Flame, Dumbbell, Calendar, ClipboardList } from "lucide-react";
+import { Plus, ChevronRight, Flame, Dumbbell, BarChart2 } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
+import { SkeletonList } from "@/components/ui/Skeleton";
 
 export default function HomePage() {
   const user = useAuthStore((s) => s.user);
@@ -25,11 +27,7 @@ export default function HomePage() {
   useEffect(() => {
     Promise.all([
       getWorkouts({ month: today }).then((data) => data.slice(0, 5)),
-      // Today's scheduled plan entries
       getCalendar(todayStr, todayStr).then((days) => days[0]?.entries || []),
-      // Past 7 days: only weekly-plan entries count as "missed".
-      // An entry is missed only if no workout from scheduled_date→today
-      // contains ANY exercise from the template.
       Promise.all([
         getCalendar(sevenDaysAgo, yesterday),
         getWorkouts({ from: sevenDaysAgo, to: todayStr }),
@@ -66,170 +64,207 @@ export default function HomePage() {
   const thisMonthCount = recentWorkouts.length;
   const thisMonthVolume = recentWorkouts.reduce((sum, w) => sum + w.total_volume, 0);
 
+  const volumeChartData = [...recentWorkouts]
+    .reverse()
+    .map((w) => ({ date: w.date.slice(5), vol: Math.round(w.total_volume) }));
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
+
   return (
-    <div className="p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {user?.nickname || "训练者"}，你好
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {format(new Date(), "M月d日 EEEE", { locale: zhCN })}
-          </p>
-        </div>
+    <div className="pb-6">
+      {/* Hero banner */}
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-5 pt-12 pb-8">
+        <p className="text-emerald-100 text-sm mb-1">
+          {format(new Date(), "M月d日 EEEE", { locale: zhCN })}
+        </p>
+        <h1 className="text-2xl font-bold text-white">
+          {greeting}，{user?.nickname || "训练者"} 👋
+        </h1>
+
+        {/* Quick start */}
+        <button
+          onClick={() => navigate("/workouts/new")}
+          className="mt-5 w-full py-3.5 bg-white text-emerald-600 rounded-2xl flex items-center justify-center gap-2 font-semibold text-base shadow-lg shadow-emerald-700/20 active:scale-[0.98] transition-transform"
+        >
+          <Plus size={20} />
+          开始训练
+        </button>
       </div>
 
-      {/* Quick Start */}
-      <button
-        onClick={() => navigate("/workouts/new")}
-        className="w-full py-4 bg-blue-500 text-white rounded-2xl flex items-center justify-center gap-2 font-medium text-lg hover:bg-blue-600 transition shadow-lg shadow-blue-500/20"
-      >
-        <Plus size={22} />
-        开始训练
-      </button>
+      <div className="px-4 space-y-5 mt-5">
 
-      {/* Today's Plan + Missed */}
-      {!loading && (todayEntries.length > 0 || missedEntries.length > 0) && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">今日计划</h2>
-            <button
-              onClick={() => navigate("/calendar")}
-              className="text-sm text-blue-500 flex items-center gap-0.5"
-            >
-              日历 <ChevronRight size={16} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {/* Missed entries from past days */}
-            {missedEntries.map((entry, idx) => (
-              <div
-                key={`missed-${idx}`}
-                className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex items-center justify-between"
+        {/* Today's Plan + Missed */}
+        {!loading && (todayEntries.length > 0 || missedEntries.length > 0) && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-slate-900">今日计划</h2>
+              <button
+                onClick={() => navigate("/calendar")}
+                className="text-sm text-emerald-600 font-medium flex items-center gap-0.5"
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-3 h-10 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: entry.template_color || entry.plan_color }}
-                  />
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded font-medium">补</span>
-                      <p className="font-medium text-sm text-gray-900">{entry.template_name}</p>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      {entry.scheduled_date.slice(5).replace("-", "/")} · {entry.plan_name}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleStartFromPlan(entry)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-full text-xs font-medium hover:bg-amber-600 transition"
+                日历 <ChevronRight size={15} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {missedEntries.map((entry, idx) => (
+                <div
+                  key={`missed-${idx}`}
+                  className="bg-amber-50 rounded-2xl p-4 border border-amber-100/80 flex items-center justify-between animate-fade-in"
                 >
-                  <Dumbbell size={12} /> 补训
-                </button>
-              </div>
-            ))}
-            {/* Today's entries */}
-            {todayEntries.map((entry, idx) => (
-              <div
-                key={`today-${idx}`}
-                className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-3 h-10 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: entry.template_color || entry.plan_color }}
-                  />
-                  <div>
-                    <p className="font-medium text-sm text-gray-900">{entry.template_name}</p>
-                    <p className="text-xs text-gray-400">{entry.plan_name}</p>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-2.5 h-10 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: entry.template_color || entry.plan_color }}
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] bg-amber-200 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">补</span>
+                        <p className="font-semibold text-sm text-slate-900">{entry.template_name}</p>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {entry.scheduled_date.slice(5).replace("-", "/")} · {entry.plan_name}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {entry.is_completed ? (
-                  <span className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full">已完成</span>
-                ) : (
                   <button
                     onClick={() => handleStartFromPlan(entry)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-full text-xs font-medium hover:bg-blue-600 transition"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-semibold shadow-sm shadow-amber-200 active:scale-95 transition-transform"
                   >
-                    <Dumbbell size={12} /> 开始
+                    <Dumbbell size={11} /> 补训
                   </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Flame size={18} className="text-orange-500" />
-            <span className="text-sm text-orange-700">本月训练</span>
-          </div>
-          <p className="text-2xl font-bold text-orange-900">{thisMonthCount} 次</p>
-        </div>
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Dumbbell size={18} className="text-blue-500" />
-            <span className="text-sm text-blue-700">本月容量</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-900">
-            {thisMonthVolume >= 1000
-              ? `${(thisMonthVolume / 1000).toFixed(1)}t`
-              : `${Math.round(thisMonthVolume)}kg`}
-          </p>
-        </div>
-      </div>
-
-      {/* Recent Workouts */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">最近训练</h2>
-          <button
-            onClick={() => navigate("/workouts")}
-            className="text-sm text-blue-500 flex items-center gap-0.5"
-          >
-            全部 <ChevronRight size={16} />
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-8 text-gray-400">加载中...</div>
-        ) : recentWorkouts.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <Calendar size={40} className="mx-auto mb-2 opacity-50" />
-            <p>本月还没有训练记录</p>
-            <p className="text-sm mt-1">点击上方按钮开始第一次训练</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {recentWorkouts.map((w) => (
-              <button
-                key={w.id}
-                onClick={() => navigate(`/workouts/${w.id}`)}
-                className="w-full text-left bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">
-                      {format(new Date(w.date), "M月d日")}{" "}
-                      {w.mood ? MOOD_LABELS[w.mood] : ""}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {w.exercise_count} 个动作 · {w.total_sets} 组 ·{" "}
-                      {Math.round(w.total_volume)} kg
-                    </p>
-                  </div>
-                  <ChevronRight size={18} className="text-gray-300" />
                 </div>
-              </button>
-            ))}
-          </div>
+              ))}
+              {todayEntries.map((entry, idx) => (
+                <div
+                  key={`today-${idx}`}
+                  className="bg-white rounded-2xl p-4 border border-slate-100 flex items-center justify-between shadow-sm animate-fade-in"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-2.5 h-10 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: entry.template_color || entry.plan_color }}
+                    />
+                    <div>
+                      <p className="font-semibold text-sm text-slate-900">{entry.template_name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{entry.plan_name}</p>
+                    </div>
+                  </div>
+                  {entry.is_completed ? (
+                    <span className="text-[11px] bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-medium border border-emerald-100">
+                      已完成 ✓
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleStartFromPlan(entry)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-sm shadow-emerald-200 active:scale-95 transition-transform"
+                    >
+                      <Dumbbell size={11} /> 开始
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
         )}
+
+        {/* Stats Cards */}
+        <section className="grid grid-cols-2 gap-3">
+          <div className="bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl p-4 shadow-sm shadow-orange-200">
+            <Flame size={16} className="text-white/80 mb-2" />
+            <p className="text-2xl font-bold text-white">{thisMonthCount}<span className="text-base font-semibold ml-0.5"> 次</span></p>
+            <p className="text-orange-100 text-xs mt-0.5">本月训练</p>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-sm shadow-emerald-200">
+            <BarChart2 size={16} className="text-white/80 mb-2" />
+            <p className="text-2xl font-bold text-white">
+              {thisMonthVolume >= 1000
+                ? `${(thisMonthVolume / 1000).toFixed(1)}`
+                : `${Math.round(thisMonthVolume)}`}
+              <span className="text-base font-semibold ml-0.5">
+                {thisMonthVolume >= 1000 ? "t" : "kg"}
+              </span>
+            </p>
+            <p className="text-emerald-100 text-xs mt-0.5">本月容量</p>
+          </div>
+        </section>
+
+        {/* Recent Workouts */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold text-slate-900">最近训练</h2>
+            <button
+              onClick={() => navigate("/workouts")}
+              className="text-sm text-emerald-600 font-medium flex items-center gap-0.5"
+            >
+              全部 <ChevronRight size={15} />
+            </button>
+          </div>
+
+          {loading ? (
+            <SkeletonList count={3} />
+          ) : recentWorkouts.length === 0 ? (
+            <div className="text-center py-10 bg-white rounded-2xl border border-slate-100">
+              <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Dumbbell size={24} className="text-slate-400" />
+              </div>
+              <p className="text-slate-500 font-medium">本月还没有训练记录</p>
+              <p className="text-slate-400 text-sm mt-1">点击上方按钮开始第一次训练</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Mini trend chart */}
+              {volumeChartData.length >= 3 && (
+                <div className="bg-white rounded-2xl border border-slate-100 px-4 pt-3 pb-1 shadow-sm">
+                  <p className="text-xs text-slate-400 mb-2">容量趋势</p>
+                  <ResponsiveContainer width="100%" height={60}>
+                    <AreaChart data={volumeChartData}>
+                      <defs>
+                        <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="vol" stroke="#10b981" strokeWidth={2} fill="url(#volGrad)" dot={false} />
+                      <Tooltip
+                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+                        formatter={(v: number) => [`${v}kg`, "容量"]}
+                        labelFormatter={(l) => l}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              {recentWorkouts.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => navigate(`/workouts/${w.id}`)}
+                  className="w-full text-left bg-white rounded-2xl p-4 border border-slate-100 hover:bg-slate-50 active:scale-[0.99] transition-all shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-2 h-10 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: w.template_color || w.plan_color || "#e2e8f0",
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-slate-900">
+                        {format(new Date(w.date), "M月d日 EEEE", { locale: zhCN })}
+                        {w.mood ? ` ${MOOD_LABELS[w.mood]}` : ""}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {w.exercise_count} 个动作 · {w.total_sets} 组 · {Math.round(w.total_volume)} kg
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
       </div>
     </div>
   );

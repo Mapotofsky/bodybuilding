@@ -5,6 +5,7 @@ import { getPlan, updateTemplate, deleteTemplate } from "@/services/plan";
 import { getExercises } from "@/services/exercise";
 import type { Exercise, TrainingPlan, PlanTemplate } from "@/types";
 import { CATEGORY_LABELS, DAY_OF_WEEK_LABELS } from "@/types";
+import { useConfirmStore } from "@/components/ConfirmDialog";
 
 interface LocalTemplateExercise {
   exercise_id: number;
@@ -84,7 +85,11 @@ export default function TemplateEditPage() {
 
   async function handleDelete() {
     if (!plan || !template) return;
-    if (!window.confirm(`确认删除模版「${template.name}」？`)) return;
+    const ok = await useConfirmStore.getState().show(
+      "删除模板",
+      `确认删除「${template.name}」？此操作不可撤销。`
+    );
+    if (!ok) return;
     try {
       await deleteTemplate(plan.id, template.id);
       navigate(`/plans/${plan.id}`);
@@ -153,7 +158,7 @@ export default function TemplateEditPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-1.5 bg-blue-500 text-white rounded-full text-sm font-medium disabled:opacity-50"
+          className="px-4 py-1.5 bg-emerald-500 text-white rounded-full text-sm font-semibold disabled:opacity-50"
         >
           {saving ? "保存..." : "保存"}
         </button>
@@ -168,7 +173,7 @@ export default function TemplateEditPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 bg-slate-50 focus:bg-white transition-colors"
             />
           </div>
           <div>
@@ -212,7 +217,7 @@ export default function TemplateEditPage() {
                       type="button"
                       onClick={() => toggleWeekDay(day)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                        selected ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"
+                        selected ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"
                       }`}
                     >
                       {DAY_OF_WEEK_LABELS[day]}
@@ -230,7 +235,7 @@ export default function TemplateEditPage() {
                   max={plan.cycle_length || 14}
                   value={(scheduleRule?.day_in_cycle as number) || 1}
                   onChange={(e) => setScheduleRule({ day_in_cycle: Number(e.target.value) })}
-                  className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
                 />
                 <span className="text-sm text-gray-600">天</span>
               </div>
@@ -263,13 +268,13 @@ export default function TemplateEditPage() {
                 }
                 placeholder="训练备注，如：4组 8-12次，组间休息90秒"
                 rows={2}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 text-gray-700 placeholder:text-gray-300"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-300 focus:border-emerald-400 text-slate-700 placeholder:text-slate-300"
               />
             </div>
           ))}
           <button
             onClick={() => setShowExercisePicker(true)}
-            className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 text-sm flex items-center justify-center gap-2 hover:border-blue-300 hover:text-blue-400 transition"
+            className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm flex items-center justify-center gap-2 hover:border-emerald-300 hover:text-emerald-500 transition-colors"
           >
             <Plus size={18} /> 添加动作
           </button>
@@ -305,14 +310,14 @@ export default function TemplateEditPage() {
                   value={exerciseSearch}
                   onChange={(e) => setExerciseSearch(e.target.value)}
                   placeholder="搜索动作..."
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
                   autoFocus
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
                 <button
                   onClick={() => setExerciseCategory("")}
-                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition ${!exerciseCategory ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium transition ${!exerciseCategory ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
                 >
                   全部
                 </button>
@@ -320,7 +325,7 @@ export default function TemplateEditPage() {
                   <button
                     key={k}
                     onClick={() => setExerciseCategory(k)}
-                    className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition ${exerciseCategory === k ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
+                    className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium transition ${exerciseCategory === k ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
                   >
                     {v}
                   </button>
@@ -338,8 +343,8 @@ export default function TemplateEditPage() {
                       onClick={() => addExercise(ex)}
                       className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 text-left transition"
                     >
-                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                        <Dumbbell size={16} className="text-blue-400" />
+                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                        <Dumbbell size={16} className="text-emerald-500" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-800">{ex.name}</p>
