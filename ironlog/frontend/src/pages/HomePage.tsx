@@ -15,6 +15,7 @@ export default function HomePage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSummary[]>([]);
+  const [monthWorkouts, setMonthWorkouts] = useState<WorkoutSummary[]>([]);
   const [todayEntries, setTodayEntries] = useState<CalendarEntry[]>([]);
   const [missedEntries, setMissedEntries] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +27,8 @@ export default function HomePage() {
 
   useEffect(() => {
     Promise.all([
-      getWorkouts({ month: today }).then((data) => data.slice(0, 5)),
+      getWorkouts().then((data) => data.slice(0, 10)),          // 最近10条，不限月份
+      getWorkouts({ month: today }),                            // 本月全部，用于统计
       getCalendar(todayStr, todayStr).then((days) => days[0]?.entries || []),
       Promise.all([
         getCalendar(sevenDaysAgo, yesterday),
@@ -49,8 +51,9 @@ export default function HomePage() {
           .slice(-3);
       }),
     ])
-      .then(([workouts, entries, missed]) => {
-        setRecentWorkouts(workouts);
+      .then(([recent, month, entries, missed]) => {
+        setRecentWorkouts(recent);
+        setMonthWorkouts(month);
         setTodayEntries(entries);
         setMissedEntries(missed);
       })
@@ -61,8 +64,8 @@ export default function HomePage() {
     navigate(`/workouts/new?template_id=${entry.template_id}`);
   }
 
-  const thisMonthCount = recentWorkouts.length;
-  const thisMonthVolume = recentWorkouts.reduce((sum, w) => sum + w.total_volume, 0);
+  const thisMonthCount = monthWorkouts.length;
+  const thisMonthVolume = monthWorkouts.reduce((sum, w) => sum + w.total_volume, 0);
 
   const volumeChartData = [...recentWorkouts]
     .reverse()
@@ -229,7 +232,7 @@ export default function HomePage() {
                       <Tooltip
                         contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
                         formatter={(v: number) => [`${v}kg`, "容量"]}
-                        labelFormatter={(l) => l}
+                        labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                       />
                     </AreaChart>
                   </ResponsiveContainer>

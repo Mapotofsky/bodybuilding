@@ -121,7 +121,7 @@ export default function PlansPage() {
 
       <button
         onClick={() => navigate("/plans/new")}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all z-40"
+        className="fixed bottom-24 right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all z-40 md:right-[calc(50%-384px+16px)]"
       >
         <Plus size={24} />
       </button>

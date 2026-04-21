@@ -230,10 +230,10 @@ async def get_calendar(
         for row in wq.fetchall():
             completed_map[(row[0], row[1])] = row[2]
 
-    # For cyclic plans: find last completed workout BEFORE the queried range
-    # (using < from_date so that a workout done today doesn't shift the "next" template
-    #  to the following one — today's entry should still show as "completed", not bump ahead)
-    last_done_map: dict[int, int] = {}  # plan_id → last template_id used
+    # For cyclic plans: find the most recent completed workout overall (no date bound).
+    # Using the latest completion allows correct gap-based projection via day_in_cycle:
+    # completing template A on Jul 15 correctly schedules B at Jul 15 + gap(A→B).
+    last_done_map: dict[int, tuple[int, datetime.date]] = {}  # plan_id → (template_id, done_date)
     cyclic_plans = [p for p in plans if p.mode == "cyclic"]
     if cyclic_plans:
         cyclic_tmpl_ids = [t.id for p in cyclic_plans for t in p.templates]
@@ -242,18 +242,17 @@ async def get_calendar(
             .where(
                 Workout.user_id == user.id,
                 Workout.plan_template_id.in_(cyclic_tmpl_ids),
-                Workout.date < from_date,          # strictly before the range
             )
             .order_by(Workout.date.desc())
         )
         seen_plans: set[int] = set()
         for row in lq.fetchall():
-            tmpl_id = row[0]
+            tmpl_id, done_date = row[0], row[1]
             for p in cyclic_plans:
                 if p.id in seen_plans:
                     continue
                 if any(t.id == tmpl_id for t in p.templates):
-                    last_done_map[p.id] = tmpl_id
+                    last_done_map[p.id] = (tmpl_id, done_date)
                     seen_plans.add(p.id)
 
     # Pre-build a set of (plan_id, date) pairs where ANY template from that cyclic
@@ -270,7 +269,9 @@ async def get_calendar(
 
     for plan in plans:
         last_done = last_done_map.get(plan.id)
-        virtual = generate_calendar_entries(plan, from_date, to_date, last_done)
+        last_done_tmpl_id = last_done[0] if last_done else None
+        last_done_dt = last_done[1] if last_done else None
+        virtual = generate_calendar_entries(plan, from_date, to_date, last_done_tmpl_id, last_done_dt)
         for v in virtual:
             d = v["scheduled_date"]
             tmpl = next((t for t in plan.templates if t.id == v["template_id"]), None)

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, List, Dumbbell } from "lucide-react";
+import { ChevronLeft, ChevronRight, List, Dumbbell, Plus } from "lucide-react";
 import {
   format,
   startOfMonth,
@@ -58,6 +58,13 @@ export default function CalendarPage() {
 
   const selectedDateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
   const selectedWorkouts = selectedDateStr ? (byDate[selectedDateStr] || []) : [];
+
+  const monthStartStr = format(monthStart, "yyyy-MM-dd");
+  const monthEndStr = format(monthEnd, "yyyy-MM-dd");
+  const monthWorkoutCount = useMemo(
+    () => workouts.filter((w) => w.date >= monthStartStr && w.date <= monthEndStr).length,
+    [workouts, monthStartStr, monthEndStr]
+  );
 
   return (
     <div className="pb-24 bg-slate-50 min-h-screen">
@@ -164,7 +171,7 @@ export default function CalendarPage() {
       <div className="px-4 mt-3">
         {!selectedDate && !loading && (
           <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center">
-            <p className="text-2xl font-bold text-slate-900">{workouts.length}</p>
+            <p className="text-2xl font-bold text-slate-900">{monthWorkoutCount}</p>
             <p className="text-xs text-slate-400 mt-0.5">本月训练次数 · 点击日期查看</p>
           </div>
         )}
@@ -231,6 +238,16 @@ export default function CalendarPage() {
           </div>
         )}
       </div>
+
+      {/* FAB: 选中日期时显示 */}
+      {selectedDate && (
+        <button
+          onClick={() => navigate(`/workouts/new?date=${selectedDateStr}`)}
+          className="fixed bottom-24 right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all z-40 md:right-[calc(50%-384px+16px)]"
+        >
+          <Plus size={24} />
+        </button>
+      )}
     </div>
   );
 }

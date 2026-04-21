@@ -52,13 +52,14 @@ export default function WorkoutCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const templateIdParam = searchParams.get("template_id");
+  const dateParam = searchParams.get("date");
 
   /* ---- phase ---- */
   const [phase, setPhase] = useState<Phase>("select");
   const [isFirstSelect, setIsFirstSelect] = useState(true);
 
   /* ---- config (set on first SELECT) ---- */
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [date, setDate] = useState(dateParam || format(new Date(), "yyyy-MM-dd"));
   const [weightUnit, setWeightUnit] = useState<"kg" | "lb">("kg");
 
   /* ---- finish screen ---- */
