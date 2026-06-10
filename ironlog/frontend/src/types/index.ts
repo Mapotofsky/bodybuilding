@@ -52,6 +52,10 @@ export interface Workout {
   date: string;
   start_time: string | null;
   end_time: string | null;
+  plan_template_id: number | null;
+  template_name: string | null;
+  template_color: string | null;
+  plan_color: string | null;
   note: string | null;
   mood: number | null;
   exercises: WorkoutExercise[];

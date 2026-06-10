@@ -177,6 +177,23 @@ export default function WorkoutDetailPage() {
             {format(new Date(workout.date), "M月d日 EEEE", { locale: zhCN })}
             {workout.mood ? ` ${MOOD_LABELS[workout.mood]}` : ""}
           </h2>
+          {workout.template_name && (
+            <div className="mt-2">
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+                style={{
+                  backgroundColor: `${workout.template_color || workout.plan_color || "#10b981"}22`,
+                  color: workout.template_color || workout.plan_color || "#059669",
+                }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: workout.template_color || workout.plan_color || "#10b981" }}
+                />
+                {workout.template_name}
+              </span>
+            </div>
+          )}
           <div className="flex gap-4 mt-3">
             <div className="text-center">
               <p className="text-xl font-bold text-slate-900">{workout.exercises.length}</p>
@@ -276,7 +293,7 @@ export default function WorkoutDetailPage() {
 
       {/* Copy Modal — bottom sheet */}
       {showCopyModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center animate-fade-in">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center animate-fade-in">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCopyModal(false)} />
           <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl p-6 space-y-4 animate-slide-up md:max-w-[768px]">
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto" />
@@ -307,7 +324,7 @@ export default function WorkoutDetailPage() {
 
       {/* Share Modal */}
       {showShareModal && shareData && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center animate-fade-in">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center animate-fade-in">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowShareModal(false)} />
           <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl overflow-hidden animate-slide-up md:max-w-[768px]">
             <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 text-white">

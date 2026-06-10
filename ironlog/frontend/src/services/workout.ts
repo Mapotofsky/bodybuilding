@@ -1,5 +1,5 @@
 import api from "./api";
-import type { Workout, WorkoutSummary, WorkoutExercise } from "@/types";
+import type { Workout, WorkoutSummary } from "@/types";
 
 export async function getWorkouts(params?: {
   month?: string;
@@ -15,29 +15,38 @@ export async function getWorkout(id: number): Promise<Workout> {
   return data;
 }
 
-export async function createWorkout(body: {
+export interface WorkoutSetPayload {
+  set_number: number;
+  weight?: number | null;
+  reps?: number | null;
+  unit?: string;
+  duration_sec?: number | null;
+  distance_m?: number | null;
+  rpe?: number | null;
+  is_warmup?: boolean;
+  is_dropset?: boolean;
+  is_failure?: boolean;
+  rest_seconds?: number | null;
+}
+
+export interface WorkoutExercisePayload {
+  exercise_id: number;
+  sort_order: number;
+  superset_group?: number | null;
+  sets: WorkoutSetPayload[];
+}
+
+export interface WorkoutCreatePayload {
   date: string;
   start_time?: string;
   end_time?: string;
+  plan_template_id?: number | null;
   note?: string;
   mood?: number;
-  exercises: Array<{
-    exercise_id: number;
-    sort_order: number;
-    superset_group?: number | null;
-    sets: Array<{
-      set_number: number;
-      weight?: number | null;
-      reps?: number | null;
-      unit?: string;
-      duration_sec?: number | null;
-      rpe?: number | null;
-      is_warmup?: boolean;
-      is_dropset?: boolean;
-      is_failure?: boolean;
-    }>;
-  }>;
-}): Promise<Workout> {
+  exercises: WorkoutExercisePayload[];
+}
+
+export async function createWorkout(body: WorkoutCreatePayload): Promise<Workout> {
   const { data } = await api.post("/workouts", body);
   return data;
 }

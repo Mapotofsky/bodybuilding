@@ -96,17 +96,17 @@ export default function WorkoutTimer({
   // Compact bar when running
   if (state === "running" || state === "paused") {
     return (
-      <div className="flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl px-4 py-3">
+      <div className="flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl px-4 py-3">
         <div
           className={`w-2.5 h-2.5 rounded-full ${
-            state === "running" ? "bg-green-500 animate-pulse" : "bg-yellow-500"
+            state === "running" ? "bg-emerald-500 animate-pulse" : "bg-yellow-500"
           }`}
         />
         <div className="flex-1">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-500">
             {state === "running" ? "训练进行中" : "已暂停"}
           </p>
-          <p className="text-xl font-mono font-bold text-gray-900 tabular-nums">
+          <p className="text-xl font-mono font-bold text-slate-900 tabular-nums">
             {formatTime(elapsed)}
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function WorkoutTimer({
           ) : (
             <button
               onClick={handleResume}
-              className="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center hover:bg-green-200 transition"
+              className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center hover:bg-emerald-200 transition"
             >
               <Play size={16} />
             </button>
@@ -141,17 +141,17 @@ export default function WorkoutTimer({
   if (elapsed > 0) {
     // Timer was stopped, show result
     return (
-      <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
-        <Timer size={18} className="text-gray-400" />
+      <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
+        <Timer size={18} className="text-slate-400" />
         <div className="flex-1">
-          <p className="text-xs text-gray-500">训练时长</p>
-          <p className="text-lg font-mono font-bold text-gray-900 tabular-nums">
+          <p className="text-xs text-slate-500">训练时长</p>
+          <p className="text-lg font-mono font-bold text-slate-900 tabular-nums">
             {formatTime(elapsed)}
           </p>
         </div>
         <button
           onClick={handleReset}
-          className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 transition"
+          className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition"
         >
           <RotateCcw size={16} />
         </button>
@@ -162,14 +162,14 @@ export default function WorkoutTimer({
   return (
     <button
       onClick={handleStart}
-      className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 w-full hover:bg-green-100 transition"
+      className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 w-full hover:bg-emerald-100 transition"
     >
-      <div className="w-9 h-9 rounded-full bg-green-500 text-white flex items-center justify-center">
+      <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center">
         <Play size={16} className="ml-0.5" />
       </div>
       <div className="text-left">
-        <p className="text-sm font-medium text-green-800">开始计时</p>
-        <p className="text-xs text-green-600">记录训练时长</p>
+        <p className="text-sm font-medium text-emerald-800">开始计时</p>
+        <p className="text-xs text-emerald-600">记录训练时长</p>
       </div>
     </button>
   );

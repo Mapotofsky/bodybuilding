@@ -37,12 +37,17 @@ def _build_exercise_out(we: WorkoutExercise) -> WorkoutExerciseOut:
 
 
 def _build_workout_out(w: Workout) -> WorkoutOut:
+    tmpl = w.plan_template
     return WorkoutOut(
         id=w.id,
         user_id=w.user_id,
         date=w.date,
         start_time=w.start_time,
         end_time=w.end_time,
+        plan_template_id=w.plan_template_id,
+        template_name=tmpl.name if tmpl else None,
+        template_color=tmpl.color if tmpl else None,
+        plan_color=tmpl.plan.color if (tmpl and tmpl.plan) else None,
         note=w.note,
         mood=w.mood,
         exercises=[_build_exercise_out(we) for we in w.exercises],
@@ -248,6 +253,7 @@ async def copy_workout(
     new_workout = Workout(
         user_id=user.id,
         date=body.target_date,
+        plan_template_id=source.plan_template_id,
         note=source.note,
         mood=source.mood,
     )
@@ -276,6 +282,7 @@ async def copy_workout(
                 is_warmup=s.is_warmup,
                 is_dropset=s.is_dropset,
                 is_failure=s.is_failure,
+                rest_seconds=s.rest_seconds,
             )
             db.add(ws)
     await db.flush()
@@ -336,6 +343,7 @@ async def _get_workout_raw(db: AsyncSession, workout_id: int, user_id: int) -> W
         .options(
             selectinload(Workout.exercises).selectinload(WorkoutExercise.sets),
             selectinload(Workout.exercises).selectinload(WorkoutExercise.exercise),
+            selectinload(Workout.plan_template).selectinload(PlanTemplate.plan),
         )
     )
     result = await db.execute(stmt)

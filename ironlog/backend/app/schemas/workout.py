@@ -70,6 +70,10 @@ class WorkoutOut(BaseModel):
     date: datetime.date
     start_time: datetime.datetime | None = None
     end_time: datetime.datetime | None = None
+    plan_template_id: int | None = None
+    template_name: str | None = None
+    template_color: str | None = None
+    plan_color: str | None = None
     note: str | None = None
     mood: int | None = None
     exercises: list[WorkoutExerciseOut] = []

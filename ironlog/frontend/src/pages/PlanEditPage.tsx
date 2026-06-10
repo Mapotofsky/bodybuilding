@@ -57,16 +57,16 @@ export default function PlanEditPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400">
+      <div className="min-h-screen flex items-center justify-center text-slate-400">
         加载中...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 z-10">
-        <button onClick={() => navigate(-1)} className="text-gray-500">
+    <div className="min-h-screen bg-slate-50">
+      <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 z-10">
+        <button onClick={() => navigate(-1)} className="text-slate-500">
           <ChevronLeft size={24} />
         </button>
         <h1 className="text-lg font-semibold">编辑计划</h1>
@@ -81,7 +81,7 @@ export default function PlanEditPage() {
 
         <div className="bg-white rounded-2xl p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               计划名称 <span className="text-red-500">*</span>
             </label>
             <input
@@ -93,7 +93,7 @@ export default function PlanEditPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               描述（可选）
             </label>
             <textarea
@@ -105,7 +105,7 @@ export default function PlanEditPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               颜色
             </label>
             <div className="flex gap-2 flex-wrap">
@@ -115,7 +115,7 @@ export default function PlanEditPage() {
                   type="button"
                   onClick={() => setColor(c)}
                   className={`w-8 h-8 rounded-full transition-transform ${
-                    color === c ? "scale-110 ring-2 ring-offset-2 ring-gray-400" : ""
+                    color === c ? "scale-110 ring-2 ring-offset-2 ring-slate-400" : ""
                   }`}
                   style={{ backgroundColor: c }}
                 />
@@ -125,7 +125,7 @@ export default function PlanEditPage() {
         </div>
 
         <div className="bg-white rounded-2xl p-4 space-y-3">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-slate-700">
             编排模式
           </label>
           {(["weekly", "cyclic", "flexible"] as PlanMode[]).map((m) => (
@@ -147,7 +147,7 @@ export default function PlanEditPage() {
               />
               <div>
                 <p className="font-medium text-sm">{PLAN_MODE_LABELS[m]}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   {m === "weekly" && "固定每周某几天训练，如周一/三/五"}
                   {m === "cyclic" && "以 N 天为一个周期循环，不受星期约束"}
                   {m === "flexible" && "不固定日期，按顺序手动选取模版"}
@@ -158,14 +158,14 @@ export default function PlanEditPage() {
 
           {mode === "cyclic" && (
             <div className="mt-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 周期天数
               </label>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setCycleLength((v) => Math.max(2, v - 1))}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 text-lg font-medium flex items-center justify-center"
+                  className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 text-lg font-medium flex items-center justify-center"
                 >
                   −
                 </button>
@@ -175,11 +175,11 @@ export default function PlanEditPage() {
                 <button
                   type="button"
                   onClick={() => setCycleLength((v) => Math.min(14, v + 1))}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 text-lg font-medium flex items-center justify-center"
+                  className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 text-lg font-medium flex items-center justify-center"
                 >
                   +
                 </button>
-                <span className="text-sm text-gray-500">天</span>
+                <span className="text-sm text-slate-500">天</span>
               </div>
             </div>
           )}

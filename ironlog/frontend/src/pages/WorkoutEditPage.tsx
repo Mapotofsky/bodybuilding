@@ -194,7 +194,7 @@ export default function WorkoutEditPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-gray-400">
+      <div className="flex items-center justify-center h-screen text-slate-400">
         加载中...
       </div>
     );
@@ -203,7 +203,7 @@ export default function WorkoutEditPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="p-1">
           <ArrowLeft size={22} />
         </button>
@@ -211,7 +211,7 @@ export default function WorkoutEditPage() {
         <button
           onClick={handleSave}
           disabled={saving || exercises.length === 0}
-          className="text-blue-500 font-medium disabled:opacity-40"
+          className="text-emerald-500 font-medium disabled:opacity-40"
         >
           {saving ? "保存中" : "保存"}
         </button>
@@ -224,7 +224,7 @@ export default function WorkoutEditPage() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm"
           />
           <div className="flex gap-1">
             {[1, 2, 3, 4, 5].map((m) => (
@@ -233,8 +233,8 @@ export default function WorkoutEditPage() {
                 onClick={() => setMood(mood === m ? null : m)}
                 className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition ${
                   mood === m
-                    ? "bg-blue-100 ring-2 ring-blue-400"
-                    : "bg-gray-50"
+                    ? "bg-emerald-100 ring-2 ring-emerald-400"
+                    : "bg-slate-50"
                 }`}
               >
                 {["😫", "😕", "😐", "😊", "🔥"][m - 1]}
@@ -246,37 +246,37 @@ export default function WorkoutEditPage() {
         {/* Start / End time */}
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="text-xs text-gray-400 mb-0.5 block">开始时间</label>
+            <label className="text-xs text-slate-400 mb-0.5 block">开始时间</label>
             <input
               type="datetime-local"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
             />
           </div>
           <div className="flex-1">
-            <label className="text-xs text-gray-400 mb-0.5 block">结束时间</label>
+            <label className="text-xs text-slate-400 mb-0.5 block">结束时间</label>
             <input
               type="datetime-local"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
             />
           </div>
         </div>
 
         {/* Unit Toggle */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">重量单位：</span>
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
+          <span className="text-sm text-slate-500">重量单位：</span>
+          <div className="flex bg-slate-100 rounded-lg p-0.5">
             {(["kg", "lb"] as const).map((u) => (
               <button
                 key={u}
                 onClick={() => setWeightUnit(u)}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition ${
                   weightUnit === u
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-500"
+                    ? "bg-white text-emerald-600 shadow-sm"
+                    : "text-slate-500"
                 }`}
               >
                 {u}
@@ -289,25 +289,25 @@ export default function WorkoutEditPage() {
         {exercises.map((ex) => (
           <div
             key={ex.tempId}
-            className="bg-gray-50 rounded-2xl p-4 space-y-3"
+            className="bg-slate-50 rounded-2xl p-4 space-y-3"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold">{ex.exercise_name}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-slate-400">
                   {CATEGORY_LABELS[ex.exercise_category] || ex.exercise_category}
                 </p>
               </div>
               <button
                 onClick={() => removeExercise(ex.tempId)}
-                className="p-1 text-gray-300 hover:text-red-400"
+                className="p-1 text-slate-300 hover:text-red-400"
               >
                 <Trash2 size={18} />
               </button>
             </div>
 
             {/* Sets Header */}
-            <div className="grid grid-cols-[40px_1fr_1fr_36px] gap-2 text-xs text-gray-400 px-1">
+            <div className="grid grid-cols-[40px_1fr_1fr_36px] gap-2 text-xs text-slate-400 px-1">
               <span>组</span>
               <span>重量({weightUnit})</span>
               <span>次数</span>
@@ -322,7 +322,7 @@ export default function WorkoutEditPage() {
               >
                 <span
                   className={`text-center text-sm font-medium ${
-                    s.is_warmup ? "text-orange-400" : "text-gray-500"
+                    s.is_warmup ? "text-orange-400" : "text-slate-500"
                   }`}
                 >
                   {s.is_warmup ? "W" : s.set_number}
@@ -347,7 +347,7 @@ export default function WorkoutEditPage() {
                       )
                     );
                   }}
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-center text-sm"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
                 />
                 <input
                   type="number"
@@ -362,11 +362,11 @@ export default function WorkoutEditPage() {
                       e.target.value ? parseInt(e.target.value) : null
                     )
                   }
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-center text-sm"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
                 />
                 <button
                   onClick={() => removeSet(ex.tempId, si)}
-                  className="p-1 text-gray-300 hover:text-red-400"
+                  className="p-1 text-slate-300 hover:text-red-400"
                 >
                   <X size={16} />
                 </button>
@@ -375,7 +375,7 @@ export default function WorkoutEditPage() {
 
             <button
               onClick={() => addSet(ex.tempId)}
-              className="w-full py-2 text-sm text-blue-500 bg-white border border-dashed border-blue-200 rounded-lg hover:bg-blue-50 transition"
+              className="w-full py-2 text-sm text-emerald-500 bg-white border border-dashed border-emerald-200 rounded-lg hover:bg-emerald-50 transition"
             >
               + 添加一组
             </button>
@@ -385,7 +385,7 @@ export default function WorkoutEditPage() {
         {/* Add Exercise Button */}
         <button
           onClick={() => setShowPicker(true)}
-          className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 flex items-center justify-center gap-2 hover:border-blue-300 hover:text-blue-400 transition"
+          className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 flex items-center justify-center gap-2 hover:border-emerald-300 hover:text-emerald-400 transition"
         >
           <Plus size={20} />
           添加动作
@@ -397,7 +397,7 @@ export default function WorkoutEditPage() {
           onChange={(e) => setNote(e.target.value)}
           placeholder="训练备注（可选）"
           rows={2}
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none"
+          className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm resize-none"
         />
       </div>
 
@@ -405,7 +405,7 @@ export default function WorkoutEditPage() {
       {showPicker && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
           <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-slate-100">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-lg">选择动作</h2>
                 <button
@@ -421,14 +421,14 @@ export default function WorkoutEditPage() {
               <div className="relative">
                 <Search
                   size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   type="text"
                   value={searchQ}
                   onChange={(e) => setSearchQ(e.target.value)}
                   placeholder="搜索动作..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-gray-100 rounded-xl text-sm outline-none"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-sm outline-none"
                 />
               </div>
               <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
@@ -436,8 +436,8 @@ export default function WorkoutEditPage() {
                   onClick={() => setFilterCat("")}
                   className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
                     !filterCat
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 text-gray-500"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
                   全部
@@ -448,8 +448,8 @@ export default function WorkoutEditPage() {
                     onClick={() => setFilterCat(key)}
                     className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
                       filterCat === key
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-100 text-gray-500"
+                        ? "bg-emerald-500 text-white"
+                        : "bg-slate-100 text-slate-500"
                     }`}
                   >
                     {label}
@@ -462,19 +462,19 @@ export default function WorkoutEditPage() {
                 <button
                   key={ex.id}
                   onClick={() => addExercise(ex)}
-                  className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 transition flex items-center justify-between"
+                  className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition flex items-center justify-between"
                 >
                   <div>
                     <p className="font-medium text-sm">{ex.name}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-slate-400">
                       {CATEGORY_LABELS[ex.category] || ex.category}
                     </p>
                   </div>
-                  <Plus size={18} className="text-gray-300" />
+                  <Plus size={18} className="text-slate-300" />
                 </button>
               ))}
               {filteredExercises.length === 0 && (
-                <p className="text-center text-gray-400 py-8 text-sm">
+                <p className="text-center text-slate-400 py-8 text-sm">
                   没有找到匹配的动作
                 </p>
               )}
