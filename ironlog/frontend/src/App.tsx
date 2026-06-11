@@ -1,9 +1,5 @@
-import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuthStore } from "@/store/auth";
 import Layout from "@/components/Layout";
-import LoginPage from "@/pages/LoginPage";
-import RegisterPage from "@/pages/RegisterPage";
 import HomePage from "@/pages/HomePage";
 import WorkoutsPage from "@/pages/WorkoutsPage";
 import WorkoutDetailPage from "@/pages/WorkoutDetailPage";
@@ -17,32 +13,12 @@ import PlanEditPage from "@/pages/PlanEditPage";
 import TemplateEditPage from "@/pages/TemplateEditPage";
 import CalendarPage from "@/pages/CalendarPage";
 import ExerciseDetailPage from "@/pages/ExerciseDetailPage";
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-}
+import SyncPage from "@/pages/SyncPage";
 
 export default function App() {
-  const { isAuthenticated, fetchUser } = useAuthStore();
-
-  useEffect(() => {
-    if (isAuthenticated) fetchUser();
-  }, [isAuthenticated]);
-
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
+      <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="workouts" element={<WorkoutsPage />} />
         <Route path="workouts/new" element={<WorkoutCreatePage />} />
@@ -55,8 +31,10 @@ export default function App() {
         <Route path="plans/:id/edit" element={<PlanEditPage />} />
         <Route path="plans/:id/templates/:tid" element={<TemplateEditPage />} />
         <Route path="calendar" element={<CalendarPage />} />
+        <Route path="sync" element={<SyncPage />} />
         <Route path="exercises/:id" element={<ExerciseDetailPage />} />
       </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

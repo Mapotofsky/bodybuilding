@@ -38,7 +38,7 @@ export default function PlanDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    getPlan(Number(id))
+    getPlan(id)
       .then(setPlan)
       .finally(() => setLoading(false));
   }, [id]);

@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string;
   email: string;
   nickname: string | null;
   avatar_url: string | null;
@@ -12,7 +12,7 @@ export interface User {
 }
 
 export interface Exercise {
-  id: number;
+  id: string;
   name: string;
   category: string;
   type: string;
@@ -22,7 +22,7 @@ export interface Exercise {
 }
 
 export interface WorkoutSet {
-  id?: number;
+  id?: string;
   set_number: number;
   weight: number | null;
   reps: number | null;
@@ -37,8 +37,8 @@ export interface WorkoutSet {
 }
 
 export interface WorkoutExercise {
-  id?: number;
-  exercise_id: number;
+  id?: string;
+  exercise_id: string;
   exercise_name?: string;
   exercise_category?: string;
   sort_order: number;
@@ -47,12 +47,12 @@ export interface WorkoutExercise {
 }
 
 export interface Workout {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   date: string;
   start_time: string | null;
   end_time: string | null;
-  plan_template_id: number | null;
+  plan_template_id: string | null;
   template_name: string | null;
   template_color: string | null;
   plan_color: string | null;
@@ -64,7 +64,7 @@ export interface Workout {
 }
 
 export interface WorkoutSummary {
-  id: number;
+  id: string;
   date: string;
   start_time: string | null;
   end_time: string | null;
@@ -73,18 +73,12 @@ export interface WorkoutSummary {
   exercise_count: number;
   total_sets: number;
   total_volume: number;
-  plan_template_id: number | null;
+  plan_template_id: string | null;
   template_name: string | null;
   template_color: string | null;
   plan_color: string | null;
-  exercise_ids: number[];
+  exercise_ids: string[];
   created_at: string;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -125,8 +119,8 @@ export const DAY_OF_WEEK_LABELS: Record<number, string> = {
 };
 
 export interface TemplateExercise {
-  id: number;
-  exercise_id: number;
+  id: string;
+  exercise_id: string;
   exercise_name?: string;
   exercise_category?: string;
   sort_order: number;
@@ -134,8 +128,8 @@ export interface TemplateExercise {
 }
 
 export interface PlanTemplate {
-  id: number;
-  plan_id: number;
+  id: string;
+  plan_id: string;
   name: string;
   sort_order: number;
   color: string | null;
@@ -146,8 +140,8 @@ export interface PlanTemplate {
 }
 
 export interface TrainingPlan {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   name: string;
   description: string | null;
   color: string;
@@ -160,7 +154,7 @@ export interface TrainingPlan {
 }
 
 export interface PlanSummary {
-  id: number;
+  id: string;
   name: string;
   description: string | null;
   mode: PlanMode;
@@ -172,18 +166,18 @@ export interface PlanSummary {
 }
 
 export interface CalendarEntry {
-  id: number;
-  plan_id: number;
+  id: string;
+  plan_id: string;
   plan_name: string;
   plan_color: string;
   plan_mode: string;
-  template_id: number;
+  template_id: string;
   template_name: string;
   template_color: string | null;
-  template_exercise_ids: number[];
+  template_exercise_ids: string[];
   scheduled_date: string;
   is_completed: boolean;
-  workout_id: number | null;
+  workout_id: string | null;
 }
 
 export interface CalendarDay {
@@ -192,7 +186,7 @@ export interface CalendarDay {
 }
 
 export interface ExerciseDetail {
-  id: number;
+  id: string;
   name: string;
   category: string;
   type: string;

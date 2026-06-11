@@ -17,8 +17,8 @@ export default function ExerciseDetailPage() {
   useEffect(() => {
     if (!id) return;
     Promise.all([
-      getExerciseDetail(Number(id)),
-      getExerciseHistory(Number(id), 20),
+      getExerciseDetail(id),
+      getExerciseHistory(id, 20),
     ])
       .then(([d, h]) => {
         setDetail(d);

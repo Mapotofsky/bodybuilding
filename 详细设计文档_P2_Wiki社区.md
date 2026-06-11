@@ -1,543 +1,236 @@
-# P2 详细设计文档 — Wiki 社区
+# 详细设计文档 P2：社区/Wiki 已砍功能归档
 
-> **版本**：v1.0 &ensp;|&ensp; **日期**：2026-03-28 &ensp;|&ensp; **状态**：待开发
->
-> **范围**：M3 动作/器械 Wiki 模块（编辑、评论、热度排行、版本历史、审核）
->
-> **前置依赖**：P0（用户鉴权 + 动作库）、P1（动作详情页）
+> 当前版本：社区/Wiki 不进入单人版路线  
+> 最后更新：2026-06-11  
+> 文档用途：明确哪些功能已从当前分支移除，避免后续开发重新引入服务器、账号和内容运营负担。
 
 ---
 
-## 1 模块概述
+## 1. 决策结论
 
-将 P0/P1 的只读动作库升级为社区化 Wiki 知识库：
+P2 原规划包含：
 
-- Wiki 条目的 Markdown 编辑与版本历史
-- 楼中楼评论系统（支持点赞、举报）
-- 浏览量/点赞量/评论量驱动的热度排行
-- 管理员审核机制
-- 肌群可视化（前端人体肌群图）
+- 在线 Wiki。
+- 动作百科内容运营。
+- 社区动态。
+- 用户发布训练内容。
+- 点赞、评论、关注。
+- 多用户互动。
 
----
+当前全部不进入单人版路线。
 
-## 2 数据库设计
+当前分支只服务：
 
-### 2.1 新增表
-
-#### 2.1.1 wiki_articles
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | SERIAL | PK | 自增主键 |
-| slug | VARCHAR(150) | UNIQUE, NOT NULL, INDEX | URL 友好标识 |
-| title | VARCHAR(200) | NOT NULL | 条目标题 |
-| type | ENUM(exercise, equipment) | NOT NULL | 条目类型 |
-| category | VARCHAR(50) | NOT NULL | 分类（chest, back, legs...） |
-| content_md | TEXT | NOT NULL | Markdown 正文 |
-| target_muscles | JSONB | DEFAULT '[]' | 主要目标肌群 ID 列表 |
-| secondary_muscles | JSONB | DEFAULT '[]' | 次要参与肌群 ID 列表 |
-| met_value | FLOAT | NULLABLE | MET 值 |
-| difficulty | INT | NULLABLE | 难度 1-5 |
-| media | JSONB | DEFAULT '[]' | 图片/GIF/视频链接列表 |
-| view_count | INT | DEFAULT 0 | 浏览量 |
-| like_count | INT | DEFAULT 0 | 点赞量 |
-| comment_count | INT | DEFAULT 0 | 评论量 |
-| status | ENUM(draft, published, archived) | DEFAULT 'published' | 状态 |
-| author_id | INT | FK → users.id, NOT NULL | 作者 |
-| exercise_id | INT | FK → exercises.id, NULLABLE | 关联的动作库条目 |
-| created_at | TIMESTAMPTZ | DEFAULT now() | 创建时间 |
-| updated_at | TIMESTAMPTZ | DEFAULT now() | 更新时间 |
-
-**索引**：
-
-- `ix_wiki_articles_slug (slug)` — UNIQUE
-- `ix_wiki_articles_category (category)`
-- GIN 索引 `ix_wiki_articles_fts` on `to_tsvector('simple', title || ' ' || content_md)` — 全文搜索
-
-#### 2.1.2 wiki_revisions
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | SERIAL | PK | 自增主键 |
-| article_id | INT | FK → wiki_articles.id (CASCADE), NOT NULL | 所属条目 |
-| author_id | INT | FK → users.id, NOT NULL | 编辑者 |
-| content_md | TEXT | NOT NULL | 该版本的完整 Markdown 内容 |
-| edit_summary | VARCHAR(200) | NULLABLE | 编辑摘要 |
-| created_at | TIMESTAMPTZ | DEFAULT now() | 创建时间 |
-
-**索引**：`ix_wiki_revisions_article (article_id, created_at DESC)`
-
-#### 2.1.3 wiki_comments
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | SERIAL | PK | 自增主键 |
-| article_id | INT | FK → wiki_articles.id (CASCADE), NOT NULL | 所属条目 |
-| user_id | INT | FK → users.id, NOT NULL | 评论者 |
-| parent_id | INT | FK → wiki_comments.id, NULLABLE | 父评论（楼中楼） |
-| content | TEXT | NOT NULL | 评论内容 |
-| like_count | INT | DEFAULT 0 | 点赞数 |
-| is_hidden | BOOLEAN | DEFAULT false | 是否被管理员隐藏 |
-| created_at | TIMESTAMPTZ | DEFAULT now() | 创建时间 |
-
-**索引**：`ix_wiki_comments_article (article_id, created_at)`
-
-#### 2.1.4 wiki_likes
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | SERIAL | PK | 自增主键 |
-| user_id | INT | NOT NULL | 用户 |
-| target_type | ENUM(article, comment) | NOT NULL | 点赞对象类型 |
-| target_id | INT | NOT NULL | 点赞对象 ID |
-| created_at | TIMESTAMPTZ | DEFAULT now() | 创建时间 |
-
-**约束**：`UNIQUE (user_id, target_type, target_id)` — 防止重复点赞
-
-#### 2.1.5 wiki_reports
-
-| 字段 | 类型 | 约束 | 说明 |
-|------|------|------|------|
-| id | SERIAL | PK | 自增主键 |
-| user_id | INT | FK → users.id, NOT NULL | 举报者 |
-| target_type | ENUM(article, comment) | NOT NULL | 举报对象类型 |
-| target_id | INT | NOT NULL | 举报对象 ID |
-| reason | VARCHAR(500) | NOT NULL | 举报原因 |
-| status | ENUM(pending, resolved, rejected) | DEFAULT 'pending' | 处理状态 |
-| created_at | TIMESTAMPTZ | DEFAULT now() | 创建时间 |
-
-### 2.2 已有表关联
-
-- `wiki_articles.exercise_id` → `exercises.id`：将 Wiki 条目与 P0 动作库关联
-- 初始化时为每个预置动作自动创建对应的 Wiki 条目（seed 脚本）
-
-### 2.3 ER 关系
-
-```
-WikiArticle (1) ──→ (N) WikiRevision
-WikiArticle (1) ──→ (N) WikiComment (self-ref: parent_id)
-WikiArticle (1) ──→ (N) WikiLike (target_type='article')
-WikiComment (1) ──→ (N) WikiLike (target_type='comment')
-WikiArticle / WikiComment ──→ (N) WikiReport
-User (1) ──→ (N) WikiArticle (author)
-User (1) ──→ (N) WikiComment
-User (1) ──→ (N) WikiLike
+```text
+个人训练记录 -> 本地保存 -> 可备份 -> 可迁移
 ```
 
 ---
 
-## 3 后端 API 设计
+## 2. 为什么砍掉
 
-### 3.1 Wiki 条目 (`/wiki/articles`)
+### 2.1 与“不租服务器”冲突
 
-#### GET /api/v1/wiki/articles
+社区/Wiki 需要：
 
-搜索/浏览 Wiki 条目。
+- 用户账号。
+- 权限。
+- 内容数据库。
+- 审核。
+- 反垃圾。
+- 管理后台。
+- 服务端存储。
 
-**查询参数**：
+这些都会重新引入服务器成本。
 
-- `type?: "exercise" | "equipment"`
-- `category?: str`
-- `q?: str`（全文搜索关键词）
-- `page?: int` (default=1)
-- `size?: int` (default=20)
+### 2.2 与“本地优先”冲突
 
-**响应 200**：
+社区内容天然是在线共享数据。当前应用核心价值是离线可用的个人训练日志。
 
-```json
-{
-  "total": 52,
-  "page": 1,
-  "size": 20,
-  "items": [
-    {
-      "id": 1,
-      "slug": "ping-ban-gang-ling-wo-tui",
-      "title": "平板杠铃卧推",
-      "type": "exercise",
-      "category": "chest",
-      "target_muscles": ["pectoralis_major"],
-      "difficulty": 3,
-      "view_count": 1205,
-      "like_count": 89,
-      "comment_count": 12,
-      "status": "published",
-      "author_nickname": "系统",
-      "updated_at": "..."
-    }
-  ]
-}
-```
+### 2.3 与“开发阶段重点”冲突
 
-**全文搜索实现**：
+当前更重要的是：
 
-```sql
-SELECT * FROM wiki_articles
-WHERE to_tsvector('simple', title || ' ' || content_md) @@ plainto_tsquery('simple', :q)
-  AND status = 'published'
-ORDER BY ts_rank(...) DESC
-```
+- Android APK。
+- 本地 JSON 数据可靠性。
+- 训练流程稳定。
+- WebDAV 同步安全。
+- migration 可持续。
 
-#### GET /api/v1/wiki/articles/{slug}
-
-获取条目详情。
-
-**响应 200**：`WikiArticleOut`（含完整 content_md、author 信息）
-
-**副作用**：view_count += 1（异步更新，不阻塞响应）
-
-#### POST /api/v1/wiki/articles
-
-新建条目。
-
-**请求**：
-
-```json
-{
-  "title": "哈克深蹲",
-  "type": "exercise",
-  "category": "legs",
-  "content_md": "## 动作描述\n...",
-  "target_muscles": ["quadriceps"],
-  "secondary_muscles": ["glutes"],
-  "met_value": 5.5,
-  "difficulty": 3,
-  "media": []
-}
-```
-
-**逻辑**：
-
-1. 自动生成 slug（中文拼音转换或 title hash）
-2. 创建 WikiArticle
-3. 创建第一条 WikiRevision
-4. 管理员直接发布，普通用户设为 draft 待审核
-
-#### PUT /api/v1/wiki/articles/{slug}
-
-编辑条目。
-
-**请求**：`{ content_md, edit_summary?, target_muscles?, ... }`
-
-**逻辑**：
-
-1. 更新 WikiArticle 内容
-2. 创建新的 WikiRevision 记录
-3. 非管理员编辑后状态改为 draft 待审核
-
-#### GET /api/v1/wiki/articles/{slug}/revisions
-
-获取版本历史列表。
-
-**响应 200**：`{ id, author_nickname, edit_summary, created_at }[]`
-
-### 3.2 评论 (`/wiki/articles/{slug}/comments`)
-
-#### GET /api/v1/wiki/articles/{slug}/comments
-
-获取评论列表（分页，按时间正序，楼中楼嵌套）。
-
-**查询参数**：`page?: int`, `size?: int`
-
-**响应 200**：
-
-```json
-{
-  "total": 12,
-  "page": 1,
-  "size": 20,
-  "items": [
-    {
-      "id": 1,
-      "user_id": 5,
-      "user_nickname": "张三",
-      "content": "这个动作需要注意肩胛骨的收紧",
-      "like_count": 3,
-      "is_liked": false,
-      "parent_id": null,
-      "replies": [
-        {
-          "id": 3,
-          "user_id": 8,
-          "user_nickname": "李四",
-          "content": "同意，我之前肩膀受伤就是因为没注意这个",
-          "like_count": 1,
-          "is_liked": false,
-          "parent_id": 1,
-          "created_at": "..."
-        }
-      ],
-      "created_at": "..."
-    }
-  ]
-}
-```
-
-#### POST /api/v1/wiki/articles/{slug}/comments
-
-发表评论。
-
-**请求**：`{ content: str, parent_id?: int }`
-
-**逻辑**：创建评论 → wiki_articles.comment_count += 1
-
-#### DELETE /api/v1/wiki/articles/{slug}/comments/{comment_id}
-
-删除评论（仅作者或管理员可操作）。
-
-### 3.3 点赞 (`/wiki/articles/{slug}/like`)
-
-#### POST /api/v1/wiki/articles/{slug}/like
-
-切换点赞状态（toggle）。
-
-**逻辑**：
-
-- 若未点赞：插入 wiki_likes，wiki_articles.like_count += 1
-- 若已点赞：删除 wiki_likes，wiki_articles.like_count -= 1
-
-**响应 200**：`{ liked: boolean, like_count: int }`
-
-#### POST /api/v1/wiki/comments/{comment_id}/like
-
-切换评论点赞状态（toggle）。
-
-### 3.4 热度排行 (`/wiki/ranking`)
-
-#### GET /api/v1/wiki/ranking
-
-**查询参数**：
-
-- `period?: "week" | "month" | "all"` (default="week")
-- `sort?: "views" | "likes" | "comments" | "score"` (default="score")
-- `size?: int` (default=20)
-
-**响应 200**：`WikiArticleSummary[]`
-
-**热度分计算**（SQL 实现）：
-
-```sql
-SELECT *,
-  (0.4 * view_count_norm + 0.35 * like_count_norm + 0.25 * comment_count_norm)
-  * exp(-0.05 * EXTRACT(DAY FROM now() - updated_at))
-  AS score
-FROM wiki_articles
-WHERE status = 'published'
-ORDER BY score DESC
-LIMIT :size
-```
-
-应用层使用 `functools.lru_cache` 或 `cachetools.TTLCache`（TTL=1小时）缓存排行结果。
-
-### 3.5 举报 (`/wiki/reports`)
-
-#### POST /api/v1/wiki/reports
-
-**请求**：`{ target_type: "article" | "comment", target_id: int, reason: str }`
-
-**响应 201**：`{ id, status: "pending" }`
+社区会分散注意力。
 
 ---
 
-## 4 后端新增文件
+## 3. 明确不做清单
 
-| 文件 | 说明 |
-|------|------|
-| `app/models/wiki.py` | WikiArticle, WikiRevision, WikiComment, WikiLike, WikiReport |
-| `app/schemas/wiki.py` | 全套 schemas |
-| `app/api/v1/wiki.py` | Wiki 路由（条目 CRUD、评论、点赞、排行、举报） |
-| `app/services/wiki_seed.py` | 为预置动作生成初始 Wiki 条目 |
-| `app/services/slug.py` | 中文标题 → slug 转换（pypinyin 或简单 hash） |
+当前分支禁止新增：
+
+- Login/Register 页面。
+- auth store。
+- JWT。
+- user profile API。
+- follow/follower。
+- post/feed。
+- comment。
+- like。
+- public workout page。
+- online wiki API。
+- moderation/admin。
+- remote content CMS。
+
+如果出现这些需求，必须先开新设计讨论，不得直接编码。
 
 ---
 
-## 5 前端设计
+## 4. 本地替代能力
 
-### 5.1 新增路由
+为了覆盖个人训练需要，保留以下本地能力：
 
-| 路径 | 页面 | 说明 |
-|------|------|------|
-| `/wiki` | WikiListPage | Wiki 条目列表（搜索、分类筛选、排行） |
-| `/wiki/:slug` | WikiArticlePage | 条目详情（Markdown 渲染、评论、点赞） |
-| `/wiki/:slug/edit` | WikiEditPage | 编辑条目（Markdown 编辑器） |
-| `/wiki/:slug/history` | WikiHistoryPage | 版本历史 |
-| `/wiki/new` | WikiCreatePage | 新建条目 |
+### 4.1 动作说明
 
-### 5.2 底部导航更新
+`ExerciseDoc.description` 保存动作说明。
 
-> **设计说明**：P1 实现后底部导航已有 4 项（首页 / 计划 / 训练 / 我的）。P2 和 P3 都需要新增 Tab，但移动端导航项目不宜超过 5 项。
->
-> **当前建议**：P2 实现时将"百科"加为第 5 项（替换或整合进"我的"），P3 实现时评估"统计"与"百科"谁作为独立 Tab、谁降级为二级入口（参见 P3 文档 5.2 节的冲突说明）。两个阶段同时实现时需统一协商最终导航结构。
+用途：
 
-P2 阶段导航（仅供参考，最终需与 P3 协调）：
+- 用户自定义动作备注。
+- 本地静态动作解释。
 
-| 图标 | 标签 | 路径 |
-|------|------|------|
-| Home | 首页 | `/` |
-| ClipboardList | 计划 | `/plans` |
-| Dumbbell | 训练 | `/workouts` |
-| BookOpen | 百科 | `/wiki` |
-| User | 我的 | `/profile` |
+### 4.2 模板备注
 
-### 5.3 新增 npm 依赖
+`TemplateExerciseDoc.note` 保存模板内动作提示。
 
-| 包 | 用途 |
-|---|------|
-| `react-markdown` | Markdown 渲染 |
-| `remark-gfm` | 支持 GFM 语法（表格、任务列表） |
-| `react-textarea-autosize` | 编辑器自适应高度 |
+用途：
 
-### 5.4 新增前端服务
+- 组数建议。
+- 次数范围。
+- 休息建议。
+- 技术提示。
 
-`services/wiki.ts`：
+### 4.3 训练 note
 
-```typescript
-getArticles(params): Promise<PaginatedResponse<WikiArticleSummary>>
-getArticle(slug: string): Promise<WikiArticleOut>
-createArticle(body): Promise<WikiArticleOut>
-updateArticle(slug: string, body): Promise<WikiArticleOut>
-getRevisions(slug: string): Promise<WikiRevision[]>
-getComments(slug: string, params): Promise<PaginatedResponse<WikiComment>>
-postComment(slug: string, body): Promise<WikiComment>
-deleteComment(slug: string, commentId: number): Promise<void>
-toggleArticleLike(slug: string): Promise<{ liked: boolean; like_count: number }>
-toggleCommentLike(commentId: number): Promise<{ liked: boolean; like_count: number }>
-getRanking(params): Promise<WikiArticleSummary[]>
-report(body): Promise<void>
+`WorkoutDoc.note` 保存训练感受。
+
+### 4.4 本地分享文本
+
+`shareWorkout()` 生成本地分享文本，不上传服务器。
+
+---
+
+## 5. 未来可能恢复的条件
+
+只有同时满足以下条件，才重新评估社区/Wiki：
+
+- P0 核心训练链路稳定。
+- P1 计划/模板/日历稳定。
+- 本地 JSON schema migration 稳定。
+- WebDAV 同步可靠。
+- Android 构建发布稳定。
+- 用户明确提出在线内容协作需求。
+- 有可接受的低成本后端策略。
+
+---
+
+## 6. 未来可选路线
+
+### 6.1 静态动作百科
+
+形式：
+
+```text
+bundled JSON / markdown
 ```
 
-### 5.5 页面详细设计
+优点：
 
-#### 5.5.1 WikiListPage
+- 不需要服务器。
+- 可随版本发布。
+- 可离线查看。
 
-- 顶部搜索栏（实时搜索，防抖 300ms）
-- 分类 Tab 筛选（全部/胸/背/腿/肩/臂/核心/有氧/器械）
-- 排行模式切换（周榜/月榜/总榜）
-- 条目卡片列表：标题、分类标签、浏览/点赞/评论计数、难度星级
-- FAB "+" 新建条目
+适用：
 
-#### 5.5.2 WikiArticlePage
+- 动作说明。
+- 常见训练术语。
 
-- 标题 + 分类标签 + 作者 + 更新时间
-- 目标肌群可视化：人体肌群图（SVG），高亮主要/次要肌群
-- Markdown 正文渲染（react-markdown + remark-gfm）
-- 媒体展示区（图片轮播 / 嵌入视频）
-- 浏览/点赞/评论计数栏 + 点赞按钮
-- 评论区：
-  - 评论列表（楼中楼缩进展示）
-  - 每条评论：头像、昵称、内容、时间、点赞按钮、回复按钮、举报
-  - 评论输入框（固定底部）
-- 操作按钮：编辑 / 查看版本历史 / 举报
+### 6.2 用户导入内容包
 
-#### 5.5.3 WikiEditPage
+形式：
 
-- 标题输入
-- 分类选择
-- 目标肌群多选
-- Markdown 编辑区（左右分栏预览，或 Tab 切换编辑/预览）
-- 编辑摘要输入
-- 媒体上传区
-- 保存按钮
+```text
+exercise-pack.json
+template-pack.json
+```
 
-#### 5.5.4 WikiHistoryPage
+优点：
 
-- 版本列表：编辑者、编辑摘要、时间
-- 点击版本可查看该版本内容
-- （可选）版本 diff 对比
+- 仍然本地优先。
+- 社区可通过 GitHub 分享文件。
 
-### 5.6 肌群可视化组件
+### 6.3 微信小程序 CloudBase
 
-创建 `components/MuscleMap.tsx`：
+仅在未来小程序路线成熟后评估。
 
-- SVG 人体正面/背面图
-- 接收 `targetMuscles: string[]` 和 `secondaryMuscles: string[]`
-- 主要肌群填充深色，次要肌群填充浅色
-- 支持点击查看肌群名称
+可能能力：
 
-**肌群 ID 映射**：
+- 云端备份。
+- 内容分发。
+- 简单分享。
 
-```typescript
-const MUSCLE_GROUPS = {
-  pectoralis_major: "胸大肌",
-  latissimus_dorsi: "背阔肌",
-  deltoids: "三角肌",
-  biceps: "肱二头肌",
-  triceps: "肱三头肌",
-  quadriceps: "股四头肌",
-  hamstrings: "腘绳肌",
-  glutes: "臀大肌",
-  calves: "小腿",
-  abdominals: "腹肌",
-  obliques: "腹斜肌",
-  trapezius: "斜方肌",
-  rhomboids: "菱形肌",
-  erector_spinae: "竖脊肌",
-  forearms: "前臂",
-  hip_flexors: "髋屈肌",
-};
+但不能影响当前 Android 本地版。
+
+---
+
+## 7. 对代码结构的约束
+
+当前代码不应出现：
+
+```text
+src/pages/LoginPage.tsx
+src/pages/RegisterPage.tsx
+src/store/auth.ts
+src/services/api.ts
+src/services/community.ts
+src/services/wiki.ts
+src/services/feed.ts
+```
+
+当前数据模型不应新增：
+
+```text
+UserAccountDoc
+PostDoc
+CommentDoc
+LikeDoc
+FollowDoc
+WikiPageDoc
+```
+
+可接受：
+
+```text
+ExerciseDoc.description
+TemplateExerciseDoc.note
+WorkoutDoc.note
 ```
 
 ---
 
-## 6 业务规则
+## 8. 验收检查
 
-### 6.1 权限控制
+执行：
 
-| 操作 | 普通用户 | 管理员 |
-|------|---------|--------|
-| 浏览条目 | ✅ | ✅ |
-| 新建条目 | ✅（status=draft，待审核） | ✅（直接 published） |
-| 编辑条目 | ✅（编辑后 status=draft） | ✅（直接 published） |
-| 删除条目 | ❌ | ✅ |
-| 发表评论 | ✅ | ✅ |
-| 删除评论 | 仅自己的 | 任意 |
-| 点赞 | ✅ | ✅ |
-| 举报 | ✅ | ✅ |
-| 审核 | ❌ | ✅ |
-
-### 6.2 Slug 生成规则
-
-1. 对标题进行拼音转换（使用 pypinyin）
-2. 转小写，空格替换为 `-`，去除特殊字符
-3. 截取前 150 字符
-4. 若冲突，追加 `-2`, `-3` 后缀
-
-### 6.3 浏览量去重
-
-同一用户对同一条目，每 30 分钟计为 1 次浏览。使用内存字典记录 `{user_id}:{article_id} → last_view_time`，过期自动清理。
-
-### 6.4 热度排行缓存
-
-使用 `cachetools.TTLCache(maxsize=100, ttl=3600)` 缓存排行结果，避免每次请求重新计算。
-
----
-
-## 7 数据库迁移
-
-新增 Alembic 迁移脚本，创建 5 张新表及相关索引。
-
-```python
-# 全文搜索索引（需在迁移中手动执行 SQL）
-op.execute("""
-    CREATE INDEX ix_wiki_articles_fts
-    ON wiki_articles
-    USING GIN (to_tsvector('simple', title || ' ' || coalesce(content_md, '')))
-""")
+```bash
+rg -n "LoginPage|RegisterPage|useAuthStore|access_token|refresh_token|JWT|community|wiki|feed|follow|comment|like" ironlog/frontend/src
 ```
 
+期望：
+
+- 当前运行路径无结果。
+- 如文档中出现，只能是“已砍/不得做/未来评估”上下文。
+
 ---
 
-## 8 初始数据播种
+## 9. 决策记录
 
-在 `wiki_seed.py` 中，为 P0 预置的 50 个动作各自动创建一条 Wiki 条目：
+当前分支把 P2 从“功能开发阶段”改为“砍掉功能归档阶段”。
 
-- title = exercise.name
-- slug = 拼音转换
-- type = "exercise"
-- category = exercise.category
-- content_md = 基础模版（动作名、分类、MET 值占位）
-- exercise_id = exercise.id
-- author_id = 系统管理员
-- status = "published"
-
-用户后续可在此基础上丰富内容。
+这不是永久否定社区/Wiki，而是为当前单人版收缩范围，避免重复引入后端和账号系统。

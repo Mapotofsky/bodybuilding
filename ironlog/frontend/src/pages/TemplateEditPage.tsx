@@ -8,7 +8,7 @@ import { CATEGORY_LABELS, DAY_OF_WEEK_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 
 interface LocalTemplateExercise {
-  exercise_id: number;
+  exercise_id: string;
   exercise_name: string;
   exercise_category: string;
   sort_order: number;
@@ -41,10 +41,10 @@ export default function TemplateEditPage() {
 
   useEffect(() => {
     if (!planId || !templateId) return;
-    Promise.all([getPlan(Number(planId)), getExercises({})]).then(([p, exs]) => {
+    Promise.all([getPlan(planId), getExercises({})]).then(([p, exs]) => {
       setPlan(p);
       setAllExercises(exs);
-      const tmpl = p.templates.find((t) => t.id === Number(templateId));
+      const tmpl = p.templates.find((t) => t.id === templateId);
       if (tmpl) {
         setTemplate(tmpl);
         setName(tmpl.name);

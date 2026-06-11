@@ -24,7 +24,7 @@ export default function PlanEditPage() {
 
   useEffect(() => {
     if (!id) return;
-    getPlan(Number(id)).then((plan) => {
+    getPlan(id).then((plan) => {
       setName(plan.name);
       setDescription(plan.description || "");
       setColor(plan.color);
@@ -35,13 +35,14 @@ export default function PlanEditPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!id) return;
     if (!name.trim()) {
       setError("请输入计划名称");
       return;
     }
     setSaving(true);
     try {
-      await updatePlan(Number(id), {
+      await updatePlan(id, {
         name: name.trim(),
         description: description.trim() || null,
         color,

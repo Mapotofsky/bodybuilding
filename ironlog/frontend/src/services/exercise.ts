@@ -1,12 +1,13 @@
-import api from "./api";
+import { localRepository } from "@/repositories/localJsonRepository";
+import { toExercise } from "@/services/localMappers";
 import type { Exercise } from "@/types";
 
 export async function getExercises(params?: {
   category?: string;
   q?: string;
 }): Promise<Exercise[]> {
-  const { data } = await api.get("/exercises", { params });
-  return data;
+  const docs = await localRepository.list(params);
+  return docs.map(toExercise);
 }
 
 export async function createExercise(body: {
@@ -15,8 +16,14 @@ export async function createExercise(body: {
   type?: string;
   description?: string;
 }): Promise<Exercise> {
-  const { data } = await api.post("/exercises", body);
-  return data;
+  const doc = await localRepository.create({
+    name: body.name,
+    category: body.category,
+    type: body.type || "strength",
+    description: body.description || null,
+    metValue: null,
+  });
+  return toExercise(doc);
 }
 
 export interface ExerciseHistoryRecord {
@@ -29,11 +36,25 @@ export interface ExerciseHistoryRecord {
 }
 
 export async function getExerciseHistory(
-  exerciseId: number,
+  exerciseId: string,
   limit = 30
 ): Promise<ExerciseHistoryRecord[]> {
-  const { data } = await api.get(`/exercises/${exerciseId}/history`, {
-    params: { limit },
-  });
-  return data;
+  const workouts = await localRepository.listWorkouts();
+  return workouts
+    .flatMap((workout) =>
+      workout.exercises
+        .filter((exercise) => exercise.exerciseId === exerciseId)
+        .flatMap((exercise) =>
+          exercise.sets.map((set) => ({
+            date: workout.date,
+            set_number: set.setNumber,
+            weight: set.weight,
+            reps: set.reps,
+            unit: set.unit,
+            rest_seconds: set.restSeconds,
+          }))
+        )
+    )
+    .sort((a, b) => b.date.localeCompare(a.date) || a.set_number - b.set_number)
+    .slice(0, limit);
 }

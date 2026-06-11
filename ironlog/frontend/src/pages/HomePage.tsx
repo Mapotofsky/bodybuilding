@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "@/store/auth";
+import { getProfile } from "@/services/profile";
 import { getWorkouts } from "@/services/workout";
 import { getCalendar } from "@/services/plan";
-import type { WorkoutSummary, CalendarEntry } from "@/types";
+import type { WorkoutSummary, CalendarEntry, User } from "@/types";
 import { MOOD_LABELS } from "@/types";
 import { Plus, ChevronRight, Flame, Dumbbell, BarChart2 } from "lucide-react";
 import { format, subDays } from "date-fns";
@@ -12,8 +12,8 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { SkeletonList } from "@/components/ui/Skeleton";
 
 export default function HomePage() {
-  const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [recentWorkouts, setRecentWorkouts] = useState<WorkoutSummary[]>([]);
   const [monthWorkouts, setMonthWorkouts] = useState<WorkoutSummary[]>([]);
   const [todayEntries, setTodayEntries] = useState<CalendarEntry[]>([]);
@@ -27,6 +27,7 @@ export default function HomePage() {
 
   useEffect(() => {
     Promise.all([
+      getProfile(),
       getWorkouts().then((data) => data.slice(0, 10)),          // 最近10条，不限月份
       getWorkouts({ month: today }),                            // 本月全部，用于统计
       getCalendar(todayStr, todayStr).then((days) => days[0]?.entries || []),
@@ -51,7 +52,8 @@ export default function HomePage() {
           .slice(-3);
       }),
     ])
-      .then(([recent, month, entries, missed]) => {
+      .then(([profile, recent, month, entries, missed]) => {
+        setUser(profile);
         setRecentWorkouts(recent);
         setMonthWorkouts(month);
         setTodayEntries(entries);

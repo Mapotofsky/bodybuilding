@@ -20,6 +20,8 @@ env/
 # Environment variables & secrets
 .env
 .env.*
+!.env.example
+!.env.*.example
 
 # Database files
 *.db
@@ -28,6 +30,8 @@ env/
 # Uploaded files
 ironlog/backend/uploads/*
 !ironlog/backend/uploads/.gitkeep
+ironlog/legacy/backend/uploads/*
+!ironlog/legacy/backend/uploads/.gitkeep
 
 # ========================
 # Node.js / Frontend
@@ -35,11 +39,49 @@ ironlog/backend/uploads/*
 node_modules/
 dist/
 .cache/
+*.tsbuildinfo
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ========================
+# Capacitor / Android
+# ========================
+ironlog/frontend/android/.gradle/
+ironlog/frontend/android/**/build/
+ironlog/frontend/android/local.properties
+ironlog/frontend/android/captures/
+ironlog/frontend/android/.externalNativeBuild/
+ironlog/frontend/android/.cxx/
+ironlog/frontend/android/*.iml
+ironlog/frontend/android/**/*.iml
+ironlog/frontend/android/*.apk
+ironlog/frontend/android/*.aab
+ironlog/frontend/android/*.aar
+ironlog/frontend/android/*.ap_
+ironlog/frontend/android/*.jks
+ironlog/frontend/android/*.keystore
+
+# Capacitor generated from web build during sync
+ironlog/frontend/android/capacitor-cordova-android-plugins/
+ironlog/frontend/android/app/src/main/assets/public/
+ironlog/frontend/android/app/src/main/assets/capacitor.config.json
+ironlog/frontend/android/app/src/main/assets/capacitor.plugins.json
+ironlog/frontend/android/app/src/main/res/xml/config.xml
+
+# ========================
+# IronLog local-first data
+# ========================
+ironlog-data/
+ironlog/frontend/ironlog-data/
+backups/
+sync-conflicts/
+*.ironlog-backup.json
+*.ironlog-export.json
+*.tmp
+*.part
 
 # ========================
 # IDE & OS

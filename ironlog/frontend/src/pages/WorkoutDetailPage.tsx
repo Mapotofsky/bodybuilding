@@ -35,7 +35,7 @@ export default function WorkoutDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    getWorkout(Number(id))
+    getWorkout(id)
       .then(setWorkout)
       .catch(() => navigate("/workouts", { replace: true }))
       .finally(() => setLoading(false));

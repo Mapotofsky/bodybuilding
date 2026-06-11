@@ -1,0 +1,136 @@
+export const CURRENT_SCHEMA_VERSION = 1;
+
+export type DocId = string;
+export type ISODate = string;
+export type ISODateTime = string;
+export type WeightUnit = "kg" | "lb";
+export type PlanMode = "weekly" | "cyclic" | "flexible";
+
+export interface BaseDoc {
+  id: DocId;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+  deletedAt: ISODateTime | null;
+  schemaVersion: number;
+}
+
+export interface ProfileDoc extends BaseDoc {
+  nickname: string | null;
+  avatarUrl: string | null;
+  gender: string | null;
+  height: number | null;
+  weight: number | null;
+  birthDate: ISODate | null;
+}
+
+export interface SettingsDoc extends BaseDoc {
+  weightUnit: WeightUnit;
+  webdav: WebDavSettings;
+  lastSyncAt: ISODateTime | null;
+}
+
+export interface WebDavSettings {
+  url: string;
+  username: string;
+  passwordRef: string | null;
+}
+
+export interface ExerciseDoc extends BaseDoc {
+  name: string;
+  category: string;
+  type: string;
+  description: string | null;
+  metValue: number | null;
+  isCustom: boolean;
+}
+
+export interface TemplateExerciseDoc {
+  id: DocId;
+  exerciseId: DocId;
+  sortOrder: number;
+  note: string | null;
+}
+
+export interface TemplateDoc extends BaseDoc {
+  planId: DocId;
+  name: string;
+  sortOrder: number;
+  color: string | null;
+  scheduleRule: Record<string, unknown> | null;
+  exercises: TemplateExerciseDoc[];
+}
+
+export interface TrainingPlanDoc extends BaseDoc {
+  name: string;
+  description: string | null;
+  color: string;
+  mode: PlanMode;
+  cycleLength: number | null;
+  isActive: boolean;
+}
+
+export interface WorkoutSetDoc {
+  id: DocId;
+  setNumber: number;
+  weight: number | null;
+  reps: number | null;
+  unit: WeightUnit;
+  durationSec: number | null;
+  distanceM: number | null;
+  rpe: number | null;
+  isWarmup: boolean;
+  isDropset: boolean;
+  isFailure: boolean;
+  restSeconds: number | null;
+}
+
+export interface WorkoutExerciseDoc {
+  id: DocId;
+  exerciseId: DocId;
+  sortOrder: number;
+  supersetGroup: number | null;
+  sets: WorkoutSetDoc[];
+}
+
+export interface WorkoutDoc extends BaseDoc {
+  date: ISODate;
+  startTime: ISODateTime | null;
+  endTime: ISODateTime | null;
+  planTemplateId: DocId | null;
+  note: string | null;
+  mood: number | null;
+  exercises: WorkoutExerciseDoc[];
+}
+
+export interface ManualScheduleEntryDoc extends BaseDoc {
+  planId: DocId;
+  templateId: DocId;
+  scheduledDate: ISODate;
+  isCompleted: boolean;
+  workoutId: DocId | null;
+}
+
+export interface ManifestShard {
+  path: string;
+  updatedAt: ISODateTime;
+  etag?: string | null;
+}
+
+export interface IronLogManifest {
+  app: "ironlog";
+  schemaVersion: number;
+  deviceId: string;
+  updatedAt: ISODateTime;
+  shards: ManifestShard[];
+}
+
+export interface DataSnapshot {
+  manifest: IronLogManifest;
+  profile: ProfileDoc;
+  settings: SettingsDoc;
+  exercises: ExerciseDoc[];
+  plans: TrainingPlanDoc[];
+  templates: TemplateDoc[];
+  scheduleEntries: ManualScheduleEntryDoc[];
+  workouts: WorkoutDoc[];
+}

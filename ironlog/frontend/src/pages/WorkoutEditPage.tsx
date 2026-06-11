@@ -16,7 +16,7 @@ import { makeEmptySet } from "@/utils/workout";
 
 interface LocalExercise {
   tempId: string;
-  exercise_id: number;
+  exercise_id: string;
   exercise_name: string;
   exercise_category: string;
   sets: WorkoutSet[];
@@ -48,7 +48,7 @@ export default function WorkoutEditPage() {
   // Load existing workout
   useEffect(() => {
     if (!id) return;
-    getWorkout(Number(id))
+    getWorkout(id)
       .then((w: Workout) => {
         setDate(w.date);
         setNote(w.note || "");
@@ -182,7 +182,7 @@ export default function WorkoutEditPage() {
           })),
         })),
       };
-      await updateWorkout(Number(id), payload);
+      await updateWorkout(id, payload);
       navigate(`/workouts/${id}`, { replace: true });
     } catch (err) {
       console.error(err);

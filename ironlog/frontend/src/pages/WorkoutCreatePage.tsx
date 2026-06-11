@@ -87,8 +87,8 @@ export default function WorkoutCreatePage() {
 
   /* ---- plan picker ---- */
   const [activePlans, setActivePlans] = useState<PlanSummary[]>([]);
-  const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
-  const [planTemplatesCache, setPlanTemplatesCache] = useState<Record<number, PlanTemplate[]>>({});
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  const [planTemplatesCache, setPlanTemplatesCache] = useState<Record<string, PlanTemplate[]>>({});
 
   /* ---- exercise history ---- */
   const [history, setHistory] = useState<ExerciseHistoryRecord[]>([]);
@@ -100,7 +100,7 @@ export default function WorkoutCreatePage() {
 
   const [restSeconds, setRestSeconds] = useState(0);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const workoutIdRef = useRef<number | null>(null);
+  const workoutIdRef = useRef<string | null>(null);
 
   /* ---- load exercises, active plans & optional template ---- */
   useEffect(() => {
@@ -110,12 +110,12 @@ export default function WorkoutCreatePage() {
 
   useEffect(() => {
     if (!templateIdParam) return;
-    getTemplate(Number(templateIdParam))
+    getTemplate(templateIdParam)
       .then(setActiveTemplate)
       .catch(() => { /* template not found, proceed without */ });
   }, [templateIdParam]);
 
-  async function handleExpandPlan(planId: number) {
+  async function handleExpandPlan(planId: string) {
     if (expandedPlanId === planId) {
       setExpandedPlanId(null);
       return;
@@ -148,9 +148,9 @@ export default function WorkoutCreatePage() {
   /* ---- template helpers ---- */
   const templateExerciseIds = activeTemplate
     ? new Set(activeTemplate.exercises.map((te) => te.exercise_id))
-    : new Set<number>();
+    : new Set<string>();
 
-  function getTemplateNote(exerciseId: number): string | null {
+  function getTemplateNote(exerciseId: string): string | null {
     if (!activeTemplate) return null;
     return activeTemplate.exercises.find((te) => te.exercise_id === exerciseId)?.note || null;
   }
@@ -276,7 +276,7 @@ export default function WorkoutCreatePage() {
 
   const applyRestSeconds = (
     exercises: SessionExercise[],
-    exerciseId: number,
+    exerciseId: string,
     seconds: number
   ): SessionExercise[] =>
     exercises.map((se) =>
