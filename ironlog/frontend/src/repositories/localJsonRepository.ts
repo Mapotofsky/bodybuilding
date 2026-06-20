@@ -211,9 +211,20 @@ export class LocalJsonRepository {
     return (await this.getSnapshot()).settings;
   }
 
-  async updateSettings(body: Partial<Omit<SettingsDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">>): Promise<SettingsDoc> {
+  async updateSettings(body: Partial<Omit<SettingsDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion" | "lastSyncAt">>): Promise<SettingsDoc> {
+    const current = await this.getSettings();
+    const next = { ...current, ...withoutUndefined(body) };
+    if (sameSettings(current, next)) return current;
+
     return this.mutate((snapshot) => {
-      snapshot.settings = { ...snapshot.settings, ...body, updatedAt: nowIso() };
+      snapshot.settings = { ...snapshot.settings, ...withoutUndefined(body), updatedAt: nowIso() };
+      return snapshot.settings;
+    });
+  }
+
+  async updateLastSyncAt(lastSyncAt: SettingsDoc["lastSyncAt"]): Promise<SettingsDoc> {
+    return this.mutate((snapshot) => {
+      snapshot.settings = { ...snapshot.settings, lastSyncAt };
       return snapshot.settings;
     });
   }
@@ -288,6 +299,14 @@ function tombstone<T extends { id: string; deletedAt: string | null; updatedAt: 
 
 function withoutUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as Partial<T>;
+}
+
+function sameSettings(left: SettingsDoc, right: SettingsDoc): boolean {
+  return left.weightUnit === right.weightUnit
+    && left.lastSyncAt === right.lastSyncAt
+    && left.webdav.url === right.webdav.url
+    && left.webdav.username === right.webdav.username
+    && left.webdav.passwordRef === right.webdav.passwordRef;
 }
 
 function localDeviceId(): string {

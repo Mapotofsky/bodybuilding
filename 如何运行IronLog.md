@@ -129,9 +129,10 @@ profile.json
 settings.json
 exercises.json
 templates.json
-workouts/index.json
 workouts/YYYY-MM.json
 ```
+
+`workouts/YYYY-MM.json` 是训练记录唯一真源；`manifest.json` 的 `shards` 列出实际存在的训练月文件。已有使用 `workouts/index.json` 的开发期数据不会被迁移，需要清除后重新开始。
 
 ## 10. WebDAV 同步
 
@@ -149,5 +150,7 @@ workouts/YYYY-MM.json
 4. 保存设置。
 5. 测试连接。
 6. 手动同步。
+
+同步会在填写的 WebDAV URL 下创建并使用 `ironlog-data/` 专属目录。Android 对 `MKCOL`、`MOVE`、`PROPFIND` 使用原生网络通道，其余读写请求仍经 Capacitor HTTP。
 
 WebDAV 未配置时，应用仍可完全本地使用。

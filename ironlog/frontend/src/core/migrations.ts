@@ -2,6 +2,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   type DataSnapshot,
   type ExerciseDoc,
+  type IronLogManifest,
   type ManualScheduleEntryDoc,
   type ProfileDoc,
   type SettingsDoc,
@@ -11,6 +12,20 @@ import {
 } from "./models";
 import { makeId, nowIso } from "./id";
 import { DEFAULT_EXERCISES } from "./defaultData";
+
+export const STATIC_SHARD_PATHS = ["profile.json", "settings.json", "exercises.json", "templates.json"] as const;
+
+export function workoutShardPath(date: string): string {
+  return `workouts/${date.slice(0, 7)}.json`;
+}
+
+export function isWorkoutShardPath(path: string): boolean {
+  return /^workouts\/\d{4}-\d{2}\.json$/.test(path);
+}
+
+export function workoutShardPathsFromManifest(manifest: Pick<IronLogManifest, "shards"> | null | undefined): string[] {
+  return [...new Set((manifest?.shards || []).map((shard) => shard.path).filter(isWorkoutShardPath))].sort();
+}
 
 function doc<T extends { id?: string; createdAt?: string; updatedAt?: string; deletedAt?: string | null; schemaVersion?: number }>(
   value: T
@@ -54,7 +69,6 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
         { path: "settings.json", updatedAt: settings.updatedAt },
         { path: "exercises.json", updatedAt: t },
         { path: "templates.json", updatedAt: t },
-        { path: "workouts/index.json", updatedAt: t },
       ],
     },
     profile,
@@ -96,16 +110,27 @@ function normalizeArray<T extends { id?: string; createdAt?: string; updatedAt?:
 }
 
 export function buildShardList(snapshot: DataSnapshot) {
-  const latestWorkoutUpdate = snapshot.workouts.reduce(
-    (max, w) => (w.updatedAt > max ? w.updatedAt : max),
-    snapshot.manifest.updatedAt
-  );
-  return [
+  const workoutShards = new Map<string, string>();
+  for (const workout of snapshot.workouts) {
+    const path = workoutShardPath(workout.date);
+    const latestUpdate = workoutShards.get(path);
+    if (!latestUpdate || workout.updatedAt > latestUpdate) {
+      workoutShards.set(path, workout.updatedAt);
+    }
+  }
+
+  const staticShards = [
     { path: "profile.json", updatedAt: snapshot.profile.updatedAt },
     { path: "settings.json", updatedAt: snapshot.settings.updatedAt },
     { path: "exercises.json", updatedAt: maxUpdated(snapshot.exercises, snapshot.manifest.updatedAt) },
     { path: "templates.json", updatedAt: maxUpdated([...snapshot.plans, ...snapshot.templates, ...snapshot.scheduleEntries], snapshot.manifest.updatedAt) },
-    { path: "workouts/index.json", updatedAt: latestWorkoutUpdate },
+  ];
+
+  return [
+    ...staticShards,
+    ...[...workoutShards.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, updatedAt]) => ({ path, updatedAt })),
   ];
 }
 

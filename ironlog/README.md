@@ -20,7 +20,7 @@ npm run build
 npm test
 ```
 
-`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行 core 层的最小单元测试。
+`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试。
 
 ## Android
 
@@ -50,7 +50,7 @@ Capacitor 配置：
 - `appId`: `app.ironlog.local`
 - `appName`: `IronLog`
 - `webDir`: `dist`
-- 已接入插件：Filesystem、Preferences
+- 已接入插件：Filesystem、Preferences，以及用于 WebDAV 非标准 HTTP 方法的原生 `WebDavHttp` 插件
 
 ## 本地数据格式
 
@@ -64,11 +64,15 @@ ironlog-data/
   exercises.json
   templates.json
   workouts/
-    index.json
     2026-06.json
+    2026-07.json
 ```
 
-当前本地仓储以 `workouts/index.json` 作为 canonical shard，同时导出月份文件，方便备份和未来同步。所有领域 id 都是 string UUID。每条文档包含：
+训练数据的唯一真源是 `workouts/YYYY-MM.json`。每个月文件保存该月的 `WorkoutDoc[]`，包括 tombstone；`DataSnapshot.workouts` 仅在内存中聚合，绝不会再持久化为单一训练索引文件。`manifest.json` 的 `shards` 会列出全部静态文件和实际存在的训练月分片。
+
+这是一次开发期破坏性数据格式调整。已有浏览器 IndexedDB、Android 模拟器或测试 App 数据需要清除后重新开始测试；项目不会读取或迁移旧训练索引数据。
+
+所有领域 id 都是 string UUID。每条文档包含：
 
 - `createdAt`
 - `updatedAt`
@@ -93,11 +97,13 @@ ironlog-data/
 同步设计原则：
 
 - WebDAV 只作为远端文件系统，不作为数据库。
-- 同步会先拉取远端 JSON 分片，再与本地数据合并。
+- 远端以配置 URL 下的 `ironlog-data/` 作为专属同步根目录，避免与用户其他 WebDAV 文件混放。
+- 同步会先依据远端 `manifest.json` 拉取静态文件和训练月分片，再与本地数据合并。
 - 合并策略第一版使用 last-write-wins，并记录冲突日志。
 - 上传时先写 `.tmp-*` 临时文件，再用 `MOVE` 发布为正式文件，避免半写入。
 - 上传前会把远端已有分片备份到 `backups/`。
-- 密码不会写入 JSON 数据文件；当前通过平台 secret 路径保存。
+- Android 端通过原生 OkHttp 通道执行 `MKCOL`、`MOVE` 和 `PROPFIND`，避免 WebView 对这些 WebDAV 方法的兼容性限制；`GET`、`PUT`、`DELETE` 继续使用 Capacitor HTTP。
+- 密码不会写入 JSON 数据文件或同步到 WebDAV；当前通过平台 secret 路径保存，远端 `settings.json` 的 `passwordRef` 和 `lastSyncAt` 始终为 `null`。
 
 WebDAV 未配置时，应用仍可完全离线本地使用。
 

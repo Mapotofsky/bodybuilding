@@ -1,3 +1,5 @@
+import { nativeWebDavHttp, type NativeWebDavRequest } from "./nativeWebDavHttp";
+
 export interface WebDavCredentials {
   url: string;
   username: string;
@@ -50,15 +52,29 @@ export class WebDavClient {
     if (![201, 405].includes(res.status)) throw new Error(`MKCOL failed: ${res.status}`);
   }
 
-  private async request(method: string, path: string, init?: { body?: string; headers?: Record<string, string> }): Promise<WebDavResponse> {
+  private async request(method: NativeWebDavRequest["method"], path: string, init?: { body?: string; headers?: Record<string, string> }): Promise<WebDavResponse> {
     const headers = {
       Authorization: `Basic ${btoa(`${this.credentials.username}:${this.credentials.password}`)}`,
-      "Content-Type": "application/json",
+      ...(init?.body !== undefined ? { "Content-Type": method === "PROPFIND" ? "application/xml; charset=utf-8" : "application/json; charset=utf-8" } : {}),
       ...(init?.headers || {}),
     };
     const url = joinUrl(this.credentials.url, path);
 
     if (isNativeCapacitor()) {
+      if (requiresNativeWebDavTransport(method)) {
+        const response = await nativeWebDavHttp.request({
+          method,
+          url,
+          headers,
+          ...(init?.body !== undefined ? { body: init.body } : {}),
+        });
+        return {
+          status: response.status,
+          body: response.body,
+          headers: normalizeHeaders(response.headers || {}),
+        };
+      }
+
       const { CapacitorHttp } = await import("@capacitor/core");
       const response = await CapacitorHttp.request({
         method,
@@ -86,6 +102,10 @@ export class WebDavClient {
 function isNativeCapacitor(): boolean {
   if (typeof window === "undefined") return false;
   return Boolean((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.());
+}
+
+function requiresNativeWebDavTransport(method: NativeWebDavRequest["method"]): boolean {
+  return method === "MKCOL" || method === "MOVE" || method === "PROPFIND";
 }
 
 function joinUrl(base: string, path: string): string {
