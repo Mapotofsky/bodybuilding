@@ -93,7 +93,7 @@ export default function WorkoutDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-4 pt-16 space-y-3">
+      <div className="min-h-screen bg-slate-50 px-5 pt-16 pb-4 space-y-3">
         {[1,2,3].map(i => (
           <div key={i} className="bg-white rounded-2xl p-4 space-y-2 animate-pulse border border-slate-100">
             <div className="h-4 bg-slate-200 rounded-xl w-1/2" />
@@ -170,7 +170,7 @@ export default function WorkoutDetailPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="px-5 pt-4 space-y-4">
         {/* Hero info card */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           <h2 className="text-lg font-bold text-slate-900">

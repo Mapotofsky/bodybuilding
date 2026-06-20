@@ -77,27 +77,28 @@ export default function HomePage() {
   const greeting = hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
 
   return (
-    <div className="pb-6">
+    <div className="min-h-screen bg-slate-50 pb-6">
       {/* Hero banner */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-5 pt-12 pb-8">
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-5 pt-12 pb-7 rounded-b-[28px]">
         <p className="text-emerald-100 text-sm mb-1">
           {format(new Date(), "M月d日 EEEE", { locale: zhCN })}
         </p>
         <h1 className="text-2xl font-bold text-white">
           {greeting}，{user?.nickname || "训练者"} 👋
         </h1>
-
-        {/* Quick start */}
-        <button
-          onClick={() => navigate("/workouts/new")}
-          className="mt-5 w-full py-3.5 bg-white text-emerald-600 rounded-2xl flex items-center justify-center gap-2 font-semibold text-base shadow-lg shadow-emerald-700/20 active:scale-[0.98] transition-transform"
-        >
-          <Plus size={20} />
-          开始训练
-        </button>
       </div>
 
-      <div className="px-4 space-y-5 mt-5">
+      <div className="px-5 space-y-5 mt-4">
+        {/* Primary action */}
+        <button
+          onClick={() => navigate("/workouts/new")}
+          className="w-full min-h-14 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl flex items-center justify-center gap-2.5 font-semibold text-base shadow-md shadow-emerald-600/20 active:scale-[0.99] transition-all"
+        >
+          <span className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center">
+            <Plus size={19} strokeWidth={2.5} />
+          </span>
+          开始训练
+        </button>
 
         {/* Today's Plan + Missed */}
         {!loading && (todayEntries.length > 0 || missedEntries.length > 0) && (

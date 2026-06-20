@@ -89,7 +89,7 @@ export default function SyncPage() {
         <h1 className="font-bold text-base text-slate-900">数据同步</h1>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="px-5 pt-4 pb-6 space-y-4">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-slate-900">WebDAV</h2>

@@ -470,7 +470,7 @@ export default function WorkoutCreatePage() {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col p-4 pb-36">
+        <div className="flex-1 flex flex-col px-5 pt-4 pb-36">
           {/* Plan / Template picker — first select only */}
           {isFirstSelect && activePlans.length > 0 && (
             <div className="mb-4">
@@ -720,7 +720,7 @@ export default function WorkoutCreatePage() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col p-4 pb-36">
+        <div className="flex-1 flex flex-col px-5 pt-4 pb-36">
           {/* Exercise header card */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5">
             <div className="flex items-start justify-between">
@@ -849,7 +849,7 @@ export default function WorkoutCreatePage() {
         </div>
 
         {/* Completed set summary */}
-        <div className="mx-4 mt-4 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <div className="mx-5 mt-4 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           <div className="flex items-center gap-1 mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <p className="text-xs font-semibold text-emerald-600">已完成</p>
@@ -952,7 +952,7 @@ export default function WorkoutCreatePage() {
           <div className="w-9" />
         </div>
 
-        <div className="p-4 space-y-4 pb-6">
+        <div className="px-5 pt-4 space-y-4 pb-6">
           {/* Celebration banner */}
           <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-5 text-center shadow-md shadow-emerald-200">
             <p className="text-4xl mb-2">🌟</p>

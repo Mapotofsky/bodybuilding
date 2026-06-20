@@ -35,7 +35,7 @@ export default function PlansPage() {
   }
 
   return (
-    <div className="px-4 pt-4 pb-6">
+    <div className="px-5 pt-4 pb-6">
       <h1 className="text-2xl font-bold text-slate-900 mb-4">训练计划</h1>
 
       {loading ? (
@@ -60,13 +60,13 @@ export default function PlansPage() {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex"
+              className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex gap-3"
             >
               <div
-                className="w-1.5 flex-shrink-0"
+                className="w-2 h-10 rounded-full flex-shrink-0 mt-0.5"
                 style={{ backgroundColor: plan.color }}
               />
-              <div className="flex-1 p-4">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                   <button
                     className="flex-1 text-left"

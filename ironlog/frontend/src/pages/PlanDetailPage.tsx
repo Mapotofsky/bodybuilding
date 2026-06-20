@@ -82,7 +82,7 @@ export default function PlanDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-4 pt-16 space-y-3">
+      <div className="min-h-screen bg-slate-50 px-5 pt-16 pb-4 space-y-3">
         {[1,2].map(i => (
           <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 animate-pulse">
             <div className="h-4 bg-slate-200 rounded-xl w-1/2 mb-2" />
@@ -143,7 +143,7 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4 pb-6">
+      <div className="px-5 pt-4 space-y-4 pb-6">
         {/* Plan Info Card */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-start gap-3">
           <div
@@ -192,14 +192,14 @@ export default function PlanDetailPage() {
                 <button
                   key={tmpl.id}
                   onClick={() => navigate(`/plans/${plan.id}/templates/${tmpl.id}`)}
-                  className="w-full text-left bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex active:scale-[0.99] transition-transform"
+                  className="w-full text-left bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex gap-3 active:scale-[0.99] transition-transform"
                 >
                   <div
-                    className="w-1.5 flex-shrink-0"
+                    className="w-2 h-10 rounded-full flex-shrink-0"
                     style={{ backgroundColor: tmpl.color || plan.color }}
                   />
-                  <div className="flex-1 p-4 flex items-center justify-between">
-                    <div>
+                  <div className="flex-1 min-w-0 flex items-center justify-between">
+                    <div className="min-w-0">
                       <p className="font-bold text-sm text-slate-900">{tmpl.name}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs text-slate-400">

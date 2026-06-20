@@ -67,7 +67,7 @@ export default function ProfilePage() {
         <p className="text-emerald-100 text-sm mt-0.5">本地单人版</p>
       </div>
 
-      <div className="px-4 -mt-5 space-y-4">
+      <div className="px-5 -mt-5 space-y-4">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 grid grid-cols-3 divide-x divide-slate-100">
           {[
             { v: profile.height ? `${profile.height}` : "—", u: "cm", l: "身高" },

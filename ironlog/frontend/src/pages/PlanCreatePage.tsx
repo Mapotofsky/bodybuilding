@@ -52,7 +52,7 @@ export default function PlanCreatePage() {
         <h1 className="text-lg font-semibold">新建训练计划</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 space-y-5 pb-24">
+      <form onSubmit={handleSubmit} className="px-5 pt-4 space-y-5 pb-24">
         {error && (
           <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3">
             {error}

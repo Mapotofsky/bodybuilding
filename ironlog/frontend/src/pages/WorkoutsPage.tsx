@@ -27,7 +27,7 @@ export default function WorkoutsPage() {
   const totalSets = workouts.reduce((s, w) => s + w.total_sets, 0);
 
   return (
-    <div className="px-4 pt-4 pb-6">
+    <div className="px-5 pt-4 pb-6">
       {/* Month Selector */}
       <div className="flex items-center justify-between mb-4">
         <button

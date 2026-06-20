@@ -217,7 +217,7 @@ export default function WorkoutEditPage() {
         </button>
       </div>
 
-      <div className="p-4 space-y-4 pb-24">
+      <div className="px-5 pt-4 space-y-4 pb-24">
         {/* Date, time & meta */}
         <div className="flex gap-3">
           <input

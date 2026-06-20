@@ -168,7 +168,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Month summary / selected detail */}
-      <div className="px-4 mt-3">
+      <div className="px-5 mt-3">
         {!selectedDate && !loading && (
           <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center">
             <p className="text-2xl font-bold text-slate-900">{monthWorkoutCount}</p>
@@ -201,14 +201,14 @@ export default function CalendarPage() {
                   <button
                     key={w.id}
                     onClick={() => navigate(`/workouts/${w.id}`)}
-                    className="w-full text-left bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex active:scale-[0.99] transition-transform"
+                    className="w-full text-left bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3 active:scale-[0.99] transition-transform"
                   >
                     <div
-                      className="w-1.5 flex-shrink-0"
+                      className="w-2 h-10 rounded-full flex-shrink-0"
                       style={{ backgroundColor: entryColor(w) }}
                     />
-                    <div className="flex-1 min-w-0 p-3 flex items-center justify-between">
-                      <div>
+                    <div className="flex-1 min-w-0 flex items-center justify-between">
+                      <div className="min-w-0">
                         {w.template_name && (
                           <span
                             className="text-xs font-semibold px-2 py-0.5 rounded-full"

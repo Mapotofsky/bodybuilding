@@ -29,7 +29,7 @@ export default function ExerciseDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-4 pt-16 space-y-3">
+      <div className="min-h-screen bg-slate-50 px-5 pt-16 pb-4 space-y-3">
         {[1,2,3].map(i => (
           <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 animate-pulse">
             <div className="h-4 bg-slate-200 rounded-xl w-1/2 mb-2" />
@@ -78,7 +78,7 @@ export default function ExerciseDetailPage() {
         <h1 className="text-base font-bold text-slate-900 flex-1 truncate">{detail.name}</h1>
       </div>
 
-      <div className="p-4 space-y-4 pb-8">
+      <div className="px-5 pt-4 space-y-4 pb-8">
         {/* Basic Info */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           <div className="flex items-center gap-3 mb-3">
