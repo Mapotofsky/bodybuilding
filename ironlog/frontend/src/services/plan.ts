@@ -33,6 +33,26 @@ export interface PlanCreate {
   templates?: TemplateCreate[];
 }
 
+export function validateTemplateScheduleRule(
+  plan: { mode: string; cycleLength: number | null },
+  scheduleRule: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null | undefined {
+  if (plan.mode !== "cyclic" || scheduleRule == null) return scheduleRule;
+
+  const cycleDay = scheduleRule.day_in_cycle;
+  const maxCycleDay = plan.cycleLength ?? 14;
+  if (
+    typeof cycleDay !== "number" ||
+    !Number.isInteger(cycleDay) ||
+    cycleDay < 1 ||
+    cycleDay > maxCycleDay
+  ) {
+    throw new Error(`周期天数必须是 1 到 ${maxCycleDay} 的整数`);
+  }
+
+  return scheduleRule;
+}
+
 export async function getPlans(): Promise<PlanSummary[]> {
   const plans = await localRepository.listPlans();
   return Promise.all(plans.map(toPlanSummary));
@@ -59,7 +79,7 @@ export async function createPlan(body: PlanCreate): Promise<TrainingPlan> {
       name: template.name,
       sortOrder: template.sort_order ?? idx,
       color: template.color || null,
-      scheduleRule: template.schedule_rule || null,
+      scheduleRule: validateTemplateScheduleRule(plan, template.schedule_rule) || null,
       exercises: (template.exercises || []).map((exercise, exerciseIdx) => ({
         id: "",
         exerciseId: exercise.exercise_id,
@@ -94,12 +114,15 @@ export async function addTemplate(
   planId: string,
   body: TemplateCreate
 ): Promise<PlanTemplate> {
+  const plan = await localRepository.getPlan(planId);
+  if (!plan) throw new Error("Plan not found");
+
   const template = await localRepository.createTemplate({
     planId,
     name: body.name,
     sortOrder: body.sort_order ?? 0,
     color: body.color || null,
-    scheduleRule: body.schedule_rule || null,
+    scheduleRule: validateTemplateScheduleRule(plan, body.schedule_rule) || null,
     exercises: (body.exercises || []).map((exercise, idx) => ({
       id: "",
       exerciseId: exercise.exercise_id,
@@ -115,12 +138,15 @@ export async function updateTemplate(
   templateId: string,
   body: Partial<TemplateCreate>
 ): Promise<PlanTemplate> {
+  const plan = await localRepository.getPlan(planId);
+  if (!plan) throw new Error("Plan not found");
+
   const template = await localRepository.updateTemplate(templateId, {
     planId,
     name: body.name,
     sortOrder: body.sort_order,
     color: body.color,
-    scheduleRule: body.schedule_rule,
+    scheduleRule: validateTemplateScheduleRule(plan, body.schedule_rule),
     exercises: body.exercises?.map((exercise, idx) => ({
       id: "",
       exerciseId: exercise.exercise_id,

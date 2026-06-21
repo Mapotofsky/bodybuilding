@@ -6,6 +6,8 @@ import { getExercises } from "@/services/exercise";
 import type { Exercise, TrainingPlan, PlanTemplate } from "@/types";
 import { CATEGORY_LABELS, DAY_OF_WEEK_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
+import { useToastStore } from "@/components/Toast";
+import StepInput from "@/components/ui/StepInput";
 
 interface LocalTemplateExercise {
   exercise_id: string;
@@ -31,6 +33,7 @@ export default function TemplateEditPage() {
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
   const [scheduleRule, setScheduleRule] = useState<Record<string, unknown> | null>(null);
+  const [cycleDay, setCycleDay] = useState("1");
   const [exercises, setExercises] = useState<LocalTemplateExercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,6 +53,8 @@ export default function TemplateEditPage() {
         setName(tmpl.name);
         setColor(tmpl.color);
         setScheduleRule(tmpl.schedule_rule);
+        const storedCycleDay = tmpl.schedule_rule?.day_in_cycle;
+        setCycleDay(typeof storedCycleDay === "number" ? String(storedCycleDay) : "1");
         setExercises(
           tmpl.exercises.map((te) => ({
             exercise_id: te.exercise_id,
@@ -65,12 +70,24 @@ export default function TemplateEditPage() {
 
   async function handleSave() {
     if (!plan || !template) return;
+
+    let nextScheduleRule = scheduleRule;
+    if (plan.mode === "cyclic") {
+      const maxCycleDay = plan.cycle_length ?? 14;
+      const parsedCycleDay = Number(cycleDay);
+      if (!Number.isInteger(parsedCycleDay) || parsedCycleDay < 1 || parsedCycleDay > maxCycleDay) {
+        useToastStore.getState().add(`周期天数请输入 1 到 ${maxCycleDay} 的整数`, "error");
+        return;
+      }
+      nextScheduleRule = { ...(scheduleRule || {}), day_in_cycle: parsedCycleDay };
+    }
+
     setSaving(true);
     try {
       await updateTemplate(plan.id, template.id, {
         name,
         color,
-        schedule_rule: scheduleRule,
+        schedule_rule: nextScheduleRule,
         exercises: exercises.map((e, idx) => ({
           exercise_id: e.exercise_id,
           sort_order: idx,
@@ -79,6 +96,7 @@ export default function TemplateEditPage() {
       });
       navigate(`/plans/${plan.id}`);
     } catch {
+      useToastStore.getState().add("保存失败，请重试", "error");
       setSaving(false);
     }
   }
@@ -227,18 +245,16 @@ export default function TemplateEditPage() {
               </div>
             )}
             {plan.mode === "cyclic" && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-600">周期第</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={plan.cycle_length || 14}
-                  value={(scheduleRule?.day_in_cycle as number) || 1}
-                  onChange={(e) => setScheduleRule({ day_in_cycle: Number(e.target.value) })}
-                  className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                />
-                <span className="text-sm text-slate-600">天</span>
-              </div>
+              <StepInput
+                label="周期天数"
+                value={cycleDay}
+                onChange={setCycleDay}
+                step={1}
+                min={1}
+                max={plan.cycle_length ?? 14}
+                inputMode="numeric"
+                placeholder="1"
+              />
             )}
           </div>
         )}
