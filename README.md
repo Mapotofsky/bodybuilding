@@ -2,6 +2,16 @@
 
 IronLog 已重构为 Android-first、本地优先的单人训练日志应用。当前运行路径是 `frontend` 下的 React/Vite/Capacitor 应用；旧 FastAPI 后端已归档到 `legacy/backend`，不再作为单人版运行依赖。
 
+## 文档索引
+
+根目录文档是当前版本的规范来源：
+
+- [概要设计文档](../概要设计文档.md)：范围、模块边界、数据模型和验收基线。
+- [技术路线分析](../技术路线分析.md)：技术决策、替代路线和已知风险。
+- [本地运行指南](../如何运行IronLog.md)：开发、测试、Android 调试与 WebDAV 配置。
+- [发布与交付指南](../部署指南.md)：APK、静态 Web、版本兼容与发布检查。
+- [P0 核心训练](../详细设计文档_P0_核心训练.md)、[P1 计划与日历](../详细设计文档_P1_计划与动作库.md)、[P2 本地文档存储](../详细设计文档_P2_本地文档存储与数据迁移.md)、[P3 WebDAV 与 Android](../详细设计文档_P3_WebDAV同步与Android平台.md)：实现级契约。
+
 ## 本地运行
 
 ```bash
@@ -40,9 +50,9 @@ npm run android:open
 
 命令行构建 debug APK：
 
-```bash
+```powershell
 cd frontend/android
-./gradlew assembleDebug
+.\gradlew.bat assembleDebug
 ```
 
 Capacitor 配置：
@@ -103,7 +113,7 @@ ironlog-data/
 - 上传时先写 `.tmp-*` 临时文件，再用 `MOVE` 发布为正式文件，避免半写入。
 - 上传前会把远端已有分片备份到 `backups/`。
 - Android 端通过原生 OkHttp 通道执行 `MKCOL`、`MOVE` 和 `PROPFIND`，避免 WebView 对这些 WebDAV 方法的兼容性限制；`GET`、`PUT`、`DELETE` 继续使用 Capacitor HTTP。
-- 密码不会写入 JSON 数据文件或同步到 WebDAV；当前通过平台 secret 路径保存，远端 `settings.json` 的 `passwordRef` 和 `lastSyncAt` 始终为 `null`。
+- 密码不会写入 JSON 数据文件或同步到 WebDAV；当前 Android 通过 Capacitor Preferences、浏览器开发通过 IndexedDB 的独立 key 保存。它们与 JSON 分片隔离，但当前不是 IronLog 实现的硬件级加密凭据库；远端 `settings.json` 的 `passwordRef` 和 `lastSyncAt` 始终为 `null`。
 
 WebDAV 未配置时，应用仍可完全离线本地使用。
 
@@ -132,4 +142,10 @@ npm test
 npm run android:sync
 ```
 
-当前 Android APK 命令行构建依赖 Gradle 分发包下载。如果本机网络无法访问 `services.gradle.org`，`./gradlew assembleDebug` 会在下载 Gradle wrapper 时失败；Android 工程和 Capacitor 同步链路本身已就绪。
+当前 Android APK 命令行构建依赖 Gradle 分发包下载。如果本机网络无法访问 `services.gradle.org`，`.\gradlew.bat assembleDebug` 会在下载 Gradle wrapper 时失败；Android 工程和 Capacitor 同步链路本身已就绪。
+
+## 当前限制
+
+- WebDAV 为手动备份同步，使用 last-write-wins，并非实时无冲突协作。
+- 当前没有用户可操作的数据导入/导出或远端备份恢复 UI。
+- 卸载 Android 应用、清除应用数据或清除浏览器站点数据会删除本地副本；重要数据应先完成一次成功的 WebDAV 同步。

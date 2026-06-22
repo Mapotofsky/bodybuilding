@@ -1,156 +1,129 @@
-# 如何运行 IronLog
+# IronLog 本地运行指南
 
-> 当前版本：本地单人版，不需要后端和数据库  
-> 最后更新：2026-06-11
+> 适用版本：Android-first 本地单人版
+> 本指南只描述当前运行路径：React/Vite/Capacitor。本版本不需要 Python、PostgreSQL、FastAPI、账号或后端服务。
+
+---
 
 ## 1. 环境要求
 
-基础运行：
+| 场景 | 必需工具 | 建议版本 |
+|---|---|---|
+| Web 开发、构建和测试 | Node.js、npm | Node.js 20+、npm 10+ |
+| Android 同步/打开工程 | Android Studio、Android SDK、JDK | Android Studio 当前稳定版，JDK 17+ |
+| 命令行 APK 构建 | 上述工具和可下载的 Gradle 分发包 | 与 `frontend/android` wrapper 一致 |
+| WebDAV 同步 | 一个支持 Basic Authentication、PUT、MOVE、MKCOL、PROPFIND 的 WebDAV 服务 | 推荐 HTTPS |
 
-- Node.js
-- npm
+不需要安装：Conda、Python、PostgreSQL、Docker、Alembic。
 
-Android 构建：
+## 2. 首次安装与 Web 开发
 
-- JDK
-- Android Studio 或 Android SDK
-- 可访问 Gradle wrapper 分发包下载地址
-
-不再需要：
-
-- Python
-- FastAPI
-- PostgreSQL
-- Alembic
-- Redis
-- Nginx
-- 云服务器
-
-## 2. 安装依赖
-
-```bash
-cd ironlog/frontend
+```powershell
+cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
 npm install
-```
-
-## 3. Web 开发模式
-
-```bash
-cd ironlog/frontend
 npm run dev
 ```
 
-打开 Vite 输出的本地地址即可。
+Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开发模式使用 IndexedDB 保存本地文档；刷新页面不会清空训练数据。
 
-Web 开发模式下，数据保存到 IndexedDB。无需启动任何服务。
+首次启动会自动创建：
 
-## 4. 构建 Web 产物
+- 本地 Profile 和 Settings。
+- 默认动作库。
+- schemaVersion 为 1 的 manifest。
 
-```bash
-cd ironlog/frontend
+## 3. 日常验证命令
+
+在提交或修改核心逻辑前执行：
+
+```powershell
+cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
 npm run build
-```
-
-输出目录：
-
-```text
-ironlog/frontend/dist/
-```
-
-## 5. 运行测试
-
-```bash
-cd ironlog/frontend
 npm test
-```
-
-当前测试覆盖 core schema migration 的最小路径。
-
-## 6. 同步到 Android 工程
-
-```bash
-cd ironlog/frontend
 npm run android:sync
 ```
 
-该命令会：
+含义：
 
-1. 执行 `npm run build`。
-2. 将 `dist/` 复制到 Android assets。
-3. 同步 Capacitor 插件。
+| 命令 | 验证内容 |
+|---|---|
+| `npm run build` | TypeScript 构建和 Vite 生产产物。 |
+| `npm test` | Vitest 单元测试：migration、DocumentStore、计划和同步逻辑。 |
+| `npm run android:sync` | 先 build，再将 `dist/` 同步进 `android/` 工程。 |
 
-## 7. 打开 Android 工程
+`android:sync` 成功不等于 APK 已编译；它只验证 Capacitor 资源同步。
 
-```bash
-cd ironlog/frontend
+## 4. Android 调试与 APK
+
+### 4.1 同步并打开 Android Studio
+
+```powershell
+cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
+npm run android:sync
 npm run android:open
 ```
 
-使用 Android Studio 构建、安装、调试。
+Android Studio 首次打开后等待 Gradle Sync 完成。使用模拟器或真实设备运行 `app` 配置即可调试。
 
-## 8. 命令行构建 APK
-
-```bash
-cd ironlog/frontend/android
-./gradlew assembleDebug
-```
-
-Windows PowerShell 可使用：
+### 4.2 命令行构建 debug APK
 
 ```powershell
+cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend\android
 .\gradlew.bat assembleDebug
 ```
 
-如果首次运行时无法下载 Gradle：
+成功后 APK 通常位于：
 
 ```text
-Downloading https://services.gradle.org/distributions/gradle-*.zip
-java.net.ConnectException: Connection refused
+frontend/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-说明当前网络无法访问 Gradle 分发包，需要配置网络、代理或手动准备 Gradle 缓存。
+若第一次构建停在 Gradle wrapper 下载，请先确认网络可访问 Gradle 分发地址，再判断为代码问题。不要通过删除 Android 工程或降级业务依赖来规避环境错误。
 
-## 9. 本地数据位置
+### 4.3 Android 数据位置
 
-Web 开发：
+Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data/` JSON 文件。该目录是应用私有目录；卸载应用或清除应用数据会删除本地训练数据。启用 WebDAV 后先完成一次成功同步，再执行清除数据、换机或升级等破坏性操作。
 
-- IndexedDB 数据库：`ironlog-local`
+## 5. 使用流程
 
-Android：
+1. 打开首页，选择“开始训练”或从计划/日历发起训练。
+2. 选择动作，记录重量、次数和休息时间；完成每组后会立即写入本地数据。
+3. 结束训练后补充感受和备注，进入训练详情。
+4. 在“计划”中创建计划与模板；按模板训练时动作列表只显示模板中的动作。
+5. 在“我的 -> 数据同步与备份”配置 WebDAV，可测试连接并手动同步。
 
-- Capacitor Filesystem 的应用 Data 目录。
-- 逻辑目录：`ironlog-data/`
+未配置 WebDAV 时，前四步仍可离线运行。
 
-数据分片：
+## 6. WebDAV 配置要求
 
-```text
-manifest.json
-profile.json
-settings.json
-exercises.json
-templates.json
-workouts/YYYY-MM.json
-```
+配置页面需要 URL、用户名和密码。应用会在所填 URL 下使用 `ironlog-data/` 目录，请为 IronLog 使用独立目录或独立 WebDAV 账户。
 
-`workouts/YYYY-MM.json` 是训练记录唯一真源；`manifest.json` 的 `shards` 列出实际存在的训练月文件。已有使用 `workouts/index.json` 的开发期数据不会被迁移，需要清除后重新开始。
+当前同步协议需要服务端支持：
 
-## 10. WebDAV 同步
+- `GET`、`PUT`、`DELETE`
+- `MKCOL`、`MOVE`、`PROPFIND`
+- Basic Authorization
 
-入口：
+测试连接会创建/确认远端同步目录并执行 PROPFIND。同步前远端已有数据会写入 `backups/`，但当前没有自动清理策略。
 
-```text
-我的 -> 数据同步与备份
-```
+## 7. 常见问题
 
-步骤：
+### Q: 浏览器刷新后数据不见了
 
-1. 填写 WebDAV URL。
-2. 填写用户名。
-3. 填写密码。
-4. 保存设置。
-5. 测试连接。
-6. 手动同步。
+检查是否处于隐私浏览模式、浏览器是否清除了站点数据，或是否手动删除了 IndexedDB。当前没有面向用户的数据导入/导出 UI；重要数据请先同步到 WebDAV。
 
-同步会在填写的 WebDAV URL 下创建并使用 `ironlog-data/` 专属目录。Android 对 `MKCOL`、`MOVE`、`PROPFIND` 使用原生网络通道，其余读写请求仍经 Capacitor HTTP。
+### Q: Android 端能训练，但 WebDAV 测试连接失败
 
-WebDAV 未配置时，应用仍可完全本地使用。
+依次检查 URL 是否为 WebDAV 根目录、账号是否有创建目录权限、服务端是否支持 MKCOL/PROPFIND/MOVE、是否使用 HTTPS。错误状态会显示在同步页面。
+
+### Q: WebDAV 同步后出现“冲突日志”
+
+当前版本按 `updatedAt` 使用 last-write-wins。日志表示同一 ID 的本地/远端数据时间不同，应用选择了较新的文档；它不是可交互的合并界面。保留远端 `backups/` 后再人工检查。
+
+### Q: `npm run android:sync` 找不到 `dist/`
+
+该命令会先执行 `npm run build`。若 build 失败，请先修复 TypeScript/Vite 错误，再重新运行。
+
+### Q: 为什么不需要启动后端或数据库
+
+当前单人版的 services 已改为调用 LocalJsonRepository；数据在 IndexedDB 或 Capacitor Filesystem 中，不再请求 `/api`。
