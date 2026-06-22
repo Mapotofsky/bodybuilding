@@ -8,7 +8,8 @@ import type {
   TrainingPlanDoc,
   WorkoutDoc,
 } from "@/core/models";
-import { makeId, nowIso } from "@/core/id";
+import { makeCustomExerciseId, makeId, nowIso } from "@/core/id";
+import { resolveExerciseId } from "@/core/exerciseRedirects";
 import { createDocumentStore, type DocumentStore } from "@/platform/documentStore";
 
 export class LocalJsonRepository {
@@ -58,9 +59,50 @@ export class LocalJsonRepository {
         description: body.description || null,
         metValue: body.metValue ?? null,
         isCustom: true,
-      });
+        replacedByExerciseId: null,
+      }, makeCustomExerciseId());
       snapshot.exercises.push(exercise);
       return exercise;
+    });
+  }
+
+  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "description" | "metValue">>): Promise<ExerciseDoc> {
+    return this.mutate((snapshot) => {
+      const exercise = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
+      if (!exercise) throw new Error("动作不存在");
+      if (!exercise.isCustom) throw new Error("内置动作不可编辑");
+      Object.assign(exercise, withoutUndefined(body), { updatedAt: nextUpdatedAt(exercise.updatedAt, snapshot.manifest.updatedAt) });
+      return exercise;
+    });
+  }
+
+  async deleteExercise(id: string, replacedByExerciseId: string | null): Promise<void> {
+    await this.mutate((snapshot) => {
+      const source = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
+      if (!source) throw new Error("动作不存在");
+      if (!source.isCustom) throw new Error("内置动作不可删除");
+      if (replacedByExerciseId !== null) {
+        const target = snapshot.exercises.find((item) => item.id === replacedByExerciseId && !item.deletedAt);
+        if (!target || target.id === source.id) throw new Error("替代动作不可用");
+        const targetResolution = resolveExerciseId(target.id, snapshot.exercises);
+        if (targetResolution.status !== "resolved" || targetResolution.resolvedId === source.id) throw new Error("替代动作会形成循环引用");
+      }
+      const timestamp = nowIso();
+      source.deletedAt = timestamp;
+      source.updatedAt = timestamp;
+      source.replacedByExerciseId = replacedByExerciseId;
+      if (replacedByExerciseId) {
+        for (const template of snapshot.templates.filter((item) => !item.deletedAt)) {
+          let changed = false;
+          template.exercises = template.exercises.map((item) => {
+            if (item.exerciseId !== source.id) return item;
+            changed = true;
+            return { ...item, exerciseId: replacedByExerciseId };
+          });
+          if (changed) template.updatedAt = timestamp;
+        }
+      }
+      return undefined;
     });
   }
 
@@ -276,9 +318,9 @@ export class LocalJsonRepository {
 
 export const localRepository = LocalJsonRepository.create();
 
-function withDoc<T>(value: T): T & { id: string; createdAt: string; updatedAt: string; deletedAt: null; schemaVersion: 1 } {
+function withDoc<T>(value: T, id = makeId()): T & { id: string; createdAt: string; updatedAt: string; deletedAt: null; schemaVersion: 1 } {
   const t = nowIso();
-  return { ...value, id: makeId(), createdAt: t, updatedAt: t, deletedAt: null, schemaVersion: 1 };
+  return { ...value, id, createdAt: t, updatedAt: t, deletedAt: null, schemaVersion: 1 };
 }
 
 function tombstone<T extends { id: string; deletedAt: string | null; updatedAt: string }>(items: T[], id: string): void {

@@ -102,12 +102,24 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
 }
 
 function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: ExerciseDoc[]): ExerciseDoc[] {
-  const builtInTypes = new Map(fallback.filter((exercise) => !exercise.isCustom).map((exercise) => [exercise.id, exercise.type]));
-  return normalizeArray<ExerciseDoc>(value, fallback).map((exercise) => ({
-    ...exercise,
-    // Built-ins are part of the app contract; correct the former running-as-strength default on upgrade.
-    type: builtInTypes.get(exercise.id) || normalizeExerciseType(exercise.type),
-  }));
+  const stored = normalizeArray<ExerciseDoc>(value, []);
+  const defaultsById = new Map(fallback.map((exercise) => [exercise.id, exercise]));
+  const merged = new Map<string, ExerciseDoc>();
+
+  for (const exercise of stored) {
+    const builtIn = defaultsById.get(exercise.id);
+    // Built-in definitions are app contract. Preserve user data only for custom records.
+    merged.set(exercise.id, builtIn ? { ...exercise, ...builtIn, createdAt: exercise.createdAt, deletedAt: exercise.deletedAt, updatedAt: exercise.updatedAt } : {
+      ...exercise,
+      type: normalizeExerciseType(exercise.type),
+      isCustom: exercise.isCustom === true,
+      replacedByExerciseId: exercise.replacedByExerciseId ?? null,
+    });
+  }
+  for (const exercise of fallback) {
+    if (!merged.has(exercise.id)) merged.set(exercise.id, { ...exercise });
+  }
+  return [...merged.values()];
 }
 
 function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[]): WorkoutDoc[] {

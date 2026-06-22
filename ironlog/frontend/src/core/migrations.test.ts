@@ -92,6 +92,17 @@ describe("local-first schema migration", () => {
     expect(snapshot.exercises[0].type).toBe("cardio");
   });
 
+  it("incrementally adds missing built-ins to a non-empty exercise file without replacing custom records", () => {
+    const custom = {
+      id: "custom-ex-kept", name: "我的动作", category: "core", type: "reps_only" as const, description: null, metValue: null,
+      isCustom: true, replacedByExerciseId: null, createdAt: "2026-02-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1,
+    };
+    const snapshot = migrateSnapshot({ exercises: [custom] }, "device-test");
+    expect(snapshot.exercises.filter((exercise) => exercise.id === "custom-ex-kept")).toHaveLength(1);
+    expect(snapshot.exercises.find((exercise) => exercise.id === "ex-cat-cow-stretch")).toMatchObject({ category: "stretch", type: "reps_only" });
+    expect(snapshot.exercises).toHaveLength(makeEmptySnapshot("device-test").exercises.length + 1);
+  });
+
   it("provides the static hold and stretching exercise contracts", () => {
     const exercises = makeEmptySnapshot("device-test").exercises;
     expect(exercises.find((exercise) => exercise.id === "ex-plank")?.type).toBe("static_hold");

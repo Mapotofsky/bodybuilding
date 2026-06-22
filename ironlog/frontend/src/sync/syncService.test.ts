@@ -91,6 +91,15 @@ describe("settings WebDAV sync", () => {
     const files = snapshotToFiles(snapshot);
     expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseType: "cardio" });
   });
+
+  it("serializes deleted exercise redirects without changing workout historical IDs or type snapshots", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", type: "reps_only", description: null, metValue: null, isCustom: true, replacedByExerciseId: "ex-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: 1 });
+    snapshot.workouts = [{ id: "history-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [{ id: "history-exercise", exerciseId: "custom-ex-old", exerciseType: "reps_only", sortOrder: 0, supersetGroup: null, sets: [] }], createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: null, schemaVersion: 1 }];
+    const files = snapshotToFiles(snapshot);
+    expect((files["exercises.json"] as DataSnapshot["exercises"]).find((exercise) => exercise.id === "custom-ex-old")).toMatchObject({ deletedAt: SECOND_SYNC_AT, replacedByExerciseId: "ex-plank" });
+    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseId: "custom-ex-old", exerciseType: "reps_only" });
+  });
 });
 
 function memoryStore(initial: DataSnapshot): DocumentStore {

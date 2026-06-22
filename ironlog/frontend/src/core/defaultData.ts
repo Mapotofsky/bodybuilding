@@ -12,6 +12,7 @@ function exercise(id: string, name: string, category: string, type: ExerciseType
     description,
     metValue: null,
     isCustom: false,
+    replacedByExerciseId: null,
     createdAt: seedTime,
     updatedAt: seedTime,
     deletedAt: null,

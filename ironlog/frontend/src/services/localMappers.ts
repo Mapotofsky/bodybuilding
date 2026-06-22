@@ -18,6 +18,7 @@ import type {
   WorkoutSet,
   WorkoutSummary,
 } from "@/types";
+import { resolveExerciseId } from "@/core/exerciseRedirects";
 
 export function toExercise(doc: ExerciseDoc): Exercise {
   return {
@@ -33,11 +34,13 @@ export function toExercise(doc: ExerciseDoc): Exercise {
 
 export async function toExerciseDetail(doc: ExerciseDoc): Promise<ExerciseDetail> {
   const workouts = await localRepository.listWorkouts();
+  const allExercises = (await localRepository.getSnapshot()).exercises;
   let usageCount = 0;
   let lastUsedDate: string | null = null;
   for (const workout of workouts) {
     for (const exercise of workout.exercises) {
-      if (exercise.exerciseId !== doc.id) continue;
+      const resolved = resolveExerciseId(exercise.exerciseId, allExercises);
+      if (exercise.exerciseId !== doc.id && (resolved.status !== "resolved" || resolved.resolvedId !== doc.id)) continue;
       usageCount += exercise.sets.length;
       if (!lastUsedDate || workout.date > lastUsedDate) lastUsedDate = workout.date;
     }
@@ -88,8 +91,7 @@ export async function toPlan(plan: TrainingPlanDoc): Promise<TrainingPlan> {
 }
 
 export async function toTemplate(template: TemplateDoc): Promise<PlanTemplate> {
-  const exercises = await localRepository.list();
-  const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
+  const exercises = (await localRepository.getSnapshot()).exercises;
   return {
     id: template.id,
     plan_id: template.planId,
@@ -101,7 +103,7 @@ export async function toTemplate(template: TemplateDoc): Promise<PlanTemplate> {
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((item) => {
-        const ex = exerciseMap.get(item.exerciseId);
+        const ex = resolveExercise(item.exerciseId, exercises);
         return {
           id: item.id,
           exercise_id: item.exerciseId,
@@ -139,6 +141,7 @@ export async function toWorkout(doc: WorkoutDoc): Promise<Workout> {
 
 export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary> {
   const workout = await toWorkout(doc);
+  const allExercises = (await localRepository.getSnapshot()).exercises;
   const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   const totalVolume = workout.exercises.reduce(
     (sum, exercise) => sum + (exercise.exercise_type === "strength" ? exercise.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0) : 0),
@@ -164,13 +167,18 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
     template_name: workout.template_name,
     template_color: workout.template_color,
     plan_color: workout.plan_color,
-    exercise_ids: workout.exercises.map((exercise) => exercise.exercise_id),
+    exercise_ids: workout.exercises.map((exercise) => {
+      const resolved = resolveExerciseId(exercise.exercise_id, allExercises);
+      return resolved.status === "resolved" ? resolved.resolvedId : exercise.exercise_id;
+    }),
     created_at: workout.created_at,
   };
 }
 
-function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExercise> {
-  return localRepository.get(doc.exerciseId).then((exercise) => ({
+async function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExercise> {
+  const exercises = (await localRepository.getSnapshot()).exercises;
+  const exercise = resolveExercise(doc.exerciseId, exercises);
+  return {
     id: doc.id,
     exercise_id: doc.exerciseId,
     exercise_type: doc.exerciseType,
@@ -179,7 +187,13 @@ function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExercise> {
     sort_order: doc.sortOrder,
     superset_group: doc.supersetGroup,
     sets: doc.sets.sort((a, b) => a.setNumber - b.setNumber).map(toWorkoutSet),
-  }));
+  };
+}
+
+function resolveExercise(id: string, exercises: ExerciseDoc[]): ExerciseDoc | null {
+  const resolved = resolveExerciseId(id, exercises);
+  if (resolved.status !== "resolved") return null;
+  return exercises.find((exercise) => exercise.id === resolved.resolvedId && !exercise.deletedAt) || null;
 }
 
 function toWorkoutSet(doc: WorkoutSetDoc): WorkoutSet {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Dumbbell, TrendingUp, Calendar } from "lucide-react";
+import { ChevronLeft, Dumbbell, TrendingUp, Calendar, Pencil, Trash2, X } from "lucide-react";
 import { getExerciseDetail } from "@/services/plan";
-import { getExerciseHistory } from "@/services/exercise";
-import type { ExerciseDetail } from "@/types";
+import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
+import type { Exercise, ExerciseDetail } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { CATEGORY_LABELS } from "@/types";
+import { useToastStore } from "@/components/Toast";
 
 export default function ExerciseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,19 +14,44 @@ export default function ExerciseDetailPage() {
   const [detail, setDetail] = useState<ExerciseDetail | null>(null);
   const [history, setHistory] = useState<ExerciseHistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
+  const [showEditor, setShowEditor] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [type, setType] = useState<Exercise["type"]>("strength");
+  const [replacement, setReplacement] = useState("");
 
   useEffect(() => {
     if (!id) return;
     Promise.all([
       getExerciseDetail(id),
       getExerciseHistory(id, 20),
+      getExercises(),
     ])
-      .then(([d, h]) => {
+      .then(([d, h, exercises]) => {
         setDetail(d);
         setHistory(h);
+        setAvailableExercises(exercises);
+        if (d) { setName(d.name); setCategory(d.category); setType(d.type as Exercise["type"]); }
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function saveEdit() {
+    if (!detail) return;
+    try {
+      const updated = await updateExercise(detail.id, { name, category, type });
+      setDetail({ ...detail, ...updated });
+      setShowEditor(false);
+    } catch (error) { useToastStore.getState().add(error instanceof Error ? error.message : "保存失败", "error"); }
+  }
+
+  async function removeExercise() {
+    if (!detail) return;
+    try { await deleteExercise(detail.id, replacement || null); navigate(-1); }
+    catch (error) { useToastStore.getState().add(error instanceof Error ? error.message : "删除失败", "error"); }
+  }
 
   if (loading) {
     return (
@@ -77,6 +103,7 @@ export default function ExerciseDetailPage() {
           <ChevronLeft size={20} className="text-slate-700" />
         </button>
         <h1 className="text-base font-bold text-slate-900 flex-1 truncate">{detail.name}</h1>
+        {detail.is_custom && <><button onClick={() => setShowEditor(true)} className="p-2 text-emerald-600"><Pencil size={18} /></button><button onClick={() => setShowDelete(true)} className="p-2 text-red-500"><Trash2 size={18} /></button></>}
       </div>
 
       <div className="px-5 pt-4 space-y-4 pb-8">
@@ -186,6 +213,8 @@ export default function ExerciseDetailPage() {
           </div>
         )}
       </div>
+      {showEditor && <div className="fixed inset-0 z-50 bg-black/50 flex items-end"><div className="w-full bg-white rounded-t-3xl p-5 space-y-3"><div className="flex justify-between"><h2 className="font-semibold">编辑自定义动作</h2><button onClick={() => setShowEditor(false)}><X size={20} /></button></div><input value={name} onChange={(event) => setName(event.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5" /><input value={category} onChange={(event) => setCategory(event.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5" /><select value={type} onChange={(event) => setType(event.target.value as Exercise["type"])} className="w-full border border-slate-200 rounded-xl px-3 py-2.5"><option value="strength">力量</option><option value="cardio">有氧</option><option value="reps_only">徒手次数</option><option value="static_hold">静态保持</option></select><button onClick={saveEdit} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl font-semibold">保存</button></div></div>}
+      {showDelete && <div className="fixed inset-0 z-50 bg-black/50 flex items-end"><div className="w-full bg-white rounded-t-3xl p-5 space-y-3"><div className="flex justify-between"><h2 className="font-semibold">删除自定义动作</h2><button onClick={() => setShowDelete(false)}><X size={20} /></button></div><p className="text-sm text-slate-600">仅删除会保留模板和历史的原始引用。选择替代动作后，活跃模板会原子迁移；历史训练只解析显示名称，记录方式保持不变。</p><select value={replacement} onChange={(event) => setReplacement(event.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5"><option value="">仅删除（不迁移）</option>{availableExercises.filter((exercise) => exercise.id !== detail.id).map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}</select><button onClick={removeExercise} className="w-full py-2.5 bg-red-500 text-white rounded-xl font-semibold">{replacement ? "迁移后删除" : "仅删除"}</button></div></div>}
     </div>
   );
 }

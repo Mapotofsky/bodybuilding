@@ -43,6 +43,8 @@ export interface ExerciseDoc extends BaseDoc {
   description: string | null;
   metValue: number | null;
   isCustom: boolean;
+  /** Directed replacement used to resolve historical references after a custom exercise is deleted. */
+  replacedByExerciseId: DocId | null;
 }
 
 export interface TemplateExerciseDoc {

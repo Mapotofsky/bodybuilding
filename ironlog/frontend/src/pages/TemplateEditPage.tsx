@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Plus, X, Dumbbell, Search } from "lucide-react";
+import { ChevronLeft, Plus, X } from "lucide-react";
 import { getPlan, updateTemplate, deleteTemplate } from "@/services/plan";
 import { getExercises } from "@/services/exercise";
 import type { Exercise, TrainingPlan, PlanTemplate } from "@/types";
@@ -8,6 +8,7 @@ import { CATEGORY_LABELS, DAY_OF_WEEK_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import StepInput from "@/components/ui/StepInput";
+import ExercisePicker from "@/components/ExercisePicker";
 
 interface LocalTemplateExercise {
   exercise_id: string;
@@ -39,8 +40,6 @@ export default function TemplateEditPage() {
   const [saving, setSaving] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [exerciseSearch, setExerciseSearch] = useState("");
-  const [exerciseCategory, setExerciseCategory] = useState("");
 
   useEffect(() => {
     if (!planId || !templateId) return;
@@ -128,8 +127,6 @@ export default function TemplateEditPage() {
       },
     ]);
     setShowExercisePicker(false);
-    setExerciseSearch("");
-    setExerciseCategory("");
   }
 
   function removeExercise(idx: number) {
@@ -143,12 +140,6 @@ export default function TemplateEditPage() {
       : [...current, day].sort();
     setScheduleRule({ day_of_week: next });
   }
-
-  const filteredExercises = allExercises.filter((ex) => {
-    const matchSearch = !exerciseSearch || ex.name.toLowerCase().includes(exerciseSearch.toLowerCase());
-    const matchCat = !exerciseCategory || ex.category === exerciseCategory;
-    return matchSearch && matchCat;
-  });
 
   if (loading) {
     return (
@@ -305,75 +296,7 @@ export default function TemplateEditPage() {
         </button>
       </div>
 
-      {/* Exercise Picker Modal */}
-      {showExercisePicker && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-          <div className="bg-white w-full rounded-t-3xl max-h-[75vh] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-              <h3 className="font-semibold">选择动作</h3>
-              <button
-                onClick={() => { setShowExercisePicker(false); setExerciseSearch(""); setExerciseCategory(""); }}
-                className="text-slate-400"
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <div className="px-4 py-2 space-y-2">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={exerciseSearch}
-                  onChange={(e) => setExerciseSearch(e.target.value)}
-                  placeholder="搜索动作..."
-                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                  autoFocus
-                />
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                <button
-                  onClick={() => setExerciseCategory("")}
-                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium transition ${!exerciseCategory ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
-                >
-                  全部
-                </button>
-                {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-                  <button
-                    key={k}
-                    onClick={() => setExerciseCategory(k)}
-                    className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium transition ${exerciseCategory === k ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="overflow-y-auto flex-1 px-4 pb-4">
-              {filteredExercises.length === 0 ? (
-                <p className="text-center text-slate-400 py-8 text-sm">没有匹配的动作</p>
-              ) : (
-                <div className="space-y-1">
-                  {filteredExercises.map((ex) => (
-                    <button
-                      key={ex.id}
-                      onClick={() => addExercise(ex)}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 text-left transition"
-                    >
-                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
-                        <Dumbbell size={16} className="text-emerald-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{ex.name}</p>
-                        <p className="text-xs text-slate-400">{CATEGORY_LABELS[ex.category] || ex.category}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ExercisePicker open={showExercisePicker} exercises={allExercises} onSelect={addExercise} onCreated={(exercise) => setAllExercises((previous) => [...previous, exercise])} onClose={() => setShowExercisePicker(false)} />
     </div>
   );
 }

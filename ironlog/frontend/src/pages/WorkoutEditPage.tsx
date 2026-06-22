@@ -8,11 +8,11 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Search,
   X,
 } from "lucide-react";
 import { useToastStore } from "@/components/Toast";
 import { makeEmptySet } from "@/utils/workout";
+import ExercisePicker from "@/components/ExercisePicker";
 
 interface LocalExercise {
   tempId: string;
@@ -40,8 +40,6 @@ export default function WorkoutEditPage() {
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [searchQ, setSearchQ] = useState("");
-  const [filterCat, setFilterCat] = useState<string>("");
 
   useEffect(() => {
     getExercises().then(setAllExercises);
@@ -89,12 +87,6 @@ export default function WorkoutEditPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const filteredExercises = allExercises.filter((e) => {
-    if (filterCat && e.category !== filterCat) return false;
-    if (searchQ && !e.name.includes(searchQ)) return false;
-    return true;
-  });
-
   const addExercise = (ex: Exercise) => {
     setExercises((prev) => [
       ...prev,
@@ -109,8 +101,6 @@ export default function WorkoutEditPage() {
       },
     ]);
     setShowPicker(false);
-    setSearchQ("");
-    setFilterCat("");
   };
 
   const removeExercise = (tempId: string) => {
@@ -416,87 +406,7 @@ export default function WorkoutEditPage() {
         />
       </div>
 
-      {/* Exercise Picker Modal */}
-      {showPicker && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-          <div className="bg-white w-full max-w-[480px] rounded-t-3xl max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-lg">选择动作</h2>
-                <button
-                  onClick={() => {
-                    setShowPicker(false);
-                    setSearchQ("");
-                    setFilterCat("");
-                  }}
-                >
-                  <X size={22} />
-                </button>
-              </div>
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type="text"
-                  value={searchQ}
-                  onChange={(e) => setSearchQ(e.target.value)}
-                  placeholder="搜索动作..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-sm outline-none"
-                />
-              </div>
-              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-                <button
-                  onClick={() => setFilterCat("")}
-                  className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                    !filterCat
-                      ? "bg-emerald-500 text-white"
-                      : "bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  全部
-                </button>
-                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setFilterCat(key)}
-                    className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
-                      filterCat === key
-                        ? "bg-emerald-500 text-white"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              {filteredExercises.map((ex) => (
-                <button
-                  key={ex.id}
-                  onClick={() => addExercise(ex)}
-                  className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{ex.name}</p>
-                    <p className="text-xs text-slate-400">
-                      {CATEGORY_LABELS[ex.category] || ex.category}
-                    </p>
-                  </div>
-                  <Plus size={18} className="text-slate-300" />
-                </button>
-              ))}
-              {filteredExercises.length === 0 && (
-                <p className="text-center text-slate-400 py-8 text-sm">
-                  没有找到匹配的动作
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ExercisePicker open={showPicker} exercises={allExercises} onSelect={addExercise} onCreated={(exercise) => setAllExercises((previous) => [...previous, exercise])} onClose={() => setShowPicker(false)} />
     </div>
   );
 }

@@ -12,7 +12,6 @@ import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
   ChevronLeft,
-  Search,
   Clock,
   Play,
   SkipForward,
@@ -20,12 +19,12 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
 } from "lucide-react";
 import StepInput from "@/components/ui/StepInput";
 import { format, parseISO } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { useToastStore } from "@/components/Toast";
+import ExercisePicker from "@/components/ExercisePicker";
 
 /* ------------------------------------------------------------------ */
 /*  Types & helpers                                                    */
@@ -81,8 +80,6 @@ export default function WorkoutCreatePage() {
 
   /* ---- exercise picker ---- */
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [searchQ, setSearchQ] = useState("");
-  const [filterCat, setFilterCat] = useState("");
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
   /* ---- active template (optional) ---- */
@@ -165,12 +162,9 @@ export default function WorkoutCreatePage() {
   }
 
   /* ---- exercise list: filtered to template when active ---- */
-  const filteredExercises = allExercises.filter((e) => {
-    if (activeTemplate && !templateExerciseIds.has(e.id)) return false;
-    if (filterCat && e.category !== filterCat) return false;
-    if (searchQ && !e.name.includes(searchQ)) return false;
-    return true;
-  });
+  const selectableExercises = activeTemplate
+    ? allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
+    : allExercises;
 
   /* ---- timer helpers ---- */
   const ensureTotalTimer = useCallback(() => {
@@ -414,8 +408,6 @@ export default function WorkoutCreatePage() {
       useToastStore.getState().add(saveErrorMessage(error), "error");
     }
 
-    setSearchQ("");
-    setFilterCat("");
     setSelectedExercise(null);
     setPhase("select");
   };
@@ -667,102 +659,16 @@ export default function WorkoutCreatePage() {
             </div>
           )}
 
-          {/* Search */}
-          <div className="relative mb-3">
-            <Search
-              size={15}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              type="text"
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="搜索动作..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-400 transition-colors"
-            />
-          </div>
-
-          {/* Category filter */}
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-            <button
-              onClick={() => setFilterCat("")}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
-                !filterCat
-                  ? "bg-emerald-500 text-white"
-                  : "bg-white border border-slate-200 text-slate-600"
-              }`}
-            >
-              全部
-            </button>
-            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setFilterCat(key)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
-                  filterCat === key
-                    ? "bg-emerald-500 text-white"
-                    : "bg-white border border-slate-200 text-slate-600"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Exercise list */}
-          <div className="flex-1 overflow-y-auto space-y-1">
-            {filteredExercises.map((ex) => {
-              const isSelected = selectedExercise?.id === ex.id;
-              const trained = sessionExercises.find(
-                (se) => se.exercise.id === ex.id
-              );
-              return (
-                <button
-                  key={ex.id}
-                  onClick={() =>
-                    setSelectedExercise(isSelected ? null : ex)
-                  }
-                  className={`w-full text-left px-4 py-3.5 rounded-2xl transition-all flex items-center justify-between ${
-                    isSelected
-                      ? "bg-emerald-50 border-2 border-emerald-400"
-                      : "bg-white border border-slate-100 hover:border-slate-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-1.5 h-8 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: isSelected ? "#10b981" : "#e2e8f0",
-                      }}
-                    />
-                    <div>
-                      <p className={`font-semibold text-sm ${
-                        isSelected ? "text-emerald-800" : "text-slate-900"
-                      }`}>
-                        {ex.name}
-                        {trained && (
-                          <span className="ml-2 text-xs text-emerald-500 font-medium">
-                            已练 {trained.sets.length} 组
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {CATEGORY_LABELS[ex.category] || ex.category}
-                      </p>
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
-                  )}
-                </button>
-              );
-            })}
-            {filteredExercises.length === 0 && (
-              <div className="text-center py-10">
-                <p className="text-slate-400 text-sm">没有找到匹配的动作</p>
-              </div>
-            )}
-          </div>
+          <ExercisePicker
+            presentation="inline"
+            exercises={selectableExercises}
+            selectedId={selectedExercise?.id}
+            onSelect={(exercise) => setSelectedExercise((current) => current?.id === exercise.id ? null : exercise)}
+            onCreated={(exercise) => {
+              setAllExercises((previous) => [...previous, exercise]);
+              setSelectedExercise(exercise);
+            }}
+          />
         </div>
 
         {/* Start Training button */}
