@@ -3,7 +3,6 @@ import {
   type DataSnapshot,
   type ExerciseDoc,
   type IronLogManifest,
-  type ManualScheduleEntryDoc,
   type ProfileDoc,
   type SettingsDoc,
   type TemplateDoc,
@@ -76,7 +75,6 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
     exercises: DEFAULT_EXERCISES,
     plans: [],
     templates: [],
-    scheduleEntries: [],
     workouts: [],
   };
 }
@@ -95,7 +93,6 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
     exercises: normalizeArray<ExerciseDoc>(raw.exercises, base.exercises),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
-    scheduleEntries: normalizeArray<ManualScheduleEntryDoc>(raw.scheduleEntries, []),
     workouts: normalizeArray<WorkoutDoc>(raw.workouts, []),
   };
   snapshot.manifest.shards = buildShardList(snapshot);
@@ -123,7 +120,7 @@ export function buildShardList(snapshot: DataSnapshot) {
     { path: "profile.json", updatedAt: snapshot.profile.updatedAt },
     { path: "settings.json", updatedAt: snapshot.settings.updatedAt },
     { path: "exercises.json", updatedAt: maxUpdated(snapshot.exercises, snapshot.manifest.updatedAt) },
-    { path: "templates.json", updatedAt: maxUpdated([...snapshot.plans, ...snapshot.templates, ...snapshot.scheduleEntries], snapshot.manifest.updatedAt) },
+    { path: "templates.json", updatedAt: maxUpdated([...snapshot.plans, ...snapshot.templates], snapshot.manifest.updatedAt) },
   ];
 
   return [

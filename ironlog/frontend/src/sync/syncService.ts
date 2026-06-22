@@ -140,7 +140,6 @@ export function mergeSnapshots(local: DataSnapshot, remote: DataSnapshot, confli
     exercises: mergeDocs(local.exercises, remote.exercises, "exercise", conflicts),
     plans: mergeDocs(local.plans, remote.plans, "plan", conflicts),
     templates: mergeDocs(local.templates, remote.templates, "template", conflicts),
-    scheduleEntries: mergeDocs(local.scheduleEntries, remote.scheduleEntries, "schedule", conflicts),
     workouts: mergeDocs(local.workouts, remote.workouts, "workout", conflicts),
   };
 }
@@ -183,14 +182,13 @@ export function snapshotToFiles(snapshot: DataSnapshot): Record<string, unknown>
     "templates.json": {
       plans: snapshot.plans,
       templates: snapshot.templates,
-      scheduleEntries: snapshot.scheduleEntries,
     },
     ...workoutMonthFiles(snapshot),
   };
 }
 
 function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> {
-  const templateFile = files["templates.json"] as { plans?: unknown; templates?: unknown; scheduleEntries?: unknown } | undefined;
+  const templateFile = files["templates.json"] as { plans?: unknown; templates?: unknown } | undefined;
   const manifest = files[MANIFEST_PATH] as IronLogManifest | undefined;
   const workouts = workoutShardPathsFromManifest(manifest)
     .flatMap((path) => (Array.isArray(files[path]) ? files[path] : []));
@@ -201,7 +199,6 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
     exercises: files["exercises.json"] as Partial<DataSnapshot>["exercises"],
     plans: templateFile?.plans as Partial<DataSnapshot>["plans"],
     templates: templateFile?.templates as Partial<DataSnapshot>["templates"],
-    scheduleEntries: templateFile?.scheduleEntries as Partial<DataSnapshot>["scheduleEntries"],
     workouts: workouts as Partial<DataSnapshot>["workouts"],
   };
 }

@@ -102,14 +102,6 @@ export interface WorkoutDoc extends BaseDoc {
   exercises: WorkoutExerciseDoc[];
 }
 
-export interface ManualScheduleEntryDoc extends BaseDoc {
-  planId: DocId;
-  templateId: DocId;
-  scheduledDate: ISODate;
-  isCompleted: boolean;
-  workoutId: DocId | null;
-}
-
 export interface ManifestShard {
   path: string;
   updatedAt: ISODateTime;
@@ -131,6 +123,5 @@ export interface DataSnapshot {
   exercises: ExerciseDoc[];
   plans: TrainingPlanDoc[];
   templates: TemplateDoc[];
-  scheduleEntries: ManualScheduleEntryDoc[];
   workouts: WorkoutDoc[];
 }

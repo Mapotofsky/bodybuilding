@@ -32,6 +32,7 @@ describe("document file serialization", () => {
 
     expect(files["workouts/2026-06.json"]).toEqual([juneWorkout]);
     expect(files["workouts/2026-07.json"]).toEqual([julyWorkout]);
+    expect(files["templates.json"]).toEqual({ plans: [], templates: [] });
     expect(files).not.toHaveProperty("workouts/index.json");
   });
 });

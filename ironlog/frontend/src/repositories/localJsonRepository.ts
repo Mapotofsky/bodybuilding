@@ -2,7 +2,6 @@ import { buildShardList, makeEmptySnapshot, migrateSnapshot } from "@/core/migra
 import type {
   DataSnapshot,
   ExerciseDoc,
-  ManualScheduleEntryDoc,
   ProfileDoc,
   SettingsDoc,
   TemplateDoc,
@@ -133,19 +132,6 @@ export class LocalJsonRepository {
       tombstone(snapshot.templates, id);
       return undefined;
     });
-  }
-
-  async createScheduleEntry(body: Omit<ManualScheduleEntryDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<ManualScheduleEntryDoc> {
-    return this.mutate((snapshot) => {
-      const entry: ManualScheduleEntryDoc = withDoc(body);
-      snapshot.scheduleEntries.push(entry);
-      return entry;
-    });
-  }
-
-  async listScheduleEntries(from: string, to: string): Promise<ManualScheduleEntryDoc[]> {
-    const snapshot = await this.getSnapshot();
-    return snapshot.scheduleEntries.filter((e) => !e.deletedAt && e.scheduledDate >= from && e.scheduledDate <= to);
   }
 
   async listWorkouts(params?: { month?: string; from?: string; to?: string; includeDeleted?: boolean }): Promise<WorkoutDoc[]> {

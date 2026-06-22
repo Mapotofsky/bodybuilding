@@ -165,7 +165,6 @@ WebDAV 密码只能通过平台 secret/Preferences 或明确隔离的 secret 存
 - WorkoutDoc
 - ProfileDoc
 - SettingsDoc
-- ManualScheduleEntryDoc
 
 ### D2. 所有文档必须有元字段
 
@@ -198,6 +197,13 @@ WorkoutDoc 内部保存 exercises 和 sets。
 ### D5. schemaVersion 从 1 开始
 
 新增字段必须进入 migration，不能只依赖页面默认值。
+
+### D6. 受限数值配置必须在提交与 service 层校验
+
+页面可用 string 保留可清空、可重输的临时输入；提交时再转换。
+
+- 不得用 `Number(value) || fallback` 回填空值。
+- 不得只依赖 HTML `min`/`max`；service 写入前必须校验类型与范围。
 
 ---
 
@@ -238,6 +244,15 @@ allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
 ```
 
 不得用排序替代过滤。
+
+### F5. 全局样式不得覆盖 Tailwind 间距工具类
+
+涉及 `margin`、`padding` 的全局 reset 必须放入 `@layer base`；不得在 Tailwind 导入后以未分层的 `*` 规则覆盖 `p-*`、`m-*`、`space-y-*`。
+
+### F6. Android 数值输入与窄屏行布局必须显式约束
+
+- 不得依赖 Android WebView 的原生 number spinner；有步进需求时使用共享控件或明确的加减按钮。
+- “固定操作按钮 + 可增长输入”使用固定列 + `minmax(0, 1fr)` 的 Grid，或同时声明输入 `min-w-0` 与按钮 `shrink-0`。
 
 ---
 
@@ -282,6 +297,10 @@ rg -n "axios|auth|token|access_token|refresh_token|/api|services/api|Bearer" src
 - 按模板过滤动作是真过滤。
 - 日历月份统计日期口径正确。
 - WebDAV 未配置时应用仍可本地使用。
+
+### V4. 移动端布局与数值输入走查
+
+修改全局 CSS、数值输入或横向操作行后，必须在 Android WebView 的 360px 与 412px 宽度核对：无溢出、无裁切、输入可清空重输、步进与最小/最大值正确。
 
 ---
 

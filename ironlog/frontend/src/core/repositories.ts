@@ -1,6 +1,5 @@
 import type {
   ExerciseDoc,
-  ManualScheduleEntryDoc,
   ProfileDoc,
   SettingsDoc,
   TemplateDoc,
@@ -25,8 +24,6 @@ export interface PlanRepository {
   createTemplate(body: Omit<TemplateDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<TemplateDoc>;
   updateTemplate(id: string, body: Partial<Omit<TemplateDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">>): Promise<TemplateDoc>;
   deleteTemplate(id: string): Promise<void>;
-  createScheduleEntry(body: Omit<ManualScheduleEntryDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<ManualScheduleEntryDoc>;
-  listScheduleEntries(from: string, to: string): Promise<ManualScheduleEntryDoc[]>;
 }
 
 export interface WorkoutRepository {

@@ -165,11 +165,10 @@ export async function deleteTemplate(
 }
 
 export async function getCalendar(from: string, to: string): Promise<CalendarDay[]> {
-  const [plans, templates, workouts, manualEntries] = await Promise.all([
+  const [plans, templates, workouts] = await Promise.all([
     localRepository.listPlans(),
     localRepository.listTemplates(),
     localRepository.listWorkouts({ from, to }),
-    localRepository.listScheduleEntries(from, to),
   ]);
   const activePlans = plans.filter((plan) => plan.isActive && !plan.deletedAt);
   const calendar: Record<string, CalendarEntry[]> = {};
@@ -190,16 +189,6 @@ export async function getCalendar(from: string, to: string): Promise<CalendarDay
       const workoutId = completedByTemplateDate.get(`${template.id}:${entry.date}`) || null;
       pushEntry(calendar, entry.date, makeCalendarEntry(plan, template, entry.date, workoutId, "virtual"));
     }
-  }
-
-  for (const entry of manualEntries) {
-    const plan = planMap.get(entry.planId);
-    const template = templateMap.get(entry.templateId);
-    if (!plan || !template) continue;
-    calendar[entry.scheduledDate] = (calendar[entry.scheduledDate] || []).filter(
-      (item) => !(item.template_id === entry.templateId && item.id === "virtual")
-    );
-    pushEntry(calendar, entry.scheduledDate, makeCalendarEntry(plan, template, entry.scheduledDate, entry.workoutId, entry.id));
   }
 
   for (const workout of workouts) {
@@ -228,21 +217,6 @@ export async function getTemplate(templateId: string): Promise<PlanTemplate> {
   const template = await localRepository.getTemplate(templateId);
   if (!template) throw new Error("Template not found");
   return toTemplate(template);
-}
-
-export async function scheduleTemplate(
-  templateId: string,
-  date: string
-): Promise<void> {
-  const template = await localRepository.getTemplate(templateId);
-  if (!template) throw new Error("Template not found");
-  await localRepository.createScheduleEntry({
-    planId: template.planId,
-    templateId,
-    scheduledDate: date,
-    isCompleted: false,
-    workoutId: null,
-  });
 }
 
 export async function getExerciseDetail(id: string): Promise<ExerciseDetail> {

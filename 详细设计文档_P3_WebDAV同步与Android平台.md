@@ -146,7 +146,7 @@ backups/<ISO timestamp>-<path 中 / 替换为 ->
 
 ### 5.1 当前实现
 
-`mergeSnapshots` 对 profile、settings、动作、计划、模板、手动排程和训练按文档 ID 合并。
+`mergeSnapshots` 对 profile、settings、动作、计划、模板和训练按文档 ID 合并。
 
 ```text
 同一 ID 且 updatedAt 相同：保留本地
