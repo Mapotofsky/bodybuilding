@@ -2,6 +2,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   type DataSnapshot,
   type ExerciseDoc,
+  type ExerciseType,
   type IronLogManifest,
   type ProfileDoc,
   type SettingsDoc,
@@ -90,13 +91,58 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
     },
     profile: doc({ ...base.profile, ...raw.profile }),
     settings: doc({ ...base.settings, ...raw.settings }),
-    exercises: normalizeArray<ExerciseDoc>(raw.exercises, base.exercises),
+    exercises: normalizeExercises(raw.exercises, base.exercises),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
-    workouts: normalizeArray<WorkoutDoc>(raw.workouts, []),
+    workouts: normalizeWorkouts(raw.workouts, []),
   };
+  snapshot.workouts = snapshot.workouts.map((workout) => migrateWorkoutExerciseTypes(workout, snapshot.exercises));
   snapshot.manifest.shards = buildShardList(snapshot);
   return snapshot;
+}
+
+function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: ExerciseDoc[]): ExerciseDoc[] {
+  const builtInTypes = new Map(fallback.filter((exercise) => !exercise.isCustom).map((exercise) => [exercise.id, exercise.type]));
+  return normalizeArray<ExerciseDoc>(value, fallback).map((exercise) => ({
+    ...exercise,
+    // Built-ins are part of the app contract; correct the former running-as-strength default on upgrade.
+    type: builtInTypes.get(exercise.id) || normalizeExerciseType(exercise.type),
+  }));
+}
+
+function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[]): WorkoutDoc[] {
+  return normalizeArray<WorkoutDoc>(value, fallback);
+}
+
+function normalizeExerciseType(value: unknown): ExerciseType {
+  return value === "cardio" || value === "reps_only" || value === "static_hold" || value === "strength" ? value : "strength";
+}
+
+/**
+ * v1 files predate WorkoutExerciseDoc.exerciseType.  Preserve their recorded
+ * data and infer a durable snapshot at the load boundary so later writes and
+ * WebDAV sync no longer need a page-level guess.
+ */
+function migrateWorkoutExerciseTypes(workout: WorkoutDoc, exercises: ExerciseDoc[]): WorkoutDoc {
+  const types = new Map(exercises.map((exercise) => [exercise.id, exercise.type]));
+  return {
+    ...workout,
+    exercises: workout.exercises.map((exercise) => ({
+      ...exercise,
+      exerciseType: normalizeWorkoutExerciseType(exercise, types.get(exercise.exerciseId)),
+    })),
+  };
+}
+
+function normalizeWorkoutExerciseType(
+  exercise: WorkoutDoc["exercises"][number],
+  linkedType: ExerciseType | undefined
+): ExerciseType {
+  if (exercise.exerciseType === "strength" || exercise.exerciseType === "cardio" || exercise.exerciseType === "reps_only" || exercise.exerciseType === "static_hold") {
+    return exercise.exerciseType;
+  }
+  if (linkedType) return linkedType;
+  return exercise.sets.some((set) => set.durationSec != null || set.distanceM != null) ? "cardio" : "strength";
 }
 
 function normalizeArray<T extends { id?: string; createdAt?: string; updatedAt?: string; deletedAt?: string | null; schemaVersion?: number }>(

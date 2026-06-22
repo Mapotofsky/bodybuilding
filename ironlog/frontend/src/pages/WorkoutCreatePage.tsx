@@ -5,9 +5,9 @@ import {
   getExerciseHistory,
   type ExerciseHistoryRecord,
 } from "@/services/exercise";
-import { createWorkout, updateWorkout } from "@/services/workout";
+import { completeWorkoutDraft, createWorkout, getLatestWorkoutDraft, updateWorkout } from "@/services/workout";
 import { getTemplate, getPlans, getPlan } from "@/services/plan";
-import type { Exercise, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
+import type { Exercise, Workout, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
@@ -34,6 +34,7 @@ import { useToastStore } from "@/components/Toast";
 type Phase = "select" | "training" | "rest" | "finish";
 
 interface SessionExercise {
+  id?: string;
   exercise: Exercise;
   sets: WorkoutSet[];
 }
@@ -75,6 +76,8 @@ export default function WorkoutCreatePage() {
   const [currentSetNum, setCurrentSetNum] = useState(1);
   const [inputWeight, setInputWeight] = useState("");
   const [inputReps, setInputReps] = useState("");
+  const [inputDistance, setInputDistance] = useState("");
+  const [inputDuration, setInputDuration] = useState("");
 
   /* ---- exercise picker ---- */
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
@@ -84,6 +87,9 @@ export default function WorkoutCreatePage() {
 
   /* ---- active template (optional) ---- */
   const [activeTemplate, setActiveTemplate] = useState<PlanTemplate | null>(null);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Workout | null>(null);
+  const [draftChecking, setDraftChecking] = useState(true);
 
   /* ---- plan picker ---- */
   const [activePlans, setActivePlans] = useState<PlanSummary[]>([]);
@@ -106,12 +112,13 @@ export default function WorkoutCreatePage() {
   useEffect(() => {
     getExercises().then(setAllExercises);
     getPlans().then((plans) => setActivePlans(plans.filter((p) => p.is_active)));
+    getLatestWorkoutDraft().then(setDraft).catch(() => useToastStore.getState().add("无法读取上次训练草稿", "error")).finally(() => setDraftChecking(false));
   }, []);
 
   useEffect(() => {
     if (!templateIdParam) return;
     getTemplate(templateIdParam)
-      .then(setActiveTemplate)
+      .then((template) => { setActiveTemplate(template); setActiveTemplateId(template.id); })
       .catch(() => { /* template not found, proceed without */ });
   }, [templateIdParam]);
 
@@ -129,11 +136,13 @@ export default function WorkoutCreatePage() {
 
   function handlePickTemplate(tmpl: PlanTemplate) {
     setActiveTemplate(tmpl);
+    setActiveTemplateId(tmpl.id);
     setExpandedPlanId(null);
   }
 
   function handleClearTemplate() {
     setActiveTemplate(null);
+    setActiveTemplateId(null);
     setExpandedPlanId(null);
   }
 
@@ -166,7 +175,7 @@ export default function WorkoutCreatePage() {
   /* ---- timer helpers ---- */
   const ensureTotalTimer = useCallback(() => {
     if (totalTimerRef.current) return;
-    startTimeRef.current = new Date().toISOString();
+    if (!startTimeRef.current) startTimeRef.current = new Date().toISOString();
     totalTimerRef.current = setInterval(
       () => setTotalSeconds((s) => s + 1),
       1000
@@ -211,6 +220,8 @@ export default function WorkoutCreatePage() {
           const last = existing.sets[existing.sets.length - 1];
           setInputWeight(last.weight != null ? String(last.weight) : "");
           setInputReps(last.reps != null ? String(last.reps) : "");
+          setInputDistance(last.distance_m != null ? String(last.distance_m) : "");
+          setInputDuration(last.duration_sec != null ? String(last.duration_sec) : "");
         } else if (hist.length > 0) {
           // New exercise → default from history's last session first set
           const firstSet = hist.find((r) => r.set_number === 1);
@@ -218,14 +229,20 @@ export default function WorkoutCreatePage() {
             firstSet?.weight != null ? String(firstSet.weight) : ""
           );
           setInputReps(firstSet?.reps != null ? String(firstSet.reps) : "");
+          setInputDistance(firstSet?.distance_m != null ? String(firstSet.distance_m) : "");
+          setInputDuration(firstSet?.duration_sec != null ? String(firstSet.duration_sec) : "");
         } else {
           setInputWeight("");
           setInputReps("");
+          setInputDistance("");
+          setInputDuration("");
         }
       } catch {
         setHistory([]);
         setInputWeight("");
         setInputReps("");
+        setInputDistance("");
+        setInputDuration("");
       }
 
       setPhase("training");
@@ -243,15 +260,20 @@ export default function WorkoutCreatePage() {
     end_time: extra?.end_time,
     mood: extra?.mood ?? undefined,
     note: extra?.note,
-    plan_template_id: activeTemplate?.id ?? undefined,
+    plan_template_id: activeTemplateId ?? undefined,
     exercises: exercises.map((se, idx) => ({
+      id: se.id,
       exercise_id: se.exercise.id,
+      exercise_type: se.exercise.type,
       sort_order: idx,
       sets: se.sets.map((s) => ({
+        id: s.id,
         set_number: s.set_number,
         weight: s.weight,
         reps: s.reps,
         unit: s.unit,
+        duration_sec: s.duration_sec,
+        distance_m: s.distance_m,
         rpe: s.rpe,
         is_warmup: s.is_warmup,
         is_dropset: s.is_dropset,
@@ -264,13 +286,14 @@ export default function WorkoutCreatePage() {
   const persistWorkout = async (
     exercises: SessionExercise[],
     extra?: { mood?: number | null; note?: string; end_time?: string }
-  ) => {
+  ): Promise<Workout> => {
     const payload = buildPayload(exercises, extra);
     if (workoutIdRef.current) {
-      await updateWorkout(workoutIdRef.current, payload);
+      return updateWorkout(workoutIdRef.current, payload);
     } else {
       const result = await createWorkout(payload);
       workoutIdRef.current = result.id;
+      return result;
     }
   };
 
@@ -305,14 +328,16 @@ export default function WorkoutCreatePage() {
     if (!currentExercise) return;
     const w = inputWeight ? parseFloat(inputWeight) : null;
     const r = inputReps ? parseInt(inputReps) : null;
+    const distance = inputDistance ? parseFloat(inputDistance) : null;
+    const duration = inputDuration ? parseInt(inputDuration) : null;
 
     const completedSet: WorkoutSet = {
       set_number: currentSetNum,
-      weight: w,
-      reps: r,
+      weight: currentExercise.type === "strength" ? w : null,
+      reps: currentExercise.type === "cardio" || currentExercise.type === "static_hold" ? null : r,
       unit: weightUnit,
-      duration_sec: null,
-      distance_m: null,
+      duration_sec: currentExercise.type === "cardio" || currentExercise.type === "static_hold" ? duration : null,
+      distance_m: currentExercise.type === "cardio" ? distance : null,
       rpe: null,
       is_warmup: false,
       is_dropset: false,
@@ -341,9 +366,10 @@ export default function WorkoutCreatePage() {
 
     // Save immediately
     try {
-      await persistWorkout(updated);
-    } catch {
-      useToastStore.getState().add("保存失败，请检查网络", "error");
+      const saved = await persistWorkout(updated);
+      setSessionExercises(mergePersistedIds(updated, saved));
+    } catch (error) {
+      useToastStore.getState().add(saveErrorMessage(error), "error");
     }
 
     setPhase("rest");
@@ -361,9 +387,10 @@ export default function WorkoutCreatePage() {
     setSessionExercises(updated);
 
     try {
-      await persistWorkout(updated);
-    } catch {
-      useToastStore.getState().add("保存失败，请检查网络", "error");
+      const saved = await persistWorkout(updated);
+      setSessionExercises(mergePersistedIds(updated, saved));
+    } catch (error) {
+      useToastStore.getState().add(saveErrorMessage(error), "error");
     }
 
     setCurrentSetNum((n) => n + 1);
@@ -381,9 +408,10 @@ export default function WorkoutCreatePage() {
     setSessionExercises(updated);
 
     try {
-      await persistWorkout(updated);
-    } catch {
-      useToastStore.getState().add("保存失败，请检查网络", "error");
+      const saved = await persistWorkout(updated);
+      setSessionExercises(mergePersistedIds(updated, saved));
+    } catch (error) {
+      useToastStore.getState().add(saveErrorMessage(error), "error");
     }
 
     setSearchQ("");
@@ -403,9 +431,10 @@ export default function WorkoutCreatePage() {
     setSessionExercises(updated);
 
     try {
-      await persistWorkout(updated);
-    } catch {
-      useToastStore.getState().add("保存失败，请检查网络", "error");
+      const saved = await persistWorkout(updated);
+      setSessionExercises(mergePersistedIds(updated, saved));
+    } catch (error) {
+      useToastStore.getState().add(saveErrorMessage(error), "error");
     }
 
     setPhase("finish");
@@ -418,20 +447,72 @@ export default function WorkoutCreatePage() {
       totalTimerRef.current = null;
     }
     try {
-      await persistWorkout(sessionExercises, {
+      const saved = await persistWorkout(sessionExercises, {
         mood,
         note: note || undefined,
         end_time: new Date().toISOString(),
       });
+      setSessionExercises(mergePersistedIds(sessionExercises, saved));
       useToastStore.getState().add("训练已保存", "success");
       navigate(`/workouts/${workoutIdRef.current}`, { replace: true });
     } catch (err) {
       console.error(err);
-      useToastStore.getState().add("保存失败", "error");
+      useToastStore.getState().add(saveErrorMessage(err), "error");
     } finally {
       setSaving(false);
     }
   };
+
+  async function continueDraft() {
+    if (!draft) return;
+    const exerciseMap = new Map(allExercises.map((exercise) => [exercise.id, exercise]));
+    const restored = draft.exercises.map((item) => {
+      const linked = exerciseMap.get(item.exercise_id);
+      return {
+        id: item.id,
+        exercise: linked || { id: item.exercise_id, name: item.exercise_name || `动作#${item.exercise_id}`, category: item.exercise_category || "", type: item.exercise_type, description: null, met_value: null, is_custom: false },
+        sets: item.sets,
+      };
+    });
+    workoutIdRef.current = draft.id;
+    setDate(draft.date);
+    setMood(draft.mood);
+    setNote(draft.note || "");
+    startTimeRef.current = draft.start_time || "";
+    if (draft.start_time) setTotalSeconds(Math.max(0, Math.floor((Date.now() - new Date(draft.start_time).getTime()) / 1000)));
+    setActiveTemplateId(draft.plan_template_id);
+    if (draft.plan_template_id) {
+      getTemplate(draft.plan_template_id).then(setActiveTemplate).catch(() => useToastStore.getState().add("原训练模板已不存在，已保留训练数据", "error"));
+    }
+    setSessionExercises(restored);
+    setIsFirstSelect(false);
+    setDraft(null);
+    const last = restored[restored.length - 1];
+    if (last) {
+      const lastSet = last.sets[last.sets.length - 1];
+      setCurrentExercise(last.exercise);
+      setCurrentSetNum(last.sets.length + 1);
+      setInputWeight(lastSet?.weight != null ? String(lastSet.weight) : "");
+      setInputReps(lastSet?.reps != null ? String(lastSet.reps) : "");
+      setInputDistance(lastSet?.distance_m != null ? String(lastSet.distance_m) : "");
+      setInputDuration(lastSet?.duration_sec != null ? String(lastSet.duration_sec) : "");
+      if (lastSet?.unit === "lb") setWeightUnit("lb");
+      setPhase("training");
+      ensureTotalTimer();
+    } else {
+      setPhase("select");
+    }
+  }
+
+  async function startFreshAfterDraft() {
+    if (!draft) return;
+    try {
+      await completeWorkoutDraft(draft.id);
+      setDraft(null);
+    } catch (error) {
+      useToastStore.getState().add(error instanceof Error ? error.message : "无法结束旧草稿", "error");
+    }
+  }
 
   /* ---- derived ---- */
   const currentSetHistory = history.filter(
@@ -442,6 +523,10 @@ export default function WorkoutCreatePage() {
         .find((se) => se.exercise.id === currentExercise.id)
         ?.sets.slice(-1)[0]
     : null;
+
+  if (draft && !draftChecking) {
+    return <DraftRecoveryDialog draft={draft} onContinue={continueDraft} onStartFresh={startFreshAfterDraft} />;
+  }
 
   /* ================================================================ */
   /*  RENDER — SELECT                                                  */
@@ -743,7 +828,7 @@ export default function WorkoutCreatePage() {
           </div>
 
           {/* Unit toggle */}
-          <div className="flex items-center gap-3 mb-5">
+          {currentExercise.type === "strength" && <div className="flex items-center gap-3 mb-5">
             <span className="text-sm text-slate-500 font-medium">单位</span>
             <div className="flex bg-slate-100 rounded-xl p-0.5">
               {(["kg", "lb"] as const).map((u) => (
@@ -760,26 +845,31 @@ export default function WorkoutCreatePage() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Step inputs */}
           <div className="space-y-4 mb-5">
-            <StepInput
+            {currentExercise.type === "strength" && <StepInput
               label={`重量 (${weightUnit})`}
               value={inputWeight}
               onChange={setInputWeight}
               step={weightUnit === "kg" ? 2.5 : 5}
               inputMode="decimal"
               placeholder="0"
-            />
-            <StepInput
+            />}
+            {(currentExercise.type === "strength" || currentExercise.type === "reps_only") && <StepInput
               label="次数"
               value={inputReps}
               onChange={setInputReps}
               step={1}
               inputMode="numeric"
               placeholder="0"
-            />
+            />}
+            {currentExercise.type === "cardio" && <>
+              <StepInput label="距离 (m)" value={inputDistance} onChange={setInputDistance} step={100} inputMode="decimal" placeholder="0" />
+              <StepInput label="时长 (秒)" value={inputDuration} onChange={setInputDuration} step={60} inputMode="numeric" placeholder="0" />
+            </>}
+            {currentExercise.type === "static_hold" && <StepInput label="保持时长 (秒)" value={inputDuration} onChange={setInputDuration} step={10} inputMode="numeric" placeholder="0" />}
           </div>
 
           {/* History — collapsible */}
@@ -800,7 +890,7 @@ export default function WorkoutCreatePage() {
                     <div key={i} className="flex justify-between items-center px-4 py-2.5 text-sm">
                       <span className="text-slate-400 text-xs">{dateLabel}</span>
                       <span className="font-semibold text-slate-700">
-                        {r.weight ?? 0}{r.unit} × {r.reps ?? 0}次
+                        {currentExercise.type === "cardio" ? `${r.distance_m ?? 0}m · ${r.duration_sec ?? 0}s` : currentExercise.type === "static_hold" ? `${r.duration_sec ?? 0}s` : currentExercise.type === "reps_only" ? `${r.reps ?? 0}次` : `${r.weight ?? 0}${r.unit} × ${r.reps ?? 0}次`}
                         {r.rest_seconds != null && (
                           <span className="text-slate-400 text-xs ml-2">休 {r.rest_seconds}s</span>
                         )}
@@ -856,7 +946,7 @@ export default function WorkoutCreatePage() {
           </div>
           <p className="font-bold text-slate-900">{currentExercise.name} 第 {lastCompletedSet.set_number} 组</p>
           <p className="text-slate-600 text-sm mt-0.5">
-            {lastCompletedSet.weight ?? 0} {weightUnit} × {lastCompletedSet.reps ?? 0} 次
+            {currentExercise.type === "cardio" ? `${lastCompletedSet.distance_m ?? 0} m · ${lastCompletedSet.duration_sec ?? 0} s` : currentExercise.type === "static_hold" ? `${lastCompletedSet.duration_sec ?? 0} s` : currentExercise.type === "reps_only" ? `${lastCompletedSet.reps ?? 0} 次` : `${lastCompletedSet.weight ?? 0} ${weightUnit} × ${lastCompletedSet.reps ?? 0} 次`}
           </p>
         </div>
 
@@ -934,7 +1024,7 @@ export default function WorkoutCreatePage() {
   if (phase === "finish") {
     const totalSets = sessionExercises.reduce((s, se) => s + se.sets.length, 0);
     const totalVol = sessionExercises.reduce(
-      (sum, se) => sum + se.sets.reduce((s, st) => s + (st.weight ?? 0) * (st.reps ?? 0), 0),
+      (sum, se) => sum + (se.exercise.type === "strength" ? se.sets.reduce((s, st) => s + (st.weight ?? 0) * (st.reps ?? 0), 0) : 0),
       0
     );
 
@@ -1046,4 +1136,37 @@ export default function WorkoutCreatePage() {
   }
 
   return null;
+}
+
+function mergePersistedIds(draft: SessionExercise[], saved: Workout): SessionExercise[] {
+  return draft.map((exercise, index) => {
+    const persisted = saved.exercises[index];
+    if (!persisted) return exercise;
+    return {
+      ...exercise,
+      id: persisted.id,
+      sets: exercise.sets.map((set, setIndex) => ({ ...set, id: persisted.sets[setIndex]?.id || set.id })),
+    };
+  });
+}
+
+function DraftRecoveryDialog({ draft, onContinue, onStartFresh }: { draft: Workout; onContinue: () => void; onStartFresh: () => void }) {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-5">
+      <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-xl p-5 space-y-4">
+        <div className="w-10 h-1 bg-emerald-400 rounded-full" />
+        <div>
+          <p className="text-lg font-bold text-slate-900">发现未结束的训练</p>
+          <p className="text-sm text-slate-500 mt-1">{draft.date} · {draft.exercises.length} 个动作。选择继续将恢复原来的训练记录。</p>
+        </div>
+        <button onClick={onContinue} className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl font-semibold">继续上次训练</button>
+        <button onClick={onStartFresh} className="w-full py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-semibold">新建训练</button>
+        <p className="text-xs text-slate-400">新建训练会将旧草稿结束为最后一次记录时间，原有训练数据不会删除。</p>
+      </div>
+    </div>
+  );
+}
+
+function saveErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "保存失败，请重试";
 }

@@ -62,7 +62,8 @@ export default function ExerciseDetailPage() {
   const TYPE_LABELS: Record<string, string> = {
     strength: "力量",
     cardio: "有氧",
-    flexibility: "柔韧",
+    reps_only: "徒手次数",
+    static_hold: "静态保持",
   };
 
   return (
@@ -148,7 +149,8 @@ export default function ExerciseDetailPage() {
             <h2 className="text-sm font-bold text-slate-700 mb-2 px-1">历史记录</h2>
             <div className="space-y-2">
               {dates.map((date) => {
-                const maxW = Math.max(...byDate[date].map(r => r.weight ?? 0));
+                const type = byDate[date][0].exercise_type;
+                const maxW = type === "strength" ? Math.max(...byDate[date].map(r => r.weight ?? 0)) : 0;
                 return (
                   <div key={date} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="px-4 py-2.5 bg-slate-50/60 border-b border-slate-50 flex items-center justify-between">
@@ -156,22 +158,17 @@ export default function ExerciseDetailPage() {
                         {date.replace(/-/g, "/")}
                       </p>
                       <span className="text-xs text-emerald-600 font-semibold">
-                        最大 {maxW}kg
+                        {type === "cardio" ? "距离与时长" : type === "static_hold" ? "保持时长" : type === "reps_only" ? "完成次数" : `最大 ${maxW}kg`}
                       </span>
                     </div>
                     <div className="divide-y divide-slate-50">
                       {byDate[date].map((r, i) => (
                         <div key={i} className="flex items-center gap-3 px-4 py-2.5">
                           <span className="text-xs font-semibold text-slate-400 w-8">第{r.set_number}组</span>
-                          <span className={`text-sm font-bold ${
-                            r.weight === maxW && maxW > 0 ? "text-emerald-600" : "text-slate-800"
-                          }`}>
-                            {r.weight !== null ? `${r.weight}${r.unit}` : "—"}
-                          </span>
-                          <span className="text-slate-300">×</span>
-                          <span className="text-sm font-semibold text-slate-600">
-                            {r.reps !== null ? `${r.reps}次` : "—"}
-                          </span>
+                          {r.exercise_type === "cardio" ? <span className="text-sm font-semibold text-slate-600">{r.distance_m ?? "—"} m · {r.duration_sec ?? "—"} s</span> : r.exercise_type === "static_hold" ? <span className="text-sm font-semibold text-slate-600">{r.duration_sec ?? "—"} s</span> : <>
+                            {r.exercise_type === "strength" && <><span className={`text-sm font-bold ${r.weight === maxW && maxW > 0 ? "text-emerald-600" : "text-slate-800"}`}>{r.weight !== null ? `${r.weight}${r.unit}` : "—"}</span><span className="text-slate-300">×</span></>}
+                            <span className="text-sm font-semibold text-slate-600">{r.reps !== null ? `${r.reps}次` : "—"}</span>
+                          </>}
                         </div>
                       ))}
                     </div>

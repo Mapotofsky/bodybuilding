@@ -149,6 +149,13 @@ export class LocalJsonRepository {
     return snapshot.workouts.find((w) => w.id === id && !w.deletedAt) || null;
   }
 
+  async getLatestWorkoutDraft(): Promise<WorkoutDoc | null> {
+    const snapshot = await this.getSnapshot();
+    return snapshot.workouts
+      .filter((workout) => !workout.deletedAt && workout.endTime === null)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || right.createdAt.localeCompare(left.createdAt))[0] || null;
+  }
+
   async createWorkout(body: Omit<WorkoutDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<WorkoutDoc> {
     return this.mutate((snapshot) => {
       const workout: WorkoutDoc = withDoc({
@@ -261,7 +268,7 @@ export class LocalJsonRepository {
     return this.mutate((snapshot) => {
       const item = snapshot[key].find((doc) => doc.id === id && !doc.deletedAt);
       if (!item) throw new Error("Document not found");
-      Object.assign(item, withoutUndefined(body), { updatedAt: nowIso() });
+      Object.assign(item, withoutUndefined(body), { updatedAt: nextUpdatedAt(item.updatedAt, snapshot.manifest.updatedAt) });
       return item;
     });
   }
@@ -302,4 +309,11 @@ function localDeviceId(): string {
   const id = makeId();
   localStorage.setItem(key, id);
   return id;
+}
+
+function nextUpdatedAt(previous: string, floor: string): string {
+  const current = nowIso();
+  const latest = previous > floor ? previous : floor;
+  if (current > latest) return current;
+  return new Date(new Date(latest).getTime() + 1).toISOString();
 }

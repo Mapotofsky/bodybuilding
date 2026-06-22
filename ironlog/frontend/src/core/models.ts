@@ -5,6 +5,7 @@ export type ISODate = string;
 export type ISODateTime = string;
 export type WeightUnit = "kg" | "lb";
 export type PlanMode = "weekly" | "cyclic" | "flexible";
+export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
 
 export interface BaseDoc {
   id: DocId;
@@ -38,7 +39,7 @@ export interface WebDavSettings {
 export interface ExerciseDoc extends BaseDoc {
   name: string;
   category: string;
-  type: string;
+  type: ExerciseType;
   description: string | null;
   metValue: number | null;
   isCustom: boolean;
@@ -87,6 +88,8 @@ export interface WorkoutSetDoc {
 export interface WorkoutExerciseDoc {
   id: DocId;
   exerciseId: DocId;
+  /** Immutable interpretation of the exercise at the time this workout was recorded. */
+  exerciseType: ExerciseType;
   sortOrder: number;
   supersetGroup: number | null;
   sets: WorkoutSetDoc[];

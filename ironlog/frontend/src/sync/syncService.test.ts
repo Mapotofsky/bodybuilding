@@ -79,6 +79,18 @@ describe("settings WebDAV sync", () => {
     });
     expect(merged.settings.lastSyncAt).toBe(FIRST_SYNC_AT);
   });
+
+  it("serializes workout exercise type snapshots into the WebDAV month shard", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.workouts = [{
+      id: "run-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
+      exercises: [{ id: "run-exercise", exerciseId: "ex-running", exerciseType: "cardio", sortOrder: 0, supersetGroup: null, sets: [{ id: "run-set", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 600, distanceM: 1500, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null }] }],
+      createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 1,
+    }];
+
+    const files = snapshotToFiles(snapshot);
+    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseType: "cardio" });
+  });
 });
 
 function memoryStore(initial: DataSnapshot): DocumentStore {

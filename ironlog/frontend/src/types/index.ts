@@ -11,11 +11,13 @@ export interface User {
   created_at: string;
 }
 
+export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+
 export interface Exercise {
   id: string;
   name: string;
   category: string;
-  type: string;
+  type: ExerciseType;
   description: string | null;
   met_value: number | null;
   is_custom: boolean;
@@ -39,6 +41,7 @@ export interface WorkoutSet {
 export interface WorkoutExercise {
   id?: string;
   exercise_id: string;
+  exercise_type: ExerciseType;
   exercise_name?: string;
   exercise_category?: string;
   sort_order: number;
@@ -73,6 +76,9 @@ export interface WorkoutSummary {
   exercise_count: number;
   total_sets: number;
   total_volume: number;
+  total_distance_m: number;
+  total_duration_sec: number;
+  total_reps: number;
   plan_template_id: string | null;
   template_name: string | null;
   template_color: string | null;
@@ -90,6 +96,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   core: "核心",
   cardio: "有氧",
   compound: "复合",
+  stretch: "拉伸",
 };
 
 export const MOOD_LABELS: Record<number, string> = {

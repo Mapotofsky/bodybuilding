@@ -141,9 +141,12 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
   const workout = await toWorkout(doc);
   const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   const totalVolume = workout.exercises.reduce(
-    (sum, exercise) => sum + exercise.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0),
+    (sum, exercise) => sum + (exercise.exercise_type === "strength" ? exercise.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0) : 0),
     0
   );
+  const totalDistance = workout.exercises.reduce((sum, exercise) => sum + (exercise.exercise_type === "cardio" ? exercise.sets.reduce((setSum, set) => setSum + (set.distance_m || 0), 0) : 0), 0);
+  const totalDuration = workout.exercises.reduce((sum, exercise) => sum + (exercise.exercise_type === "cardio" || exercise.exercise_type === "static_hold" ? exercise.sets.reduce((setSum, set) => setSum + (set.duration_sec || 0), 0) : 0), 0);
+  const totalReps = workout.exercises.reduce((sum, exercise) => sum + (exercise.exercise_type === "strength" || exercise.exercise_type === "reps_only" ? exercise.sets.reduce((setSum, set) => setSum + (set.reps || 0), 0) : 0), 0);
   return {
     id: workout.id,
     date: workout.date,
@@ -154,6 +157,9 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
     exercise_count: workout.exercises.length,
     total_sets: totalSets,
     total_volume: totalVolume,
+    total_distance_m: totalDistance,
+    total_duration_sec: totalDuration,
+    total_reps: totalReps,
     plan_template_id: workout.plan_template_id,
     template_name: workout.template_name,
     template_color: workout.template_color,
@@ -167,6 +173,7 @@ function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExercise> {
   return localRepository.get(doc.exerciseId).then((exercise) => ({
     id: doc.id,
     exercise_id: doc.exerciseId,
+    exercise_type: doc.exerciseType,
     exercise_name: exercise?.name,
     exercise_category: exercise?.category,
     sort_order: doc.sortOrder,

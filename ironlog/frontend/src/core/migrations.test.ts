@@ -73,4 +73,28 @@ describe("local-first schema migration", () => {
     expect(snapshot.workouts[0].schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(snapshot.workouts[0].deletedAt).toBe("2026-06-12T00:00:00.000Z");
   });
+
+  it("adds a durable cardio snapshot to legacy workouts without clearing distance or duration", () => {
+    const snapshot = migrateSnapshot({
+      workouts: [{
+        id: "legacy-run", date: "2026-06-12", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
+        exercises: [{ id: "legacy-run-exercise", exerciseId: "ex-running", sortOrder: 0, supersetGroup: null, sets: [{ id: "legacy-run-set", setNumber: 1, weight: null, reps: null, unit: "kg", distanceM: 5000, durationSec: 1800, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null }] }],
+      } as never],
+    }, "device-test");
+    expect(snapshot.workouts[0].exercises[0].exerciseType).toBe("cardio");
+    expect(snapshot.workouts[0].exercises[0].sets[0]).toMatchObject({ distanceM: 5000, durationSec: 1800 });
+  });
+
+  it("upgrades the built-in running exercise to cardio", () => {
+    const snapshot = migrateSnapshot({
+      exercises: [{ ...makeEmptySnapshot("device-test").exercises.find((exercise) => exercise.id === "ex-running")!, type: "strength" }],
+    }, "device-test");
+    expect(snapshot.exercises[0].type).toBe("cardio");
+  });
+
+  it("provides the static hold and stretching exercise contracts", () => {
+    const exercises = makeEmptySnapshot("device-test").exercises;
+    expect(exercises.find((exercise) => exercise.id === "ex-plank")?.type).toBe("static_hold");
+    expect(exercises.find((exercise) => exercise.id === "ex-cat-cow-stretch")).toMatchObject({ category: "stretch", type: "reps_only" });
+  });
 });

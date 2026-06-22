@@ -260,7 +260,7 @@ export default function HomePage() {
                         {w.mood ? ` ${MOOD_LABELS[w.mood]}` : ""}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {w.exercise_count} 个动作 · {w.total_sets} 组 · {Math.round(w.total_volume)} kg
+                        {w.exercise_count} 个动作 · {w.total_sets} 组 · {summaryMetric(w)}
                       </p>
                     </div>
                     <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
@@ -274,4 +274,11 @@ export default function HomePage() {
       </div>
     </div>
   );
+}
+
+function summaryMetric(workout: WorkoutSummary): string {
+  if (workout.total_volume > 0) return `${Math.round(workout.total_volume)} kg`;
+  if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
+  if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
+  return `${workout.total_reps} 次`;
 }
