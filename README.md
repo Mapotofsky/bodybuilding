@@ -6,11 +6,11 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 
 根目录文档是当前版本的规范来源：
 
-- [概要设计文档](../概要设计文档.md)：范围、模块边界、数据模型和验收基线。
-- [技术路线分析](../技术路线分析.md)：技术决策、替代路线和已知风险。
-- [本地运行指南](../如何运行IronLog.md)：开发、测试、Android 调试与 WebDAV 配置。
-- [发布与交付指南](../部署指南.md)：APK、静态 Web、版本兼容与发布检查。
-- [P0 核心训练](../详细设计文档_P0_核心训练.md)、[P1 计划与日历](../详细设计文档_P1_计划与动作库.md)、[P2 本地文档存储](../详细设计文档_P2_本地文档存储与数据迁移.md)、[P3 WebDAV 与 Android](../详细设计文档_P3_WebDAV同步与Android平台.md)：实现级契约。
+- [概要设计文档](概要设计文档.md)：范围、模块边界、数据模型和验收基线。
+- [技术路线分析](技术路线分析.md)：技术决策、替代路线和已知风险。
+- [本地运行指南](如何运行IronLog.md)：开发、测试、Android 调试与 WebDAV 配置。
+- [发布与交付指南](部署指南.md)：APK、静态 Web、版本兼容与发布检查。
+- [P0 核心训练](详细设计文档_P0_核心训练.md)、[P1 计划与日历](详细设计文档_P1_计划与动作库.md)、[P2 本地文档存储](详细设计文档_P2_本地文档存储与数据迁移.md)、[P3 WebDAV 与 Android](详细设计文档_P3_WebDAV同步与Android平台.md)：实现级契约。
 
 ## 本地运行
 
@@ -80,9 +80,9 @@ ironlog-data/
 
 训练数据的唯一真源是 `workouts/YYYY-MM.json`。每个月文件保存该月的 `WorkoutDoc[]`，包括 tombstone；`DataSnapshot.workouts` 仅在内存中聚合，绝不会再持久化为单一训练索引文件。`manifest.json` 的 `shards` 会列出全部静态文件和实际存在的训练月分片。
 
-这是一次开发期破坏性数据格式调整。已有浏览器 IndexedDB、Android 模拟器或测试 App 数据需要清除后重新开始测试；项目不会读取或迁移旧训练索引数据。
+现有浏览器 IndexedDB、Android 模拟器或测试 App 中的当前分片数据会在启动时经 `migrateSnapshot` 归一化，并增量补齐缺失的默认动作和新增字段，不应因常规字段演进而清除。历史 FastAPI/PostgreSQL 数据和旧的单一训练索引文件不在兼容范围；只有持有这两类旧数据时才需要先导出或清除后重新开始。
 
-所有领域 id 都是 string UUID。每条文档包含：
+所有领域 ID 都是 string（新建用户记录通常由 `crypto.randomUUID()` 生成；内置和本地单例使用稳定 string ID）。每条文档包含：
 
 - `createdAt`
 - `updatedAt`
@@ -91,7 +91,7 @@ ironlog-data/
 
 删除使用 tombstone：`deletedAt` 不为 `null` 表示已删除，不立即物理删除。
 
-`WorkoutDoc` 是聚合文档，内部保存 exercises 和 sets，包括 `restSeconds`。这种结构可以自然映射到未来 MongoDB/CloudBase collections，不需要复刻 SQL join table。
+`WorkoutDoc` 是聚合文档，内部保存 exercises 和 sets，包括 `restSeconds`。每个训练动作还保存 `exerciseType` 快照，确保动作被替代或改类型后历史训练仍按记录时的类型解释。未结束训练（`endTime=null`）会作为草稿在下次进入新建训练页时提供继续或结束后新建的选择。这种结构可以自然映射到未来 MongoDB/CloudBase collections，不需要复刻 SQL join table。
 
 ## WebDAV 同步
 

@@ -43,12 +43,14 @@ settings/profile/doc -> SyncService -> WebDavClient -> JSON shard -> remote back
 
 ### M5. 不破坏存量功能
 
-完成后必须至少验证：
+涉及 `frontend` 源码、测试、构建配置、依赖或 Android 工程的修改，完成后必须至少验证：
 
 - `npm run build`
 - `npm test`
 - `npm run android:sync`
 - 关键 grep 零残留
+
+纯文档修改不运行上述构建链。应改为核对文档所述代码事实、内部链接与中文内容，并执行 `git diff --check`。
 
 ### M6. 禁止使用 Shell 命令修改含中文源文件/文档
 
@@ -270,7 +272,7 @@ allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
 
 ## 验证规则
 
-### V1. 每次交付前必须执行
+### V1. 源码或工程交付前必须执行
 
 ```bash
 cd ironlog/frontend
@@ -288,7 +290,7 @@ cd ironlog/frontend/android
 
 若失败在 Gradle 分发包下载，应明确说明是网络/环境问题。
 
-### V2. 必须 grep 零残留
+### V2. 源码或工程交付必须 grep 零残留
 
 ```bash
 rg -n "window\.(confirm|alert|prompt)" src
@@ -297,6 +299,8 @@ rg -n "axios|auth|token|access_token|refresh_token|/api|services/api|Bearer" src
 ```
 
 注意：WebDAV Basic `Authorization` 如在 WebDAV client 内出现，需要在报告中说明它不是登录/JWT 运行路径。
+
+纯文档交付无需执行本节 grep；仅在文档引用了这些代码约束时，核对描述是否准确。
 
 ### V3. 人工走查
 
