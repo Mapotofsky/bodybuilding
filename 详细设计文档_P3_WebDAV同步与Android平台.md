@@ -1,7 +1,7 @@
 # P3 详细设计文档：WebDAV 同步与 Android 平台
 
-> 对应概要设计：M3 同步部分、M4 Android 平台
-> 状态：当前实现基线，包含明确的安全和冲突限制
+> 对应概要设计：M3 同步部分、M4 Android 平台；M5/M6 设置同步与秘密隔离
+> 状态：当前实现基线，包含明确的安全和冲突限制；主题与 AI 同步影响为规划中
 > 前置依赖：P2 本地文档存储与数据迁移。
 
 ---
@@ -12,7 +12,7 @@
 
 本模块保证：未配置 WebDAV 时应用离线可用；已配置时可测试连接、手动同步、写远端备份并显示 LWW 日志。
 
-本模块不保证：实时双向同步、无冲突编辑、端到端加密、自动备份清理、账户权限管理、跨设备安全凭据同步或可视化冲突恢复。
+本模块不保证：实时双向同步、无冲突编辑、端到端加密、自动备份清理、账户权限管理、跨设备安全凭据同步或可视化冲突恢复。它也不是 AI 后端、provider 代理、联网检索或计划导入通道。
 
 ---
 
@@ -49,6 +49,12 @@ Android secret 当前由 Capacitor Preferences 保存。它隔离于 JSON 分片
 WebDAV 请求使用 Basic Authorization，必须优先要求 HTTPS。建议用户创建专用目录和低权限专用账户。
 
 ---
+
+### 2.3 规划中的主题与 AI 设置同步
+
+themeId 是非秘密设置，应按当前 settings 的 LWW 语义同步；未知值保持原值，由 UI 运行时回退默认主题。未来 AI 的 provider/model/能力开关属于候选非秘密设置；是否同步 endpoint、预算和审计偏好需在实现前决定。
+
+apiKeyRef 与任何未来秘密引用必须同 passwordRef 一样，在远端 settings.json、backups 和日志中清空；merge 必须保留当前设备自己的秘密引用，不能从远端恢复或覆盖。AI provider 或未来 agent gateway 是可选外部依赖；其失败不得阻塞本地训练、模板、动作库或 WebDAV。
 
 ## 3. WebDavClient 契约
 
@@ -222,5 +228,6 @@ cd android
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
 | Android WebDAV | PROPFIND/MOVE/MKCOL 走原生插件，不被 WebView 限制。 |
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
+| 主题/AI 规划字段 | 实现后验证 themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
 当前自动测试位于 `src/sync/syncService.test.ts`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。

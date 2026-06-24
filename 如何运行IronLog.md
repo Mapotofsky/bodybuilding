@@ -48,7 +48,7 @@ npm run android:sync
 | 命令 | 验证内容 |
 |---|---|
 | `npm run build` | TypeScript 构建和 Vite 生产产物。 |
-| `npm test` | Vitest 单元测试：migration、DocumentStore、计划和同步逻辑。 |
+| `npm test` | 运行当前 Vitest 单元测试。 |
 | `npm run android:sync` | 先 build，再将 `dist/` 同步进 `android/` 工程。 |
 
 `android:sync` 成功不等于 APK 已编译；它只验证 Capacitor 资源同步。
@@ -106,7 +106,17 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 
 测试连接会创建/确认远端同步目录并执行 PROPFIND。同步前远端已有数据会写入 `backups/`，但当前没有自动清理策略。
 
-## 7. 常见问题
+## 7. 尚未可用的规划能力
+
+以下能力尚未实现；当前没有对应的页面、环境变量、命令、provider 或 API 配置：
+
+- 动作库列表和底部“动作库”Tab。动作详情路由存在，但没有应用内导航入口。
+- 默认主题外的 4 套完整主题与主题选择。
+- AI provider、模型、API key、动作问答、训练分析、计划候选导入和联网资料检索。
+
+请不要将 API key 写入 settings.json、WebDAV、项目文件、日志或地址栏。未来 AI 未配置时，离线训练、模板、动作详情与 WebDAV 必须保持可用。
+
+## 8. 常见问题
 
 ### Q: 浏览器刷新后数据不见了
 
@@ -126,4 +136,4 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 
 ### Q: 为什么不需要启动后端或数据库
 
-当前单人版的 services 已改为调用 LocalJsonRepository；数据在 IndexedDB 或 Capacitor Filesystem 中，不再请求 `/api`。
+当前单人版的数据保存在浏览器或 Android 应用本地，不再请求业务后端 API。

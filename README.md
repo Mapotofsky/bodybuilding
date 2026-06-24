@@ -2,6 +2,12 @@
 
 IronLog 已重构为 Android-first、本地优先的单人训练日志应用。当前运行路径是 `frontend` 下的 React/Vite/Capacitor 应用；旧 FastAPI 后端已归档到 `legacy/backend`，不再作为单人版运行依赖。
 
+## 当前状态与路线图
+
+当前已实现离线训练、计划/模板、月历、动作详情代码和 WebDAV 手动同步。动作详情路由存在，但没有动作库列表或主导航入口。
+
+以下均为规划中，不能按当前功能描述：动作库 Tab、默认主题外的 4 套完整主题、AI provider/API key 配置、AI 问答/训练分析、联网 agent 和 AI 计划候选导入。
+
 ## 文档索引
 
 根目录文档是当前版本的规范来源：
@@ -11,6 +17,7 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 - [本地运行指南](如何运行IronLog.md)：开发、测试、Android 调试与 WebDAV 配置。
 - [发布与交付指南](部署指南.md)：APK、静态 Web、版本兼容与发布检查。
 - [P0 核心训练](详细设计文档_P0_核心训练.md)、[P1 计划与日历](详细设计文档_P1_计划与动作库.md)、[P2 本地文档存储](详细设计文档_P2_本地文档存储与数据迁移.md)、[P3 WebDAV 与 Android](详细设计文档_P3_WebDAV同步与Android平台.md)：实现级契约。
+- [P4 主题系统与 UI 导航](详细设计文档_P4_主题系统与UI导航.md)、[P5 AI 智能体与安全](详细设计文档_P5_AI智能体与安全.md)：已批准路线图的详细设计；当前均未实现。
 
 ## 本地运行
 
@@ -78,20 +85,7 @@ ironlog-data/
     2026-07.json
 ```
 
-训练数据的唯一真源是 `workouts/YYYY-MM.json`。每个月文件保存该月的 `WorkoutDoc[]`，包括 tombstone；`DataSnapshot.workouts` 仅在内存中聚合，绝不会再持久化为单一训练索引文件。`manifest.json` 的 `shards` 会列出全部静态文件和实际存在的训练月分片。
-
-现有浏览器 IndexedDB、Android 模拟器或测试 App 中的当前分片数据会在启动时经 `migrateSnapshot` 归一化，并增量补齐缺失的默认动作和新增字段，不应因常规字段演进而清除。历史 FastAPI/PostgreSQL 数据和旧的单一训练索引文件不在兼容范围；只有持有这两类旧数据时才需要先导出或清除后重新开始。
-
-所有领域 ID 都是 string（新建用户记录通常由 `crypto.randomUUID()` 生成；内置和本地单例使用稳定 string ID）。每条文档包含：
-
-- `createdAt`
-- `updatedAt`
-- `deletedAt`
-- `schemaVersion`
-
-删除使用 tombstone：`deletedAt` 不为 `null` 表示已删除，不立即物理删除。
-
-`WorkoutDoc` 是聚合文档，内部保存 exercises 和 sets，包括 `restSeconds`。每个训练动作还保存 `exerciseType` 快照，确保动作被替代或改类型后历史训练仍按记录时的类型解释。未结束训练（`endTime=null`）会作为草稿在下次进入新建训练页时提供继续或结束后新建的选择。这种结构可以自然映射到未来 MongoDB/CloudBase collections，不需要复刻 SQL join table。
+训练按月分片，应用启动时会对当前本地分片做增量迁移；历史 FastAPI/PostgreSQL 数据和旧训练索引文件不在兼容范围。数据模型、tombstone、训练聚合与 migration 规则见 P0、P2。
 
 ## WebDAV 同步
 
@@ -104,16 +98,7 @@ ironlog-data/
 3. 点击测试连接。
 4. 点击手动同步。
 
-同步设计原则：
-
-- WebDAV 只作为远端文件系统，不作为数据库。
-- 远端以配置 URL 下的 `ironlog-data/` 作为专属同步根目录，避免与用户其他 WebDAV 文件混放。
-- 同步会先依据远端 `manifest.json` 拉取静态文件和训练月分片，再与本地数据合并。
-- 合并策略第一版使用 last-write-wins，并记录冲突日志。
-- 上传时先写 `.tmp-*` 临时文件，再用 `MOVE` 发布为正式文件，避免半写入。
-- 上传前会把远端已有分片备份到 `backups/`。
-- Android 端通过原生 OkHttp 通道执行 `MKCOL`、`MOVE` 和 `PROPFIND`，避免 WebView 对这些 WebDAV 方法的兼容性限制；`GET`、`PUT`、`DELETE` 继续使用 Capacitor HTTP。
-- 密码不会写入 JSON 数据文件或同步到 WebDAV；当前 Android 通过 Capacitor Preferences、浏览器开发通过 IndexedDB 的独立 key 保存。它们与 JSON 分片隔离，但当前不是 IronLog 实现的硬件级加密凭据库；远端 `settings.json` 的 `passwordRef` 和 `lastSyncAt` 始终为 `null`。
+WebDAV 只作为远端文件同步/备份，不是数据库；当前采用手动同步和 last-write-wins，并保留远端备份。密码不会进入 JSON 或远端 WebDAV；当前秘密存储不是硬件级安全库。同步协议、冲突限制和 Android 传输细节见 P3。
 
 WebDAV 未配置时，应用仍可完全离线本地使用。
 
@@ -148,4 +133,5 @@ npm run android:sync
 
 - WebDAV 为手动备份同步，使用 last-write-wins，并非实时无冲突协作。
 - 当前没有用户可操作的数据导入/导出或远端备份恢复 UI。
+- 当前没有动作库列表/Tab、主题选择、AI 配置、AI 问答、联网检索或 AI 计划导入。AI 未配置时，现有离线训练、模板、动作详情和 WebDAV 能力不受影响。
 - 卸载 Android 应用、清除应用数据或清除浏览器站点数据会删除本地副本；重要数据应先完成一次成功的 WebDAV 同步。
