@@ -228,6 +228,7 @@ cd android
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
 | Android WebDAV | PROPFIND/MOVE/MKCOL 走原生插件，不被 WebView 限制。 |
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
+| 动作详情元数据 | `primaryMuscleGroupIds`、`secondaryMuscleGroupIds` 与 `description` 随 `exercises.json` 同步；个人统计不写入远端 JSON。 |
 | 主题/AI 规划字段 | 实现后验证 themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
 当前自动测试位于 `src/sync/syncService.test.ts`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。

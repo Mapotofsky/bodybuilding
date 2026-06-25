@@ -44,12 +44,13 @@ describe("exercise personal stats", () => {
       exercises: snapshot.exercises,
       workouts: snapshot.workouts,
       weightUnit: "kg",
+      today: "2026-06-25",
     });
 
     expect(stats.completedWorkoutCount).toBe(3);
     expect(stats.totalSetCount).toBe(4);
     expect(stats.workingSetCount).toBe(3);
-    expect(stats.recent7DaySetCount).toBe(3);
+    expect(stats.recent7DaySetCount).toBe(2);
     expect(stats.lastCompletedDate).toBe("2026-06-21");
     expect(stats.strength.bestWeight).toBe(60);
     expect(stats.strength.bestVolume).toBeCloseTo(226.796185);

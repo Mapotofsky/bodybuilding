@@ -24,6 +24,7 @@ export function buildExercisePersonalStats(params: {
   exercises: readonly ExerciseDoc[];
   workouts: readonly WorkoutDoc[];
   weightUnit: WeightUnit;
+  today?: string;
 }): ExercisePersonalStats {
   const stats: ExercisePersonalStats = {
     completedWorkoutCount: 0,
@@ -88,14 +89,13 @@ export function buildExercisePersonalStats(params: {
     }
   }
 
-  if (stats.lastCompletedDate) {
-    const windowStart = dateOffset(stats.lastCompletedDate, -6);
-    for (const workout of params.workouts) {
-      if (workout.deletedAt || workout.endTime == null || workout.date < windowStart || workout.date > stats.lastCompletedDate) continue;
-      for (const workoutExercise of workout.exercises) {
-        if (!matchesExercise(workoutExercise.exerciseId, params.exerciseId, params.exercises)) continue;
-        stats.recent7DaySetCount += workoutExercise.sets.length;
-      }
+  const today = params.today ?? todayLocalDate();
+  const windowStart = dateOffset(today, -6);
+  for (const workout of params.workouts) {
+    if (workout.deletedAt || workout.endTime == null || workout.date < windowStart || workout.date > today) continue;
+    for (const workoutExercise of workout.exercises) {
+      if (!matchesExercise(workoutExercise.exerciseId, params.exerciseId, params.exercises)) continue;
+      stats.recent7DaySetCount += workoutExercise.sets.length;
     }
   }
 
@@ -117,4 +117,12 @@ function dateOffset(date: string, days: number): string {
   const result = new Date(`${date}T00:00:00.000Z`);
   result.setUTCDate(result.getUTCDate() + days);
   return result.toISOString().slice(0, 10);
+}
+
+function todayLocalDate(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
