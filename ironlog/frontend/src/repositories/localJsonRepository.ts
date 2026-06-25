@@ -50,13 +50,15 @@ export class LocalJsonRepository {
     return snapshot.exercises.find((e) => e.id === id && !e.deletedAt) || null;
   }
 
-  async create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & { metValue?: number | null }): Promise<ExerciseDoc> {
+  async create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & Partial<Pick<ExerciseDoc, "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> & { metValue?: number | null }): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise: ExerciseDoc = withDoc({
         name: body.name,
         category: body.category,
         type: body.type || "strength",
         description: body.description || null,
+        primaryMuscleGroupIds: body.primaryMuscleGroupIds ?? [],
+        secondaryMuscleGroupIds: body.secondaryMuscleGroupIds ?? [],
         metValue: body.metValue ?? null,
         isCustom: true,
         replacedByExerciseId: null,
@@ -66,7 +68,7 @@ export class LocalJsonRepository {
     });
   }
 
-  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "description" | "metValue">>): Promise<ExerciseDoc> {
+  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds" | "metValue">>): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
       if (!exercise) throw new Error("动作不存在");
@@ -84,6 +86,7 @@ export class LocalJsonRepository {
       if (replacedByExerciseId !== null) {
         const target = snapshot.exercises.find((item) => item.id === replacedByExerciseId && !item.deletedAt);
         if (!target || target.id === source.id) throw new Error("替代动作不可用");
+        if (target.type !== source.type) throw new Error("替代动作必须与原动作记录类型一致");
         const targetResolution = resolveExerciseId(target.id, snapshot.exercises);
         if (targetResolution.status !== "resolved" || targetResolution.resolvedId === source.id) throw new Error("替代动作会形成循环引用");
       }

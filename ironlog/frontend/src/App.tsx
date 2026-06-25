@@ -13,6 +13,7 @@ import PlanEditPage from "@/pages/PlanEditPage";
 import TemplateEditPage from "@/pages/TemplateEditPage";
 import CalendarPage from "@/pages/CalendarPage";
 import ExerciseDetailPage from "@/pages/ExerciseDetailPage";
+import ExerciseLibraryPage from "@/pages/ExerciseLibraryPage";
 import SyncPage from "@/pages/SyncPage";
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="plans/:id/templates/:tid" element={<TemplateEditPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="sync" element={<SyncPage />} />
+        <Route path="exercises" element={<ExerciseLibraryPage />} />
         <Route path="exercises/:id" element={<ExerciseDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

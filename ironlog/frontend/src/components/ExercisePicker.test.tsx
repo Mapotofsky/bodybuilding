@@ -5,7 +5,7 @@ import type { Exercise } from "@/types";
 
 const exercise: Exercise = {
   id: "custom-ex-test", name: "自定义测试动作", category: "core", type: "static_hold",
-  description: null, met_value: null, is_custom: true,
+  description: null, primary_muscle_group_ids: [], secondary_muscle_group_ids: [], met_value: null, is_custom: true,
 };
 
 describe("ExercisePicker", () => {

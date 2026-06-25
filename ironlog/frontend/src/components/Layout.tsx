@@ -1,8 +1,9 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Home, CalendarDays, User, ClipboardList } from "lucide-react";
+import { Home, CalendarDays, User, ClipboardList, Dumbbell } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/", icon: Home, label: "首页" },
+  { path: "/exercises", icon: Dumbbell, label: "动作库" },
   { path: "/plans", icon: ClipboardList, label: "计划" },
   { path: "/calendar", icon: CalendarDays, label: "日历" },
   { path: "/profile", icon: User, label: "我的" },
@@ -32,7 +33,7 @@ export default function Layout() {
               return (
                 <button
                   key={path}
-                  onClick={() => navigate(path)}
+                  onClick={() => navigate(navigationTarget(path))}
                   className="flex flex-col items-center gap-0.5 flex-1 py-1.5 transition-all duration-200"
                 >
                   <span
@@ -65,4 +66,9 @@ export default function Layout() {
       </nav>
     </div>
   );
+}
+
+function navigationTarget(path: string): string {
+  if (path !== "/exercises" || typeof sessionStorage === "undefined") return path;
+  return `${path}${sessionStorage.getItem("ironlog.exerciseLibraryQuery") || ""}`;
 }

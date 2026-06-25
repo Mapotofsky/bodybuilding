@@ -12,6 +12,10 @@ export interface User {
 }
 
 export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+export type MuscleGroupId =
+  | "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms"
+  | "core" | "glutes" | "quadriceps" | "hamstrings" | "calves"
+  | "adductors" | "abductors" | "full_body" | "other";
 
 export interface Exercise {
   id: string;
@@ -19,6 +23,8 @@ export interface Exercise {
   category: string;
   type: ExerciseType;
   description: string | null;
+  primary_muscle_group_ids: MuscleGroupId[];
+  secondary_muscle_group_ids: MuscleGroupId[];
   met_value: number | null;
   is_custom: boolean;
 }
@@ -97,6 +103,24 @@ export const CATEGORY_LABELS: Record<string, string> = {
   cardio: "有氧",
   compound: "复合",
   stretch: "拉伸",
+};
+
+export const MUSCLE_GROUP_LABELS: Record<MuscleGroupId, string> = {
+  chest: "胸部",
+  back: "背部",
+  shoulders: "肩部",
+  biceps: "肱二头肌",
+  triceps: "肱三头肌",
+  forearms: "前臂",
+  core: "核心",
+  glutes: "臀部",
+  quadriceps: "股四头肌",
+  hamstrings: "腘绳肌",
+  calves: "小腿",
+  adductors: "内收肌",
+  abductors: "外展肌",
+  full_body: "全身",
+  other: "其他",
 };
 
 export const MOOD_LABELS: Record<number, string> = {
@@ -198,8 +222,27 @@ export interface ExerciseDetail {
   category: string;
   type: string;
   description: string | null;
+  primary_muscle_group_ids: MuscleGroupId[];
+  secondary_muscle_group_ids: MuscleGroupId[];
   met_value: number | null;
   is_custom: boolean;
   usage_count: number;
   last_used_date: string | null;
+  stats: ExercisePersonalStats;
+}
+
+export interface ExercisePersonalStats {
+  completed_workout_count: number;
+  total_set_count: number;
+  working_set_count: number;
+  recent_7_day_set_count: number;
+  last_completed_date: string | null;
+  strength: {
+    best_weight: number | null;
+    best_volume: number;
+    display_unit: "kg" | "lb";
+  };
+  cardio: { best_distance_m: number; best_speed_kmh: number | null };
+  reps_only: { best_reps: number };
+  static_hold: { best_duration_sec: number };
 }

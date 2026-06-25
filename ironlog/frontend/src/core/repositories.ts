@@ -10,7 +10,7 @@ import type {
 export interface ExerciseRepository {
   list(params?: { category?: string; q?: string; includeDeleted?: boolean }): Promise<ExerciseDoc[]>;
   get(id: string): Promise<ExerciseDoc | null>;
-  create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & { metValue?: number | null }): Promise<ExerciseDoc>;
+  create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & Partial<Pick<ExerciseDoc, "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> & { metValue?: number | null }): Promise<ExerciseDoc>;
 }
 
 export interface PlanRepository {

@@ -40,16 +40,17 @@ describe("workout aggregate persistence", () => {
   it("creates custom IDs, keeps them stable on edit, and atomically migrates active template references", async () => {
     const initial = makeEmptySnapshot("device-test");
     initial.templates.push({ id: "template-1", planId: "plan-1", name: "模板", sortOrder: 0, color: null, scheduleRule: null, exercises: [{ id: "te-1", exerciseId: "custom-ex-source", sortOrder: 0, note: null }], createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1 });
-    initial.exercises.push({ id: "custom-ex-source", name: "源动作", category: "core", type: "reps_only", description: null, metValue: null, isCustom: true, replacedByExerciseId: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1 });
+    initial.exercises.push({ id: "custom-ex-source", name: "源动作", category: "core", type: "reps_only", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], metValue: null, isCustom: true, replacedByExerciseId: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1 });
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(initial)));
     const created = await repository.create({ name: "新动作", category: "core", type: "strength", description: null });
     expect(created.id).toMatch(/^custom-ex-/);
+    expect(created).toMatchObject({ primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
     const edited = await repository.updateExercise(created.id, { name: "已编辑" });
     expect(edited.id).toBe(created.id);
-    await repository.deleteExercise("custom-ex-source", "ex-plank");
+    await repository.deleteExercise("custom-ex-source", "ex-cat-cow-stretch");
     const snapshot = await repository.getSnapshot();
-    expect(snapshot.exercises.find((exercise) => exercise.id === "custom-ex-source")).toMatchObject({ deletedAt: expect.any(String), replacedByExerciseId: "ex-plank" });
-    expect(snapshot.templates[0].exercises[0].exerciseId).toBe("ex-plank");
+    expect(snapshot.exercises.find((exercise) => exercise.id === "custom-ex-source")).toMatchObject({ deletedAt: expect.any(String), replacedByExerciseId: "ex-cat-cow-stretch" });
+    expect(snapshot.templates[0].exercises[0].exerciseId).toBe("ex-cat-cow-stretch");
   });
 
   it("tombstones a custom exercise without rewriting template references when no replacement is selected", async () => {
@@ -57,6 +58,22 @@ describe("workout aggregate persistence", () => {
     const created = await repository.create({ name: "临时动作", category: "core", type: "reps_only", description: null });
     await repository.deleteExercise(created.id, null);
     expect((await repository.getSnapshot()).exercises.find((exercise) => exercise.id === created.id)).toMatchObject({ deletedAt: expect.any(String), replacedByExerciseId: null });
+  });
+
+  it("rejects replacement exercises with a different record type", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    const created = await repository.create({ name: "临时力量动作", category: "core", type: "strength", description: null });
+
+    await expect(repository.deleteExercise(created.id, "ex-running")).rejects.toThrow("替代动作必须与原动作记录类型一致");
+  });
+
+  it("does not clear custom exercise description when an edit omits description", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    const created = await repository.create({ name: "说明动作", category: "core", type: "strength", description: "保留这段说明" });
+
+    const edited = await repository.updateExercise(created.id, { name: "改名动作", category: "core", type: "strength" });
+
+    expect(edited.description).toBe("保留这段说明");
   });
 });
 

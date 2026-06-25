@@ -462,7 +462,7 @@ export default function WorkoutCreatePage() {
       const linked = exerciseMap.get(item.exercise_id);
       return {
         id: item.id,
-        exercise: linked || { id: item.exercise_id, name: item.exercise_name || `动作#${item.exercise_id}`, category: item.exercise_category || "", type: item.exercise_type, description: null, met_value: null, is_custom: false },
+        exercise: linked || { id: item.exercise_id, name: item.exercise_name || `动作#${item.exercise_id}`, category: item.exercise_category || "", type: item.exercise_type, description: null, primary_muscle_group_ids: [], secondary_muscle_group_ids: [], met_value: null, is_custom: false },
         sets: item.sets,
       };
     });

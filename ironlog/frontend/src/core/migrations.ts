@@ -4,6 +4,7 @@ import {
   type ExerciseDoc,
   type ExerciseType,
   type IronLogManifest,
+  type MuscleGroupId,
   type ProfileDoc,
   type SettingsDoc,
   type TemplateDoc,
@@ -112,6 +113,8 @@ function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: Exercise
     merged.set(exercise.id, builtIn ? { ...exercise, ...builtIn, createdAt: exercise.createdAt, deletedAt: exercise.deletedAt, updatedAt: exercise.updatedAt } : {
       ...exercise,
       type: normalizeExerciseType(exercise.type),
+      primaryMuscleGroupIds: normalizeMuscleGroups(exercise.primaryMuscleGroupIds),
+      secondaryMuscleGroupIds: normalizeMuscleGroups(exercise.secondaryMuscleGroupIds),
       isCustom: exercise.isCustom === true,
       replacedByExerciseId: exercise.replacedByExerciseId ?? null,
     });
@@ -128,6 +131,18 @@ function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc
 
 function normalizeExerciseType(value: unknown): ExerciseType {
   return value === "cardio" || value === "reps_only" || value === "static_hold" || value === "strength" ? value : "strength";
+}
+
+const MUSCLE_GROUP_IDS = new Set<MuscleGroupId>([
+  "chest", "back", "shoulders", "biceps", "triceps", "forearms",
+  "core", "glutes", "quadriceps", "hamstrings", "calves",
+  "adductors", "abductors", "full_body", "other",
+]);
+
+function normalizeMuscleGroups(value: unknown): MuscleGroupId[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is MuscleGroupId => MUSCLE_GROUP_IDS.has(item as MuscleGroupId))
+    : [];
 }
 
 /**

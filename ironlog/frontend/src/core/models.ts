@@ -6,6 +6,10 @@ export type ISODateTime = string;
 export type WeightUnit = "kg" | "lb";
 export type PlanMode = "weekly" | "cyclic" | "flexible";
 export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+export type MuscleGroupId =
+  | "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms"
+  | "core" | "glutes" | "quadriceps" | "hamstrings" | "calves"
+  | "adductors" | "abductors" | "full_body" | "other";
 
 export interface BaseDoc {
   id: DocId;
@@ -41,6 +45,8 @@ export interface ExerciseDoc extends BaseDoc {
   category: string;
   type: ExerciseType;
   description: string | null;
+  primaryMuscleGroupIds: MuscleGroupId[];
+  secondaryMuscleGroupIds: MuscleGroupId[];
   metValue: number | null;
   isCustom: boolean;
   /** Directed replacement used to resolve historical references after a custom exercise is deleted. */
