@@ -10,7 +10,6 @@ export function makeEmptySet(num: number, unit: "kg" | "lb" = "kg"): WorkoutSet 
     distance_m: null,
     rpe: null,
     is_warmup: false,
-    is_dropset: false,
     is_failure: false,
     rest_seconds: null,
   };

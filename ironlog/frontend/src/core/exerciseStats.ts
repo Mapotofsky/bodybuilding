@@ -1,5 +1,6 @@
 import { resolveExerciseId } from "./exerciseRedirects";
 import type { ExerciseDoc, WeightUnit, WorkoutDoc } from "./models";
+import { convertWeight } from "./workoutMetrics";
 
 export interface ExercisePersonalStats {
   completedWorkoutCount: number;
@@ -16,8 +17,6 @@ export interface ExercisePersonalStats {
   repsOnly: { bestReps: number };
   staticHold: { bestDurationSec: number };
 }
-
-const KG_PER_LB = 0.45359237;
 
 export function buildExercisePersonalStats(params: {
   exerciseId: string;
@@ -106,11 +105,6 @@ function matchesExercise(sourceId: string, targetId: string, exercises: readonly
   if (sourceId === targetId) return true;
   const resolved = resolveExerciseId(sourceId, exercises);
   return resolved.status === "resolved" && resolved.resolvedId === targetId;
-}
-
-function convertWeight(value: number, from: WeightUnit, to: WeightUnit): number {
-  if (from === to) return value;
-  return from === "lb" ? value * KG_PER_LB : value / KG_PER_LB;
 }
 
 function dateOffset(date: string, days: number): string {

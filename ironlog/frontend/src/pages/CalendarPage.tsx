@@ -17,6 +17,7 @@ import {
 import { zhCN } from "date-fns/locale";
 import { getWorkouts } from "@/services/workout";
 import type { WorkoutSummary } from "@/types";
+import { formatVolume } from "@/core/workoutMetrics";
 
 /** Pick a display color: prefer template_color, fall back to plan_color, then gray */
 function entryColor(w: WorkoutSummary): string {
@@ -221,7 +222,7 @@ export default function CalendarPage() {
                           </span>
                         )}
                         <p className="text-xs text-slate-400 mt-1">
-                          {w.exercise_count} 动作 · {w.total_sets} 组 · {Math.round(w.total_volume)}kg
+                          {w.exercise_count} 动作 · {w.total_sets} 组 · {summaryMetric(w)}
                         </p>
                         {w.start_time && w.end_time && (
                           <p className="text-xs text-slate-400 mt-0.5">
@@ -250,4 +251,11 @@ export default function CalendarPage() {
       )}
     </div>
   );
+}
+
+function summaryMetric(workout: WorkoutSummary): string {
+  if (workout.total_volume > 0) return formatVolume(workout.total_volume, workout.total_volume_unit);
+  if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
+  if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
+  return `${workout.total_reps} 次`;
 }

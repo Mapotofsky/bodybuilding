@@ -24,17 +24,17 @@ describe("exercise personal stats", () => {
     });
     snapshot.workouts = [
       workout("done", "2026-06-21", "2026-06-21T11:00:00.000Z", [
-        { id: "warmup", setNumber: 1, weight: 100, reps: 10, unit: "lb" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: true, isDropset: false, isFailure: false, restSeconds: null },
-        { id: "work", setNumber: 2, weight: 100, reps: 5, unit: "lb" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null },
+        { id: "warmup", setNumber: 1, weight: 100, reps: 10, unit: "lb" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: true, isFailure: false, restSeconds: null },
+        { id: "work", setNumber: 2, weight: 100, reps: 5, unit: "lb" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
       ]),
       workout("recent", "2026-06-16", "2026-06-16T11:00:00.000Z", [
-        { id: "recent-set", setNumber: 1, weight: 60, reps: 3, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null },
+        { id: "recent-set", setNumber: 1, weight: 60, reps: 3, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
       ]),
       workout("old", "2026-06-14", "2026-06-14T11:00:00.000Z", [
-        { id: "old-set", setNumber: 1, weight: 60, reps: 3, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null },
+        { id: "old-set", setNumber: 1, weight: 60, reps: 3, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
       ]),
       workout("draft", "2026-06-22", null, [
-        { id: "draft-set", setNumber: 1, weight: 200, reps: 5, unit: "lb" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null },
+        { id: "draft-set", setNumber: 1, weight: 200, reps: 5, unit: "lb" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
       ]),
       { ...workout("deleted", "2026-06-23", "2026-06-23T11:00:00.000Z", []), deletedAt: "2026-06-24T00:00:00.000Z" },
     ];

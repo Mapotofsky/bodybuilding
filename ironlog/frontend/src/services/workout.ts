@@ -1,4 +1,5 @@
 import type { ExerciseType, WorkoutDoc, WorkoutExerciseDoc, WorkoutSetDoc } from "@/core/models";
+import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 import { localRepository } from "@/repositories/localJsonRepository";
 import { toWorkout, toWorkoutSummary } from "@/services/localMappers";
 import type { Workout, WorkoutSummary } from "@/types";
@@ -25,7 +26,6 @@ export interface WorkoutSetPayload {
   distance_m?: number | null;
   rpe?: number | null;
   is_warmup?: boolean;
-  is_dropset?: boolean;
   is_failure?: boolean;
   rest_seconds?: number | null;
 }
@@ -116,6 +116,7 @@ export interface WorkoutShareData {
   exercise_count: number;
   total_sets: number;
   total_volume: number;
+  total_volume_unit: "kg" | "lb";
   total_distance_m: number;
   total_duration_sec: number;
   exercises: Array<{ name: string; category: string | null; type: ExerciseType; sets: number; volume: number; distance_m: number; duration_sec: number; reps: number }>;
@@ -124,24 +125,27 @@ export interface WorkoutShareData {
 
 export async function shareWorkout(id: string): Promise<WorkoutShareData> {
   const workout = await getWorkout(id);
+  const displayUnit = (await localRepository.getSettings()).weightUnit;
   const exercises = workout.exercises.map((exercise) => ({
     name: exercise.exercise_name || `动作#${exercise.exercise_id}`,
     category: exercise.exercise_category || null,
     type: exercise.exercise_type,
     sets: exercise.sets.length,
-    volume: exercise.exercise_type === "strength" ? sum(exercise.sets.map((set) => (set.weight || 0) * (set.reps || 0))) : 0,
+    volume: exercise.exercise_type === "strength" ? calculateWorkoutMetrics([toMetricExercise(exercise)], displayUnit).totalVolume : 0,
     distance_m: exercise.exercise_type === "cardio" ? sum(exercise.sets.map((set) => set.distance_m || 0)) : 0,
     duration_sec: exercise.exercise_type === "cardio" || exercise.exercise_type === "static_hold" ? sum(exercise.sets.map((set) => set.duration_sec || 0)) : 0,
     reps: exercise.exercise_type === "strength" || exercise.exercise_type === "reps_only" ? sum(exercise.sets.map((set) => set.reps || 0)) : 0,
   }));
+  const metrics = calculateWorkoutMetrics(workout.exercises.map(toMetricExercise), displayUnit);
   const duration = workout.start_time && workout.end_time ? Math.round((new Date(workout.end_time).getTime() - new Date(workout.start_time).getTime()) / 60_000) : null;
   return {
     date: workout.date, mood: workout.mood, duration_minutes: duration,
     exercise_count: workout.exercises.length,
-    total_sets: sum(exercises.map((exercise) => exercise.sets)),
-    total_volume: sum(exercises.map((exercise) => exercise.volume)),
-    total_distance_m: sum(exercises.map((exercise) => exercise.distance_m)),
-    total_duration_sec: sum(exercises.map((exercise) => exercise.duration_sec)),
+    total_sets: metrics.totalSets,
+    total_volume: metrics.totalVolume,
+    total_volume_unit: metrics.totalVolumeUnit,
+    total_distance_m: metrics.totalDistanceM,
+    total_duration_sec: metrics.totalDurationSec,
     exercises, note: workout.note,
   };
 }
@@ -191,7 +195,7 @@ function workoutToPayload(workout: WorkoutDoc): WorkoutCreatePayload {
     exercises: workout.exercises.map((exercise) => ({
       id: exercise.id, exercise_id: exercise.exerciseId, exercise_type: exercise.exerciseType,
       sort_order: exercise.sortOrder, superset_group: exercise.supersetGroup,
-      sets: exercise.sets.map((set) => ({ id: set.id, set_number: set.setNumber, weight: set.weight, reps: set.reps, unit: set.unit, duration_sec: set.durationSec, distance_m: set.distanceM, rpe: set.rpe, is_warmup: set.isWarmup, is_dropset: set.isDropset, is_failure: set.isFailure, rest_seconds: set.restSeconds })),
+      sets: exercise.sets.map((set) => ({ id: set.id, set_number: set.setNumber, weight: set.weight, reps: set.reps, unit: set.unit, duration_sec: set.durationSec, distance_m: set.distanceM, rpe: set.rpe, is_warmup: set.isWarmup, is_failure: set.isFailure, rest_seconds: set.restSeconds })),
     })),
   };
 }
@@ -201,7 +205,7 @@ function normalizeSet(set: WorkoutSetPayload, type: ExerciseType): WorkoutSetDoc
   return {
     id: set.id || "", setNumber: set.set_number, weight: set.weight ?? null, reps: set.reps ?? null,
     unit: set.unit === "lb" ? "lb" : "kg", durationSec: set.duration_sec ?? null, distanceM: set.distance_m ?? null,
-    rpe: set.rpe ?? null, isWarmup: set.is_warmup ?? false, isDropset: set.is_dropset ?? false,
+    rpe: set.rpe ?? null, isWarmup: set.is_warmup ?? false,
     isFailure: set.is_failure ?? false, restSeconds: set.rest_seconds ?? null,
   };
 }
@@ -234,3 +238,16 @@ function validateFinite(value: number | null | undefined, label: string, min: nu
 function validateInteger(value: number | null | undefined, label: string, min: number, max: number): void { if (value != null && (!Number.isInteger(value) || value < min || value > max)) throw new Error(`${label}必须是 ${min} 到 ${max} 的整数`); }
 function inferLegacyType(sets: WorkoutSetPayload[]): ExerciseType { return sets.some((set) => set.duration_sec != null || set.distance_m != null) ? "cardio" : "strength"; }
 function sum(values: number[]): number { return values.reduce((total, value) => total + value, 0); }
+
+function toMetricExercise(exercise: { exercise_type: ExerciseType; sets: Array<{ weight: number | null; reps: number | null; unit: "kg" | "lb"; duration_sec: number | null; distance_m: number | null }> }) {
+  return {
+    exerciseType: exercise.exercise_type,
+    sets: exercise.sets.map((set) => ({
+      weight: set.weight,
+      reps: set.reps,
+      unit: set.unit,
+      durationSec: set.duration_sec,
+      distanceM: set.distance_m,
+    })),
+  };
+}

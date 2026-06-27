@@ -11,6 +11,7 @@ import StepInput from "@/components/ui/StepInput";
 import ExercisePicker from "@/components/ExercisePicker";
 
 interface LocalTemplateExercise {
+  id?: string;
   exercise_id: string;
   exercise_name: string;
   exercise_category: string;
@@ -56,6 +57,7 @@ export default function TemplateEditPage() {
         setCycleDay(typeof storedCycleDay === "number" ? String(storedCycleDay) : "1");
         setExercises(
           tmpl.exercises.map((te) => ({
+            id: te.id,
             exercise_id: te.exercise_id,
             exercise_name: te.exercise_name || "",
             exercise_category: te.exercise_category || "",
@@ -88,6 +90,7 @@ export default function TemplateEditPage() {
         color,
         schedule_rule: nextScheduleRule,
         exercises: exercises.map((e, idx) => ({
+          id: e.id,
           exercise_id: e.exercise_id,
           sort_order: idx,
           note: e.note || null,
@@ -119,6 +122,7 @@ export default function TemplateEditPage() {
     setExercises((prev) => [
       ...prev,
       {
+        id: undefined,
         exercise_id: ex.id,
         exercise_name: ex.name,
         exercise_category: ex.category,

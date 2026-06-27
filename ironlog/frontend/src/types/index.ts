@@ -39,7 +39,6 @@ export interface WorkoutSet {
   distance_m: number | null;
   rpe: number | null;
   is_warmup: boolean;
-  is_dropset: boolean;
   is_failure: boolean;
   rest_seconds: number | null;
 }
@@ -82,6 +81,7 @@ export interface WorkoutSummary {
   exercise_count: number;
   total_sets: number;
   total_volume: number;
+  total_volume_unit: "kg" | "lb";
   total_distance_m: number;
   total_duration_sec: number;
   total_reps: number;

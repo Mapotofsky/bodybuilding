@@ -10,6 +10,7 @@ import { format, subDays } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { SkeletonList } from "@/components/ui/Skeleton";
+import { formatVolume } from "@/core/workoutMetrics";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -68,6 +69,7 @@ export default function HomePage() {
 
   const thisMonthCount = monthWorkouts.length;
   const thisMonthVolume = monthWorkouts.reduce((sum, w) => sum + w.total_volume, 0);
+  const displayUnit = monthWorkouts[0]?.total_volume_unit || recentWorkouts[0]?.total_volume_unit || "kg";
 
   const volumeChartData = [...recentWorkouts]
     .reverse()
@@ -184,12 +186,7 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-sm shadow-emerald-200">
             <BarChart2 size={16} className="text-white/80 mb-2" />
             <p className="text-2xl font-bold text-white">
-              {thisMonthVolume >= 1000
-                ? `${(thisMonthVolume / 1000).toFixed(1)}`
-                : `${Math.round(thisMonthVolume)}`}
-              <span className="text-base font-semibold ml-0.5">
-                {thisMonthVolume >= 1000 ? "t" : "kg"}
-              </span>
+              {formatVolume(thisMonthVolume, displayUnit)}
             </p>
             <p className="text-emerald-100 text-xs mt-0.5">本月容量</p>
           </div>
@@ -234,7 +231,7 @@ export default function HomePage() {
                       <Area type="monotone" dataKey="vol" stroke="#10b981" strokeWidth={2} fill="url(#volGrad)" dot={false} />
                       <Tooltip
                         contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
-                        formatter={(v: number) => [`${v}kg`, "容量"]}
+                        formatter={(v: number) => [formatVolume(v, displayUnit), "容量"]}
                         labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                       />
                     </AreaChart>
@@ -277,7 +274,7 @@ export default function HomePage() {
 }
 
 function summaryMetric(workout: WorkoutSummary): string {
-  if (workout.total_volume > 0) return `${Math.round(workout.total_volume)} kg`;
+  if (workout.total_volume > 0) return formatVolume(workout.total_volume, workout.total_volume_unit);
   if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
   if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
   return `${workout.total_reps} 次`;

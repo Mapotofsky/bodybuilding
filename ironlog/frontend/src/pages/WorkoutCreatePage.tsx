@@ -6,7 +6,9 @@ import {
   type ExerciseHistoryRecord,
 } from "@/services/exercise";
 import { completeWorkoutDraft, createWorkout, getLatestWorkoutDraft, updateWorkout } from "@/services/workout";
-import { getTemplate, getPlans, getPlan } from "@/services/plan";
+import { appendExerciseToTemplate, getTemplate, getPlans, getPlan } from "@/services/plan";
+import { getSettings } from "@/services/settings";
+import { calculateStrengthVolume, calculateWorkoutMetrics, convertWeight, formatVolume } from "@/core/workoutMetrics";
 import type { Exercise, Workout, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
@@ -77,6 +79,9 @@ export default function WorkoutCreatePage() {
   const [inputReps, setInputReps] = useState("");
   const [inputDistance, setInputDistance] = useState("");
   const [inputDuration, setInputDuration] = useState("");
+  const [inputRpe, setInputRpe] = useState("");
+  const [inputWarmup, setInputWarmup] = useState(false);
+  const [inputFailure, setInputFailure] = useState(false);
 
   /* ---- exercise picker ---- */
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
@@ -108,6 +113,7 @@ export default function WorkoutCreatePage() {
   /* ---- load exercises, active plans & optional template ---- */
   useEffect(() => {
     getExercises().then(setAllExercises);
+    getSettings().then((settings) => setWeightUnit(settings.weight_unit)).catch(() => undefined);
     getPlans().then((plans) => setActivePlans(plans.filter((p) => p.is_active)));
     getLatestWorkoutDraft().then(setDraft).catch(() => useToastStore.getState().add("无法读取上次训练草稿", "error")).finally(() => setDraftChecking(false));
   }, []);
@@ -166,6 +172,31 @@ export default function WorkoutCreatePage() {
     ? allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
     : allExercises;
 
+  async function handleExerciseCreated(exercise: Exercise) {
+    setAllExercises((previous) => previous.some((item) => item.id === exercise.id) ? previous : [...previous, exercise]);
+    if (!activeTemplateId) return;
+    try {
+      const updatedTemplate = await appendExerciseToTemplate(activeTemplateId, exercise.id);
+      setActiveTemplate(updatedTemplate);
+      setPlanTemplatesCache((previous) => ({
+        ...previous,
+        [updatedTemplate.plan_id]: previous[updatedTemplate.plan_id]
+          ? previous[updatedTemplate.plan_id].map((template) =>
+              template.id === updatedTemplate.id ? updatedTemplate : template
+            )
+          : [updatedTemplate],
+      }));
+    } catch (error) {
+      useToastStore.getState().add(error instanceof Error ? error.message : "新动作已创建，但写入当前模板失败", "error");
+    }
+  }
+
+  function resetSetMetaInputs() {
+    setInputRpe("");
+    setInputWarmup(false);
+    setInputFailure(false);
+  }
+
   /* ---- timer helpers ---- */
   const ensureTotalTimer = useCallback(() => {
     if (totalTimerRef.current) return;
@@ -216,6 +247,7 @@ export default function WorkoutCreatePage() {
           setInputReps(last.reps != null ? String(last.reps) : "");
           setInputDistance(last.distance_m != null ? String(last.distance_m) : "");
           setInputDuration(last.duration_sec != null ? String(last.duration_sec) : "");
+          resetSetMetaInputs();
         } else if (hist.length > 0) {
           // New exercise → default from history's last session first set
           const firstSet = hist.find((r) => r.set_number === 1);
@@ -225,11 +257,13 @@ export default function WorkoutCreatePage() {
           setInputReps(firstSet?.reps != null ? String(firstSet.reps) : "");
           setInputDistance(firstSet?.distance_m != null ? String(firstSet.distance_m) : "");
           setInputDuration(firstSet?.duration_sec != null ? String(firstSet.duration_sec) : "");
+          resetSetMetaInputs();
         } else {
           setInputWeight("");
           setInputReps("");
           setInputDistance("");
           setInputDuration("");
+          resetSetMetaInputs();
         }
       } catch {
         setHistory([]);
@@ -237,6 +271,7 @@ export default function WorkoutCreatePage() {
         setInputReps("");
         setInputDistance("");
         setInputDuration("");
+        resetSetMetaInputs();
       }
 
       setPhase("training");
@@ -270,7 +305,6 @@ export default function WorkoutCreatePage() {
         distance_m: s.distance_m,
         rpe: s.rpe,
         is_warmup: s.is_warmup,
-        is_dropset: s.is_dropset,
         is_failure: s.is_failure,
         rest_seconds: s.rest_seconds,
       })),
@@ -324,6 +358,7 @@ export default function WorkoutCreatePage() {
     const r = inputReps ? parseInt(inputReps) : null;
     const distance = inputDistance ? parseFloat(inputDistance) : null;
     const duration = inputDuration ? parseInt(inputDuration) : null;
+    const rpe = inputRpe ? parseInt(inputRpe) : null;
 
     const completedSet: WorkoutSet = {
       set_number: currentSetNum,
@@ -332,10 +367,9 @@ export default function WorkoutCreatePage() {
       unit: weightUnit,
       duration_sec: currentExercise.type === "cardio" || currentExercise.type === "static_hold" ? duration : null,
       distance_m: currentExercise.type === "cardio" ? distance : null,
-      rpe: null,
-      is_warmup: false,
-      is_dropset: false,
-      is_failure: false,
+      rpe,
+      is_warmup: inputWarmup,
+      is_failure: inputFailure,
       rest_seconds: null,
     };
 
@@ -367,6 +401,7 @@ export default function WorkoutCreatePage() {
     }
 
     setPhase("rest");
+    resetSetMetaInputs();
     startRestTimer();
   };
 
@@ -488,6 +523,7 @@ export default function WorkoutCreatePage() {
       setInputReps(lastSet?.reps != null ? String(lastSet.reps) : "");
       setInputDistance(lastSet?.distance_m != null ? String(lastSet.distance_m) : "");
       setInputDuration(lastSet?.duration_sec != null ? String(lastSet.duration_sec) : "");
+      resetSetMetaInputs();
       if (lastSet?.unit === "lb") setWeightUnit("lb");
       setPhase("training");
       ensureTotalTimer();
@@ -663,11 +699,8 @@ export default function WorkoutCreatePage() {
             presentation="inline"
             exercises={selectableExercises}
             selectedId={selectedExercise?.id}
-            onSelect={(exercise) => setSelectedExercise((current) => current?.id === exercise.id ? null : exercise)}
-            onCreated={(exercise) => {
-              setAllExercises((previous) => [...previous, exercise]);
-              setSelectedExercise(exercise);
-            }}
+            onSelect={(exercise) => setSelectedExercise(exercise)}
+            onCreated={handleExerciseCreated}
           />
         </div>
 
@@ -778,6 +811,35 @@ export default function WorkoutCreatePage() {
             {currentExercise.type === "static_hold" && <StepInput label="保持时长 (秒)" value={inputDuration} onChange={setInputDuration} step={10} inputMode="numeric" placeholder="0" />}
           </div>
 
+          <div className="bg-white rounded-2xl border border-slate-100 p-3 mb-5 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setInputWarmup((value) => !value)}
+                className={`py-2 rounded-xl text-sm font-semibold border ${inputWarmup ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500 border-slate-100"}`}
+              >
+                热身
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputFailure((value) => !value)}
+                className={`py-2 rounded-xl text-sm font-semibold border ${inputFailure ? "bg-red-50 text-red-600 border-red-100" : "bg-slate-50 text-slate-500 border-slate-100"}`}
+              >
+                力竭
+              </button>
+            </div>
+            <StepInput
+              label="RPE"
+              value={inputRpe}
+              onChange={setInputRpe}
+              step={1}
+              min={1}
+              max={10}
+              inputMode="numeric"
+              placeholder="未设置"
+            />
+          </div>
+
           {/* History — collapsible */}
           {currentSetHistory.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
@@ -797,6 +859,15 @@ export default function WorkoutCreatePage() {
                       <span className="text-slate-400 text-xs">{dateLabel}</span>
                       <span className="font-semibold text-slate-700">
                         {currentExercise.type === "cardio" ? `${r.distance_m ?? 0}m · ${r.duration_sec ?? 0}s` : currentExercise.type === "static_hold" ? `${r.duration_sec ?? 0}s` : currentExercise.type === "reps_only" ? `${r.reps ?? 0}次` : `${r.weight ?? 0}${r.unit} × ${r.reps ?? 0}次`}
+                        {r.is_warmup && (
+                          <span className="text-amber-500 text-xs ml-2">热身</span>
+                        )}
+                        {r.rpe != null && (
+                          <span className="text-slate-400 text-xs ml-2">@{r.rpe}</span>
+                        )}
+                        {r.is_failure && (
+                          <span className="text-red-500 text-xs ml-2">力竭</span>
+                        )}
                         {r.rest_seconds != null && (
                           <span className="text-slate-400 text-xs ml-2">休 {r.rest_seconds}s</span>
                         )}
@@ -929,10 +1000,16 @@ export default function WorkoutCreatePage() {
   /* ================================================================ */
   if (phase === "finish") {
     const totalSets = sessionExercises.reduce((s, se) => s + se.sets.length, 0);
-    const totalVol = sessionExercises.reduce(
-      (sum, se) => sum + (se.exercise.type === "strength" ? se.sets.reduce((s, st) => s + (st.weight ?? 0) * (st.reps ?? 0), 0) : 0),
-      0
-    );
+    const metrics = calculateWorkoutMetrics(sessionExercises.map((se) => ({
+      exerciseType: se.exercise.type,
+      sets: se.sets.map((set) => ({
+        weight: set.weight,
+        reps: set.reps,
+        unit: set.unit,
+        durationSec: set.duration_sec,
+        distanceM: set.distance_m,
+      })),
+    })), weightUnit);
 
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -967,7 +1044,7 @@ export default function WorkoutCreatePage() {
               <div className="w-px bg-white/20" />
               <div className="text-center">
                 <p className="text-2xl font-bold text-white">
-                  {totalVol >= 1000 ? `${(totalVol / 1000).toFixed(1)}t` : `${Math.round(totalVol)}kg`}
+                  {formatVolume(metrics.totalVolume, metrics.totalVolumeUnit)}
                 </p>
                 <p className="text-emerald-200 text-xs mt-0.5">训练容量</p>
               </div>
@@ -981,15 +1058,20 @@ export default function WorkoutCreatePage() {
             </div>
             <div className="divide-y divide-slate-50">
               {sessionExercises.map((se) => {
-                const maxW = Math.max(...se.sets.map((s) => s.weight ?? 0));
-                const vol = se.sets.reduce((s, st) => s + (st.weight ?? 0) * (st.reps ?? 0), 0);
+                const strengthSets = se.sets.map((set) => ({
+                  weight: set.weight,
+                  reps: set.reps,
+                  unit: set.unit,
+                }));
+                const maxW = Math.max(...strengthSets.map((set) => set.weight == null ? 0 : convertWeight(set.weight, set.unit, weightUnit)));
+                const vol = calculateStrengthVolume(strengthSets, weightUnit);
                 return (
                   <div key={se.exercise.id} className="flex items-center justify-between px-4 py-3">
                     <div>
                       <p className="font-semibold text-sm text-slate-900">{se.exercise.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{se.sets.length} 组 · 最大 {maxW}{weightUnit}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{se.sets.length} 组 · 最大 {Math.round(maxW)} {weightUnit}</p>
                     </div>
-                    <span className="text-sm font-semibold text-slate-600">{Math.round(vol)}kg</span>
+                    <span className="text-sm font-semibold text-slate-600">{formatVolume(vol, weightUnit)}</span>
                   </div>
                 );
               })}

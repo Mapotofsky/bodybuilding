@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Save, User as UserIcon, RefreshCw } from "lucide-react";
 import { getProfile, updateProfile } from "@/services/profile";
+import { getSettings, updateSettings } from "@/services/settings";
 import type { User } from "@/types";
 import { useToastStore } from "@/components/Toast";
 import { useNavigate } from "react-router-dom";
@@ -15,11 +16,12 @@ export default function ProfilePage() {
     height: "",
     weight: "",
     birth_date: "",
+    weight_unit: "kg" as "kg" | "lb",
   });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getProfile().then((data) => {
+    Promise.all([getProfile(), getSettings()]).then(([data, settings]) => {
       setProfile(data);
       setForm({
         nickname: data.nickname || "",
@@ -27,6 +29,7 @@ export default function ProfilePage() {
         height: data.height?.toString() || "",
         weight: data.weight?.toString() || "",
         birth_date: data.birth_date || "",
+        weight_unit: settings.weight_unit,
       });
     });
   }, []);
@@ -34,13 +37,16 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const next = await updateProfile({
-        nickname: form.nickname || null,
-        gender: form.gender || null,
-        height: form.height ? parseFloat(form.height) : null,
-        weight: form.weight ? parseFloat(form.weight) : null,
-        birth_date: form.birth_date || null,
-      });
+      const [next] = await Promise.all([
+        updateProfile({
+          nickname: form.nickname || null,
+          gender: form.gender || null,
+          height: form.height ? parseFloat(form.height) : null,
+          weight: form.weight ? parseFloat(form.weight) : null,
+          birth_date: form.birth_date || null,
+        }),
+        updateSettings({ weight_unit: form.weight_unit }),
+      ]);
       setProfile(next);
       setEditing(false);
       useToastStore.getState().add("资料已保存", "success");
@@ -109,6 +115,7 @@ export default function ProfilePage() {
                 { l: "性别", v: profile.gender === "male" ? "男" : profile.gender === "female" ? "女" : "未设置" },
                 { l: "身高", v: profile.height ? `${profile.height} cm` : "未设置" },
                 { l: "体重", v: profile.weight ? `${profile.weight} kg` : "未设置" },
+                { l: "训练重量单位", v: form.weight_unit },
                 { l: "出生日期", v: profile.birth_date || "未设置" },
               ].map(({ l, v }) => (
                 <div key={l} className="flex justify-between items-center py-2.5">
@@ -144,6 +151,13 @@ export default function ProfilePage() {
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">出生日期</label>
                 <input type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">训练重量单位</label>
+                <select value={form.weight_unit} onChange={(e) => setForm({ ...form, weight_unit: e.target.value as "kg" | "lb" })} className={inputCls}>
+                  <option value="kg">kg</option>
+                  <option value="lb">lb</option>
+                </select>
               </div>
             </div>
           )}

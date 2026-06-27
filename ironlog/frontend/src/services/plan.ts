@@ -11,6 +11,7 @@ import type {
 } from "@/types";
 
 export interface TemplateExerciseCreate {
+  id?: string;
   exercise_id: string;
   sort_order: number;
   note?: string | null;
@@ -81,7 +82,7 @@ export async function createPlan(body: PlanCreate): Promise<TrainingPlan> {
       color: template.color || null,
       scheduleRule: validateTemplateScheduleRule(plan, template.schedule_rule) || null,
       exercises: (template.exercises || []).map((exercise, exerciseIdx) => ({
-        id: "",
+        id: exercise.id || "",
         exerciseId: exercise.exercise_id,
         sortOrder: exercise.sort_order ?? exerciseIdx,
         note: exercise.note || null,
@@ -124,7 +125,7 @@ export async function addTemplate(
     color: body.color || null,
     scheduleRule: validateTemplateScheduleRule(plan, body.schedule_rule) || null,
     exercises: (body.exercises || []).map((exercise, idx) => ({
-      id: "",
+      id: exercise.id || "",
       exerciseId: exercise.exercise_id,
       sortOrder: exercise.sort_order ?? idx,
       note: exercise.note || null,
@@ -148,13 +149,36 @@ export async function updateTemplate(
     color: body.color,
     scheduleRule: validateTemplateScheduleRule(plan, body.schedule_rule),
     exercises: body.exercises?.map((exercise, idx) => ({
-      id: "",
+      id: exercise.id || "",
       exerciseId: exercise.exercise_id,
       sortOrder: exercise.sort_order ?? idx,
       note: exercise.note || null,
     })),
   });
   return toTemplate(template);
+}
+
+export async function appendExerciseToTemplate(
+  templateId: string,
+  exerciseId: string
+): Promise<PlanTemplate> {
+  const template = await localRepository.getTemplate(templateId);
+  if (!template) throw new Error("Template not found");
+  if (template.exercises.some((exercise) => exercise.exerciseId === exerciseId)) {
+    return toTemplate(template);
+  }
+  const next = await localRepository.updateTemplate(templateId, {
+    exercises: [
+      ...template.exercises,
+      {
+        id: "",
+        exerciseId,
+        sortOrder: template.exercises.length,
+        note: null,
+      },
+    ],
+  });
+  return toTemplate(next);
 }
 
 export async function deleteTemplate(

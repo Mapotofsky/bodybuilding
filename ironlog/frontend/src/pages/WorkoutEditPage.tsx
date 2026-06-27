@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
+import { getSettings } from "@/services/settings";
 import type { Exercise, ExerciseType, Workout, WorkoutSet } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
@@ -21,6 +22,7 @@ interface LocalExercise {
   exercise_type: ExerciseType;
   exercise_name: string;
   exercise_category: string;
+  superset_group: number | null;
   sets: WorkoutSet[];
 }
 
@@ -43,6 +45,7 @@ export default function WorkoutEditPage() {
 
   useEffect(() => {
     getExercises().then(setAllExercises);
+    getSettings().then((settings) => setWeightUnit(settings.weight_unit)).catch(() => undefined);
   }, []);
 
   // Load existing workout
@@ -67,7 +70,9 @@ export default function WorkoutEditPage() {
             exercise_type: ex.exercise_type,
             exercise_name: ex.exercise_name || `动作#${ex.exercise_id}`,
             exercise_category: ex.exercise_category || "",
+            superset_group: ex.superset_group,
             sets: ex.sets.map((s) => ({
+              id: s.id,
               set_number: s.set_number,
               weight: s.weight,
               reps: s.reps,
@@ -76,7 +81,6 @@ export default function WorkoutEditPage() {
               distance_m: s.distance_m,
               rpe: s.rpe,
               is_warmup: s.is_warmup,
-              is_dropset: s.is_dropset,
               is_failure: s.is_failure,
               rest_seconds: s.rest_seconds ?? null,
             })),
@@ -97,6 +101,7 @@ export default function WorkoutEditPage() {
         exercise_type: ex.type,
         exercise_name: ex.name,
         exercise_category: ex.category,
+        superset_group: null,
         sets: [makeEmptySet(1, weightUnit)],
       },
     ]);
@@ -167,6 +172,7 @@ export default function WorkoutEditPage() {
           exercise_type: e.exercise_type,
           id: e.id,
           sort_order: idx,
+          superset_group: e.superset_group,
           sets: e.sets.map((s) => ({
             set_number: s.set_number,
             weight: s.weight,
@@ -177,7 +183,6 @@ export default function WorkoutEditPage() {
             id: s.id,
             rpe: s.rpe,
             is_warmup: s.is_warmup,
-            is_dropset: s.is_dropset,
             is_failure: s.is_failure,
             rest_seconds: s.rest_seconds,
           })),
@@ -317,64 +322,89 @@ export default function WorkoutEditPage() {
 
             {/* Sets */}
             {ex.sets.map((s, si) => (
-              <div
-                key={s.id || `${ex.tempId}-${si}`}
-                className="grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_36px] gap-2 items-center"
-              >
-                <span
-                  className={`text-center text-sm font-medium ${
-                    s.is_warmup ? "text-orange-400" : "text-slate-500"
-                  }`}
-                >
-                  {s.is_warmup ? "W" : s.set_number}
-                </span>
-                {(ex.exercise_type === "strength" || ex.exercise_type === "cardio") && <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={ex.exercise_type === "cardio" ? s.distance_m ?? "" : s.weight ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value ? parseFloat(e.target.value) : null;
-                    setExercises((prev) =>
-                      prev.map((ex2) =>
-                        ex2.tempId === ex.tempId
-                          ? {
-                              ...ex2,
-                              sets: ex2.sets.map((s2, i2) =>
-                                i2 === si ? (ex.exercise_type === "cardio" ? { ...s2, distance_m: val } : { ...s2, weight: val, unit: weightUnit }) : s2
-                              ),
-                            }
-                          : ex2
+              <div key={s.id || `${ex.tempId}-${si}`} className="space-y-2">
+                <div className="grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_36px] gap-2 items-center">
+                  <span
+                    className={`text-center text-sm font-medium ${
+                      s.is_warmup ? "text-orange-400" : "text-slate-500"
+                    }`}
+                  >
+                    {s.is_warmup ? "W" : s.set_number}
+                  </span>
+                  {(ex.exercise_type === "strength" || ex.exercise_type === "cardio") && <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={ex.exercise_type === "cardio" ? s.distance_m ?? "" : s.weight ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value ? parseFloat(e.target.value) : null;
+                      setExercises((prev) =>
+                        prev.map((ex2) =>
+                          ex2.tempId === ex.tempId
+                            ? {
+                                ...ex2,
+                                sets: ex2.sets.map((s2, i2) =>
+                                  i2 === si ? (ex.exercise_type === "cardio" ? { ...s2, distance_m: val } : { ...s2, weight: val, unit: weightUnit }) : s2
+                                ),
+                              }
+                            : ex2
+                        )
+                      );
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
+                  />}
+                  {ex.exercise_type === "reps_only" ? <input
+                    type="number" inputMode="numeric" placeholder="0" value={s.reps ?? ""}
+                    onChange={(e) => updateSet(ex.tempId, si, "reps", e.target.value ? parseInt(e.target.value) : null)}
+                    className="col-span-2 w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
+                  /> : <input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={ex.exercise_type === "cardio" || ex.exercise_type === "static_hold" ? s.duration_sec ?? "" : s.reps ?? ""}
+                    onChange={(e) =>
+                      updateSet(
+                        ex.tempId,
+                        si,
+                        ex.exercise_type === "cardio" || ex.exercise_type === "static_hold" ? "duration_sec" : "reps",
+                        e.target.value ? parseInt(e.target.value) : null
                       )
-                    );
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
-                />}
-                {ex.exercise_type === "reps_only" ? <input
-                  type="number" inputMode="numeric" placeholder="0" value={s.reps ?? ""}
-                  onChange={(e) => updateSet(ex.tempId, si, "reps", e.target.value ? parseInt(e.target.value) : null)}
-                  className="col-span-2 w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
-                /> : <input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="0"
-                  value={ex.exercise_type === "cardio" || ex.exercise_type === "static_hold" ? s.duration_sec ?? "" : s.reps ?? ""}
-                  onChange={(e) =>
-                    updateSet(
-                      ex.tempId,
-                      si,
-                      ex.exercise_type === "cardio" || ex.exercise_type === "static_hold" ? "duration_sec" : "reps",
-                      e.target.value ? parseInt(e.target.value) : null
-                    )
-                  }
-                  className={`${ex.exercise_type === "static_hold" ? "col-span-2 " : ""}w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm`}
-                />}
-                <button
-                  onClick={() => removeSet(ex.tempId, si)}
-                  className="p-1 text-slate-300 hover:text-red-400"
-                >
-                  <X size={16} />
-                </button>
+                    }
+                    className={`${ex.exercise_type === "static_hold" ? "col-span-2 " : ""}w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm`}
+                  />}
+                  <button
+                    onClick={() => removeSet(ex.tempId, si)}
+                    className="p-1 text-slate-300 hover:text-red-400"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 pl-10">
+                  <button
+                    type="button"
+                    onClick={() => updateSet(ex.tempId, si, "is_warmup", !s.is_warmup)}
+                    className={`py-1.5 rounded-lg text-xs font-semibold border ${s.is_warmup ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-slate-500 border-slate-200"}`}
+                  >
+                    热身
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSet(ex.tempId, si, "is_failure", !s.is_failure)}
+                    className={`py-1.5 rounded-lg text-xs font-semibold border ${s.is_failure ? "bg-red-50 text-red-600 border-red-100" : "bg-white text-slate-500 border-slate-200"}`}
+                  >
+                    力竭
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={10}
+                    placeholder="RPE"
+                    value={s.rpe ?? ""}
+                    onChange={(e) => updateSet(ex.tempId, si, "rpe", e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full min-w-0 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-center text-xs"
+                  />
+                </div>
               </div>
             ))}
 

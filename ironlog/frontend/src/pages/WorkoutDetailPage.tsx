@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getWorkout, deleteWorkout, copyWorkout, shareWorkout } from "@/services/workout";
 import type { WorkoutShareData } from "@/services/workout";
+import { getSettings } from "@/services/settings";
 import type { Workout } from "@/types";
 import { CATEGORY_LABELS, MOOD_LABELS } from "@/types";
 import {
@@ -19,6 +20,7 @@ import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { useToastStore } from "@/components/Toast";
 import { useConfirmStore } from "@/components/ConfirmDialog";
+import { calculateStrengthVolume, calculateWorkoutMetrics, formatVolume } from "@/core/workoutMetrics";
 
 const MOOD_EMOJI: Record<number, string> = { 1: "😫", 2: "😕", 3: "😐", 4: "😊", 5: "🔥" };
 
@@ -32,6 +34,7 @@ export default function WorkoutDetailPage() {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareData, setShareData] = useState<WorkoutShareData | null>(null);
+  const [displayUnit, setDisplayUnit] = useState<"kg" | "lb">("kg");
 
   useEffect(() => {
     if (!id) return;
@@ -39,6 +42,7 @@ export default function WorkoutDetailPage() {
       .then(setWorkout)
       .catch(() => navigate("/workouts", { replace: true }))
       .finally(() => setLoading(false));
+    getSettings().then((settings) => setDisplayUnit(settings.weight_unit)).catch(() => undefined);
   }, [id]);
 
   const handleDelete = async () => {
@@ -71,10 +75,10 @@ export default function WorkoutDetailPage() {
     const text = [
       `🏋️ IronLog 训练记录`,
       `📅 ${data.date}`,
-      `💪 ${data.exercise_count}个动作 · ${data.total_sets}组${data.total_volume ? ` · ${Math.round(data.total_volume)}kg` : ""}${data.total_distance_m ? ` · ${Math.round(data.total_distance_m)}m` : ""}`,
+      `💪 ${data.exercise_count}个动作 · ${data.total_sets}组${data.total_volume ? ` · ${formatVolume(data.total_volume, data.total_volume_unit)}` : ""}${data.total_distance_m ? ` · ${Math.round(data.total_distance_m)}m` : ""}`,
       data.duration_minutes ? `⏱ ${data.duration_minutes}分钟` : "",
       "",
-      ...data.exercises.map((e) => `• ${e.name}: ${e.sets}组 ${e.type === "cardio" ? `${Math.round(e.distance_m)}m · ${e.duration_sec}s` : e.type === "static_hold" ? `${e.duration_sec}s` : e.type === "reps_only" ? `${e.reps}次` : `${Math.round(e.volume)}kg`}`),
+      ...data.exercises.map((e) => `• ${e.name}: ${e.sets}组 ${e.type === "cardio" ? `${Math.round(e.distance_m)}m · ${e.duration_sec}s` : e.type === "static_hold" ? `${e.duration_sec}s` : e.type === "reps_only" ? `${e.reps}次` : formatVolume(e.volume, data.total_volume_unit)}`),
     ]
       .filter(Boolean)
       .join("\n");
@@ -106,11 +110,17 @@ export default function WorkoutDetailPage() {
 
   if (!workout) return null;
 
-  const totalVolume = workout.exercises.reduce(
-    (sum, ex) =>
-      sum + (ex.exercise_type === "strength" ? ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0) : 0),
-    0
-  );
+  const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
+    exerciseType: exercise.exercise_type,
+    sets: exercise.sets.map((set) => ({
+      weight: set.weight,
+      reps: set.reps,
+      unit: set.unit,
+      durationSec: set.duration_sec,
+      distanceM: set.distance_m,
+    })),
+  })), displayUnit);
+  const totalVolume = metrics.totalVolume;
   const totalSets = workout.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
 
   const duration =
@@ -204,7 +214,7 @@ export default function WorkoutDetailPage() {
               <p className="text-xl font-bold text-slate-900">{totalSets}</p>
               <p className="text-xs text-slate-400 mt-0.5">总组数</p>
             </div>
-            {totalVolume > 0 && <><div className="w-px bg-slate-100" /><div className="text-center"><p className="text-xl font-bold text-slate-900">{totalVolume >= 1000 ? `${(totalVolume/1000).toFixed(1)}t` : `${Math.round(totalVolume)}`}</p><p className="text-xs text-slate-400 mt-0.5">容量(kg)</p></div></>}
+            {totalVolume > 0 && <><div className="w-px bg-slate-100" /><div className="text-center"><p className="text-xl font-bold text-slate-900">{formatVolume(totalVolume, metrics.totalVolumeUnit)}</p><p className="text-xs text-slate-400 mt-0.5">容量</p></div></>}
             {duration != null && duration > 0 && (
               <>
                 <div className="w-px bg-slate-100" />
@@ -219,7 +229,7 @@ export default function WorkoutDetailPage() {
 
         {/* Exercises */}
         {workout.exercises.map((ex) => {
-          const exVolume = ex.exercise_type === "strength" ? ex.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0) : 0;
+          const exVolume = ex.exercise_type === "strength" ? calculateStrengthVolume(ex.sets.map((set) => ({ weight: set.weight, reps: set.reps, unit: set.unit })), displayUnit) : 0;
           const exDistance = ex.exercise_type === "cardio" ? ex.sets.reduce((s, set) => s + (set.distance_m || 0), 0) : 0;
           return (
             <div key={ex.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -232,7 +242,7 @@ export default function WorkoutDetailPage() {
                     <span className="text-[11px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
                       {CATEGORY_LABELS[ex.exercise_category || ""] || ex.exercise_category}
                     </span>
-                    <span className="text-xs text-slate-400">{ex.exercise_type === "cardio" ? `${Math.round(exDistance)} m` : ex.exercise_type === "static_hold" ? `${ex.sets.reduce((s, set) => s + (set.duration_sec || 0), 0)} s` : ex.exercise_type === "reps_only" ? `${ex.sets.reduce((s, set) => s + (set.reps || 0), 0)} 次` : `${Math.round(exVolume)} kg`}</span>
+                    <span className="text-xs text-slate-400">{ex.exercise_type === "cardio" ? `${Math.round(exDistance)} m` : ex.exercise_type === "static_hold" ? `${ex.sets.reduce((s, set) => s + (set.duration_sec || 0), 0)} s` : ex.exercise_type === "reps_only" ? `${ex.sets.reduce((s, set) => s + (set.reps || 0), 0)} 次` : formatVolume(exVolume, displayUnit)}</span>
                   </div>
                 </div>
                 <span className="text-sm font-bold text-slate-500">{ex.sets.length} 组</span>
@@ -263,6 +273,9 @@ export default function WorkoutDetailPage() {
                       {ex.exercise_type === "cardio" ? `${s.duration_sec ?? "—"} s` : ex.exercise_type === "strength" ? `${s.reps ?? "—"} 次` : ""}
                       {s.rpe ? (
                         <span className="text-slate-400 text-xs ml-1">@{s.rpe}</span>
+                      ) : null}
+                      {s.is_failure ? (
+                        <span className="text-red-500 text-xs ml-1">力竭</span>
                       ) : null}
                     </span>
                     <span className="text-xs text-slate-400">
@@ -331,7 +344,7 @@ export default function WorkoutDetailPage() {
                 {[
                   { v: shareData.exercise_count, l: "动作" },
                   { v: shareData.total_sets, l: "总组数" },
-                  { v: shareData.total_volume ? (shareData.total_volume >= 1000 ? `${(shareData.total_volume/1000).toFixed(1)}t` : `${Math.round(shareData.total_volume)}`) : `${Math.round(shareData.total_distance_m)}m`, l: shareData.total_volume ? "容量(kg)" : "距离" },
+                  { v: shareData.total_volume ? formatVolume(shareData.total_volume, shareData.total_volume_unit) : `${Math.round(shareData.total_distance_m)}m`, l: shareData.total_volume ? "容量" : "距离" },
                 ].map(({ v, l }) => (
                   <div key={l} className="bg-white/15 rounded-xl p-3 text-center">
                     <p className="text-xl font-bold">{v}</p>
@@ -348,7 +361,7 @@ export default function WorkoutDetailPage() {
                 {shareData.exercises.map((ex, i) => (
                   <div key={i} className="flex justify-between text-sm">
                     <span>{ex.name}</span>
-                    <span className="text-emerald-200">{ex.sets}组 · {ex.type === "cardio" ? `${Math.round(ex.distance_m)}m` : ex.type === "static_hold" ? `${ex.duration_sec}s` : ex.type === "reps_only" ? `${ex.reps}次` : `${Math.round(ex.volume)}kg`}</span>
+                    <span className="text-emerald-200">{ex.sets}组 · {ex.type === "cardio" ? `${Math.round(ex.distance_m)}m` : ex.type === "static_hold" ? `${ex.duration_sec}s` : ex.type === "reps_only" ? `${ex.reps}次` : formatVolume(ex.volume, shareData.total_volume_unit)}</span>
                   </div>
                 ))}
               </div>

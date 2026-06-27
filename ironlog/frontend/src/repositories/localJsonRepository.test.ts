@@ -27,6 +27,26 @@ describe("workout aggregate persistence", () => {
     expect(expanded.exercises[0].sets[1].id).not.toBe(created.exercises[0].sets[0].id);
   });
 
+  it("keeps template exercise IDs when saving an unchanged template exercise list", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    const plan = await repository.createPlan({ name: "计划", description: null, color: "#10B981", mode: "weekly", cycleLength: null, isActive: true });
+    const created = await repository.createTemplate({
+      planId: plan.id,
+      name: "模板",
+      sortOrder: 0,
+      color: null,
+      scheduleRule: null,
+      exercises: [{ id: "", exerciseId: "ex-bench-press", sortOrder: 0, note: "4x8" }],
+    });
+
+    const renamed = await repository.updateTemplate(created.id, {
+      name: "模板改名",
+      exercises: created.exercises,
+    });
+
+    expect(renamed.exercises[0].id).toBe(created.exercises[0].id);
+  });
+
   it("finds the most recently updated unfinished workout as the draft", async () => {
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
     const first = await repository.createWorkout({ date: "2026-06-20", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [] });
@@ -78,7 +98,7 @@ describe("workout aggregate persistence", () => {
 });
 
 function set(setNumber: number) {
-  return { id: "", setNumber, weight: 50, reps: 8, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null };
+  return { id: "", setNumber, weight: 50, reps: 8, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null };
 }
 
 function memoryStore(initial: DataSnapshot): DocumentStore {

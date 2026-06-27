@@ -15,6 +15,19 @@ describe("workout service validation", () => {
     expect(() => validateWorkoutSet({ set_number: 1, duration_sec: 45 }, "static_hold")).not.toThrow();
   });
 
+  it("accepts supported non-default set metadata", () => {
+    expect(() => validateWorkoutSet({
+      set_number: 1,
+      weight: 80,
+      reps: 6,
+      unit: "kg",
+      rpe: 9,
+      is_warmup: true,
+      is_failure: true,
+      rest_seconds: 120,
+    }, "strength")).not.toThrow();
+  });
+
   it("ends a discarded draft at its last recorded activity instead of the selection time", () => {
     expect(draftCompletionTime({ createdAt: "2026-06-22T10:00:00.000Z", updatedAt: "2026-06-22T10:18:00.000Z" })).toBe("2026-06-22T10:18:00.000Z");
   });

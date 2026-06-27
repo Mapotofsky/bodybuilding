@@ -7,6 +7,7 @@ import { Plus, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { SkeletonList } from "@/components/ui/Skeleton";
+import { formatVolume } from "@/core/workoutMetrics";
 
 export default function WorkoutsPage() {
   const navigate = useNavigate();
@@ -59,11 +60,9 @@ export default function WorkoutsPage() {
         </div>
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
           <p className="text-xl font-bold text-emerald-700">
-            {totalVolume >= 1000
-              ? `${(totalVolume / 1000).toFixed(1)}t`
-              : `${Math.round(totalVolume)}`}
+            {formatVolume(totalVolume, workouts[0]?.total_volume_unit || "kg")}
           </p>
-          <p className="text-xs text-emerald-600/80 mt-0.5">总容量(kg)</p>
+          <p className="text-xs text-emerald-600/80 mt-0.5">总容量</p>
         </div>
       </div>
 
@@ -125,7 +124,7 @@ export default function WorkoutsPage() {
 }
 
 function summaryMetric(workout: WorkoutSummary): string {
-  if (workout.total_volume > 0) return `${Math.round(workout.total_volume)} kg`;
+  if (workout.total_volume > 0) return formatVolume(workout.total_volume, workout.total_volume_unit);
   if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
   if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
   return `${workout.total_reps} 次`;

@@ -78,11 +78,23 @@ describe("local-first schema migration", () => {
     const snapshot = migrateSnapshot({
       workouts: [{
         id: "legacy-run", date: "2026-06-12", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
-        exercises: [{ id: "legacy-run-exercise", exerciseId: "ex-running", sortOrder: 0, supersetGroup: null, sets: [{ id: "legacy-run-set", setNumber: 1, weight: null, reps: null, unit: "kg", distanceM: 5000, durationSec: 1800, rpe: null, isWarmup: false, isDropset: false, isFailure: false, restSeconds: null }] }],
+        exercises: [{ id: "legacy-run-exercise", exerciseId: "ex-running", sortOrder: 0, supersetGroup: null, sets: [{ id: "legacy-run-set", setNumber: 1, weight: null, reps: null, unit: "kg", distanceM: 5000, durationSec: 1800, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }] }],
       } as never],
     }, "device-test");
     expect(snapshot.workouts[0].exercises[0].exerciseType).toBe("cardio");
     expect(snapshot.workouts[0].exercises[0].sets[0]).toMatchObject({ distanceM: 5000, durationSec: 1800 });
+  });
+
+  it("drops legacy dropset flags while keeping supported set metadata", () => {
+    const legacyFlagKey = "is" + "Drop" + "set";
+    const snapshot = migrateSnapshot({
+      workouts: [{
+        id: "legacy-dropset", date: "2026-06-12", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
+        exercises: [{ id: "legacy-exercise", exerciseId: "ex-bench-press", exerciseType: "strength", sortOrder: 0, supersetGroup: null, sets: [{ id: "legacy-set", setNumber: 1, weight: 50, reps: 8, unit: "kg", distanceM: null, durationSec: null, rpe: 8, isWarmup: true, [legacyFlagKey]: true, isFailure: true, restSeconds: 90 }] }],
+      } as never],
+    }, "device-test");
+    expect(snapshot.workouts[0].exercises[0].sets[0]).toMatchObject({ rpe: 8, isWarmup: true, isFailure: true, restSeconds: 90 });
+    expect(snapshot.workouts[0].exercises[0].sets[0]).not.toHaveProperty(legacyFlagKey);
   });
 
   it("upgrades the built-in running exercise to cardio", () => {

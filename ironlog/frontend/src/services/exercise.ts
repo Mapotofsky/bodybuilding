@@ -69,6 +69,9 @@ export interface ExerciseHistoryRecord {
   unit: string;
   duration_sec: number | null;
   distance_m: number | null;
+  rpe: number | null;
+  is_warmup: boolean;
+  is_failure: boolean;
   rest_seconds: number | null;
 }
 
@@ -96,6 +99,9 @@ export async function getExerciseHistory(
             unit: set.unit,
             duration_sec: set.durationSec,
             distance_m: set.distanceM,
+            rpe: set.rpe,
+            is_warmup: set.isWarmup,
+            is_failure: set.isFailure,
             rest_seconds: set.restSeconds,
           }))
         )

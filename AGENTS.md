@@ -219,6 +219,16 @@ WorkoutDoc 内部保存 exercises 和 sets。
 - 删除被训练、模板或统计引用的记录前，明确保留、迁移或重定向策略；不得静默断链。
 - 重定向是有方向的映射，解析必须防自环、循环和缺失目标，并保留原始历史 ID 与快照。
 
+### D9. 持久化字段变更必须先更新契约矩阵
+
+新增、删除或重命名持久化字段前，必须先更新字段契约矩阵；未标明页面、service、core、mapper、repository、migration、同步状态的字段不得实现。
+
+### D10. 可清空字段必须区分 undefined 与 null
+
+- `undefined` 表示不修改。
+- `null` 表示显式清空。
+- 页面“清除/未设置/取消选择”不得用 `undefined` 代替 `null`。
+
 ---
 
 ## 前端实现规则
@@ -267,6 +277,10 @@ allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
 
 - 不得依赖 Android WebView 的原生 number spinner；有步进需求时使用共享控件或明确的加减按钮。
 - “固定操作按钮 + 可增长输入”使用固定列 + `minmax(0, 1fr)` 的 Grid，或同时声明输入 `min-w-0` 与按钮 `shrink-0`。
+
+### F7. 统计与单位换算必须单一权威
+
+训练容量、重量单位换算和展示单位必须使用 core/service 的单一权威实现；页面不得自行重复计算 `set.weight * set.reps` 或拼接固定单位。
 
 ---
 
@@ -321,6 +335,14 @@ rg -n "axios|auth|token|access_token|refresh_token|/api|services/api|Bearer" src
 ### V5. 数据回归测试
 
 涉及迁移、默认数据、聚合更新或引用删除时，至少覆盖：非空数据增量合并、读取后原样保存、嵌套 ID 稳定、历史字段保留、重定向解析与 WebDAV 序列化。
+
+### V6. 聚合编辑必须保护未展示字段
+
+聚合文档编辑页必须有读后原样保存测试，保护未展示字段、预留字段、嵌套 ID 和同步导入字段不被保存流程清空或重建。
+
+### V7. 删除持久化字段必须零残留
+
+删除持久化字段后必须全文搜索零残留，并覆盖 core model、默认数据、mapper、service payload、页面兼容类型、测试 fixture 和文档。
 
 ---
 

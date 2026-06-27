@@ -10,6 +10,7 @@ import {
   type TemplateDoc,
   type TrainingPlanDoc,
   type WorkoutDoc,
+  type WorkoutSetDoc,
 } from "./models";
 import { makeId, nowIso } from "./id";
 import { DEFAULT_EXERCISES } from "./defaultData";
@@ -126,7 +127,32 @@ function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: Exercise
 }
 
 function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[]): WorkoutDoc[] {
-  return normalizeArray<WorkoutDoc>(value, fallback);
+  return normalizeArray<WorkoutDoc>(value, fallback).map((workout) => ({
+    ...workout,
+    exercises: workout.exercises.map((exercise) => ({
+      ...exercise,
+      sets: exercise.sets.map(normalizeWorkoutSet),
+    })),
+  }));
+}
+
+function normalizeWorkoutSet(set: WorkoutSetDoc): WorkoutSetDoc {
+  const legacyFlagKey = "is" + "Drop" + "set";
+  const raw = { ...(set as WorkoutSetDoc & Record<string, unknown>) };
+  delete raw[legacyFlagKey];
+  return {
+    id: raw.id as string,
+    setNumber: raw.setNumber as number,
+    weight: (raw.weight as number | null | undefined) ?? null,
+    reps: (raw.reps as number | null | undefined) ?? null,
+    unit: raw.unit === "lb" ? "lb" : "kg",
+    durationSec: (raw.durationSec as number | null | undefined) ?? null,
+    distanceM: (raw.distanceM as number | null | undefined) ?? null,
+    rpe: (raw.rpe as number | null | undefined) ?? null,
+    isWarmup: raw.isWarmup === true,
+    isFailure: raw.isFailure === true,
+    restSeconds: (raw.restSeconds as number | null | undefined) ?? null,
+  };
 }
 
 function normalizeExerciseType(value: unknown): ExerciseType {

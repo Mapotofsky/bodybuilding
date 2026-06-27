@@ -88,7 +88,6 @@ export interface WorkoutSetDoc {
   distanceM: number | null;
   rpe: number | null;
   isWarmup: boolean;
-  isDropset: boolean;
   isFailure: boolean;
   restSeconds: number | null;
 }

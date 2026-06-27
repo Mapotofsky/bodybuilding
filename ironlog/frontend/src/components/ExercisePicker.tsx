@@ -8,7 +8,7 @@ import { useToastStore } from "@/components/Toast";
 export interface ExercisePickerProps {
   exercises: Exercise[];
   onSelect: (exercise: Exercise) => void;
-  onCreated: (exercise: Exercise) => void;
+  onCreated: (exercise: Exercise) => void | Promise<void>;
   open?: boolean;
   onClose?: () => void;
   presentation?: "sheet" | "inline";
@@ -40,7 +40,7 @@ export default function ExercisePicker({
   async function handleCreate() {
     try {
       const exercise = await createExercise({ name, category: createCategory, type });
-      onCreated(exercise);
+      await onCreated(exercise);
       onSelect(exercise);
       setName("");
       setCreateCategory("core");

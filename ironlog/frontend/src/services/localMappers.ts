@@ -20,6 +20,7 @@ import type {
 } from "@/types";
 import { resolveExerciseId } from "@/core/exerciseRedirects";
 import { buildExercisePersonalStats, type ExercisePersonalStats as CoreExercisePersonalStats } from "@/core/exerciseStats";
+import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 
 export function toExercise(doc: ExerciseDoc): Exercise {
   return {
@@ -178,14 +179,17 @@ export async function toWorkout(doc: WorkoutDoc): Promise<Workout> {
 export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary> {
   const workout = await toWorkout(doc);
   const allExercises = (await localRepository.getSnapshot()).exercises;
-  const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
-  const totalVolume = workout.exercises.reduce(
-    (sum, exercise) => sum + (exercise.exercise_type === "strength" ? exercise.sets.reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0) : 0),
-    0
-  );
-  const totalDistance = workout.exercises.reduce((sum, exercise) => sum + (exercise.exercise_type === "cardio" ? exercise.sets.reduce((setSum, set) => setSum + (set.distance_m || 0), 0) : 0), 0);
-  const totalDuration = workout.exercises.reduce((sum, exercise) => sum + (exercise.exercise_type === "cardio" || exercise.exercise_type === "static_hold" ? exercise.sets.reduce((setSum, set) => setSum + (set.duration_sec || 0), 0) : 0), 0);
-  const totalReps = workout.exercises.reduce((sum, exercise) => sum + (exercise.exercise_type === "strength" || exercise.exercise_type === "reps_only" ? exercise.sets.reduce((setSum, set) => setSum + (set.reps || 0), 0) : 0), 0);
+  const displayUnit = (await localRepository.getSettings()).weightUnit;
+  const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
+    exerciseType: exercise.exercise_type,
+    sets: exercise.sets.map((set) => ({
+      weight: set.weight,
+      reps: set.reps,
+      unit: set.unit,
+      durationSec: set.duration_sec,
+      distanceM: set.distance_m,
+    })),
+  })), displayUnit);
   return {
     id: workout.id,
     date: workout.date,
@@ -194,11 +198,12 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
     note: workout.note,
     mood: workout.mood,
     exercise_count: workout.exercises.length,
-    total_sets: totalSets,
-    total_volume: totalVolume,
-    total_distance_m: totalDistance,
-    total_duration_sec: totalDuration,
-    total_reps: totalReps,
+    total_sets: metrics.totalSets,
+    total_volume: metrics.totalVolume,
+    total_volume_unit: metrics.totalVolumeUnit,
+    total_distance_m: metrics.totalDistanceM,
+    total_duration_sec: metrics.totalDurationSec,
+    total_reps: metrics.totalReps,
     plan_template_id: workout.plan_template_id,
     template_name: workout.template_name,
     template_color: workout.template_color,
@@ -243,7 +248,6 @@ function toWorkoutSet(doc: WorkoutSetDoc): WorkoutSet {
     distance_m: doc.distanceM,
     rpe: doc.rpe,
     is_warmup: doc.isWarmup,
-    is_dropset: doc.isDropset,
     is_failure: doc.isFailure,
     rest_seconds: doc.restSeconds,
   };
