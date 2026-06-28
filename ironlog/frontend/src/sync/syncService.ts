@@ -85,10 +85,10 @@ async function pullRemoteFiles(client: WebDavClient): Promise<Record<string, unk
   return files;
 }
 
-async function pushSnapshot(client: WebDavClient, snapshot: DataSnapshot): Promise<void> {
-  await ensureRemoteDirs(client);
-  const remotePaths = await backupRemote(client);
+export async function pushSnapshot(client: WebDavClient, snapshot: DataSnapshot): Promise<void> {
   const files = snapshotToFiles(snapshot);
+  await ensureRemoteDirs(client, Object.keys(files));
+  const remotePaths = await backupRemote(client);
   for (const [path, value] of Object.entries(files)) {
     const tmp = `${path}.tmp-${Date.now()}`;
     const written = await client.put(tmp, JSON.stringify(value, null, 2));
@@ -113,10 +113,17 @@ async function pushSnapshot(client: WebDavClient, snapshot: DataSnapshot): Promi
   }
 }
 
-async function ensureRemoteDirs(client: WebDavClient): Promise<void> {
+async function ensureRemoteDirs(client: WebDavClient, paths: string[] = []): Promise<void> {
   await client.mkcol("");
-  await client.mkcol("workouts");
-  await client.mkcol("backups");
+  const dirs = new Set(["workouts", "backups"]);
+  for (const path of paths) {
+    for (const dir of remoteParentDirsForPath(path)) {
+      dirs.add(dir);
+    }
+  }
+  for (const dir of dirs) {
+    await client.mkcol(dir);
+  }
 }
 
 async function backupRemote(client: WebDavClient): Promise<string[]> {
@@ -126,10 +133,19 @@ async function backupRemote(client: WebDavClient): Promise<string[]> {
     const res = await client.get(path);
     if (res.status === 404) continue;
     if (res.status >= 200 && res.status < 300) {
-      await client.put(`backups/${stamp}-${path.replace("/", "-")}`, sanitizeBackupBody(path, res.body));
+      await client.put(backupPathFor(stamp, path), sanitizeBackupBody(path, res.body));
     }
   }
   return paths;
+}
+
+export function remoteParentDirsForPath(path: string): string[] {
+  const parts = path.split("/").filter(Boolean);
+  return parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join("/"));
+}
+
+export function backupPathFor(stamp: string, path: string): string {
+  return `backups/${stamp}-${path.replace(/\//g, "-")}`;
 }
 
 function sanitizeBackupBody(path: string, body: string): string {

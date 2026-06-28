@@ -378,6 +378,7 @@ function withoutUndefined<T extends Record<string, unknown>>(value: T): Partial<
 
 function sameSettings(left: SettingsDoc, right: SettingsDoc): boolean {
   return left.weightUnit === right.weightUnit
+    && left.themeId === right.themeId
     && left.lastSyncAt === right.lastSyncAt;
 }
 

@@ -243,17 +243,9 @@ WorkoutDoc 内部保存 exercises 和 sets。
 
 确认操作使用全局 ConfirmDialog。通知使用 Toast。
 
-### F2. Emerald/Slate 主题
+### F2. 开发阶段优先干净抽象
 
-新增或修改 UI 不得使用 `blue-*`、`gray-*` 作为主色调。
-
-推荐：
-
-- 页面背景：`bg-slate-50`
-- 主按钮：`bg-emerald-500 hover:bg-emerald-600 text-white`
-- 输入焦点：`focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400`
-- 次要文字：`text-slate-500`
-- 卡片边框：`border border-slate-100`
+当前仍是开发阶段。实现主题、导航、表单、同步等基础能力时，必须优先建立清晰的单一抽象或设计 token 层；不得用“过渡兼容”“临时覆盖”“选择器补丁”等方式把旧实现细节固化成长期依赖。若为赶进度必须采用临时方案，必须同时写明移除条件、影响范围和后续替换路径，并且不得作为功能完成的依据。
 
 ### F3. 保持页面调用面稳定
 

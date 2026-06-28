@@ -1,27 +1,159 @@
 @import "tailwindcss";
 
-:root {
-  /* Emerald primary */
-  --color-primary: #10b981;
-  --color-primary-dark: #059669;
-  --color-primary-light: #d1fae5;
-
-  /* Surfaces */
+:root,
+[data-theme="emerald-slate"] {
   --color-bg: #f1f5f9;
   --color-surface: #ffffff;
   --color-surface-2: #f8fafc;
-
-  /* Text */
   --color-text: #0f172a;
   --color-text-secondary: #64748b;
-
-  /* Borders */
   --color-border: #e2e8f0;
-
-  /* Semantic */
+  --color-primary: #10b981;
+  --color-primary-dark: #059669;
+  --color-primary-hover: #059669;
+  --color-primary-light: #d1fae5;
+  --color-primary-soft: #d1fae5;
+  --color-focus: #a7f3d0;
   --color-success: #10b981;
   --color-danger: #ef4444;
   --color-warning: #f59e0b;
+  --color-disabled-bg: #e2e8f0;
+  --color-disabled-text: #94a3b8;
+  --color-chart-1: #10b981;
+  --color-chart-2: #14b8a6;
+  --color-chart-3: #f59e0b;
+}
+
+[data-theme="forest-parchment"] {
+  --color-bg: #f6f5ee;
+  --color-surface: #fffef8;
+  --color-surface-2: #efefe4;
+  --color-text: #1f2d25;
+  --color-text-secondary: #66736a;
+  --color-border: #d8ddd3;
+  --color-primary: #2f6b4f;
+  --color-primary-dark: #24543e;
+  --color-primary-hover: #24543e;
+  --color-primary-light: #dcebdd;
+  --color-primary-soft: #dcebdd;
+  --color-focus: #a7c7ae;
+  --color-success: #2f6b4f;
+  --color-danger: #b84a4a;
+  --color-warning: #b7791f;
+  --color-disabled-bg: #e5e2d8;
+  --color-disabled-text: #8d968d;
+  --color-chart-1: #2f6b4f;
+  --color-chart-2: #7a9f58;
+  --color-chart-3: #b7791f;
+}
+
+[data-theme="sunset-coral"] {
+  --color-bg: #fff7f3;
+  --color-surface: #ffffff;
+  --color-surface-2: #fff0e9;
+  --color-text: #34201a;
+  --color-text-secondary: #7a625a;
+  --color-border: #f0d7cd;
+  --color-primary: #d95d39;
+  --color-primary-dark: #b94728;
+  --color-primary-hover: #b94728;
+  --color-primary-light: #fce1d7;
+  --color-primary-soft: #fce1d7;
+  --color-focus: #f5b8a3;
+  --color-success: #2e8b6b;
+  --color-danger: #c43d3d;
+  --color-warning: #b7791f;
+  --color-disabled-bg: #f3ded6;
+  --color-disabled-text: #a58d84;
+  --color-chart-1: #d95d39;
+  --color-chart-2: #2e8b6b;
+  --color-chart-3: #b7791f;
+}
+
+[data-theme="violet-ink"] {
+  --color-bg: #f8f6fc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-text: #241b31;
+  --color-text-secondary: #756b82;
+  --color-border: #e3dcec;
+  --color-primary: #6d4aa2;
+  --color-primary-dark: #553783;
+  --color-primary-hover: #553783;
+  --color-primary-light: #e8ddf7;
+  --color-primary-soft: #e8ddf7;
+  --color-focus: #c9b5ea;
+  --color-success: #2e8b6b;
+  --color-danger: #b33d57;
+  --color-warning: #a86d16;
+  --color-disabled-bg: #e7e1ee;
+  --color-disabled-text: #988ea5;
+  --color-chart-1: #6d4aa2;
+  --color-chart-2: #2e8b6b;
+  --color-chart-3: #a86d16;
+}
+
+[data-theme="graphite-lime"] {
+  --color-bg: #161a1b;
+  --color-surface: #202627;
+  --color-surface-2: #2b3233;
+  --color-text: #f2f5ef;
+  --color-text-secondary: #b7c0b8;
+  --color-border: #394142;
+  --color-primary: #a3d94c;
+  --color-primary-dark: #c1f06a;
+  --color-primary-hover: #c1f06a;
+  --color-primary-light: #354521;
+  --color-primary-soft: #354521;
+  --color-focus: #d8ff8b;
+  --color-success: #77c66e;
+  --color-danger: #f07171;
+  --color-warning: #e0b34b;
+  --color-disabled-bg: #323839;
+  --color-disabled-text: #7b857e;
+  --color-chart-1: #a3d94c;
+  --color-chart-2: #77c66e;
+  --color-chart-3: #e0b34b;
+}
+
+:root,
+[data-theme] {
+  --color-white: var(--color-surface);
+  --color-slate-50: var(--color-bg);
+  --color-slate-100: var(--color-surface-2);
+  --color-slate-200: var(--color-border);
+  --color-slate-300: var(--color-text-secondary);
+  --color-slate-400: var(--color-text-secondary);
+  --color-slate-500: var(--color-text-secondary);
+  --color-slate-600: var(--color-text);
+  --color-slate-700: var(--color-text);
+  --color-slate-800: var(--color-text);
+  --color-slate-900: var(--color-text);
+  --color-emerald-50: var(--color-primary-soft);
+  --color-emerald-100: var(--color-primary-soft);
+  --color-emerald-200: var(--color-focus);
+  --color-emerald-300: var(--color-focus);
+  --color-emerald-400: var(--color-primary);
+  --color-emerald-500: var(--color-primary);
+  --color-emerald-600: var(--color-primary-hover);
+  --color-emerald-700: var(--color-primary-hover);
+  --color-emerald-800: var(--color-primary-hover);
+  --color-teal-600: var(--color-primary-hover);
+  --color-red-50: var(--color-surface-2);
+  --color-red-100: var(--color-border);
+  --color-red-400: var(--color-danger);
+  --color-red-500: var(--color-danger);
+  --color-red-600: var(--color-danger);
+  --color-amber-50: var(--color-surface-2);
+  --color-amber-100: var(--color-border);
+  --color-amber-200: var(--color-border);
+  --color-amber-300: var(--color-warning);
+  --color-amber-400: var(--color-warning);
+  --color-amber-500: var(--color-warning);
+  --color-amber-600: var(--color-warning);
+  --color-amber-700: var(--color-warning);
+  --color-yellow-500: var(--color-warning);
+  --color-orange-400: var(--color-warning);
 }
 
 @layer base {
@@ -55,6 +187,76 @@ body {
   #root {
     max-width: 768px;
   }
+}
+
+/* ===== Theme semantic classes ===== */
+.app-screen {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.app-surface {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.app-surface-muted {
+  background-color: var(--color-surface-2);
+  border-color: var(--color-border);
+}
+
+.app-border {
+  border-color: var(--color-border);
+}
+
+.app-divide > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--color-border);
+}
+
+.app-text {
+  color: var(--color-text);
+}
+
+.app-text-muted {
+  color: var(--color-text-secondary);
+}
+
+.app-primary-text {
+  color: var(--color-primary);
+}
+
+.app-primary-bg {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.app-primary-bg:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.app-primary-soft {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-color: var(--color-border);
+}
+
+.app-input {
+  background-color: var(--color-surface-2);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.app-input:focus {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus);
+}
+
+.app-profile-hero {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  color: #ffffff;
 }
 
 /* ===== Animations ===== */

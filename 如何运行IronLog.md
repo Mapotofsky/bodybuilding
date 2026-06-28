@@ -90,7 +90,8 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 2. 选择动作，记录重量、次数和休息时间；完成每组后会立即写入本地数据。
 3. 结束训练后补充感受和备注，进入训练详情。
 4. 在“计划”中创建计划与模板；按模板训练时动作列表只显示模板中的动作。
-5. 在“我的 -> 数据同步与备份”配置 WebDAV，可测试连接并手动同步。
+5. 在“我的”编辑资料，可切换训练重量单位和界面主题。
+6. 在“我的 -> 数据同步与备份”配置 WebDAV，可测试连接并手动同步。
 
 未配置 WebDAV 时，前四步仍可离线运行。
 
@@ -110,7 +111,7 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 
 以下能力尚未实现；当前没有对应的页面、环境变量、命令、provider 或 API 配置：
 
-- 默认主题外的 4 套完整主题与主题选择。
+- 全页面语义色彩迁移完成；当前已有主题选择和基础 token，但部分页面仍保留 emerald/slate Tailwind 工具类。
 - AI provider、模型、API key、动作问答、训练分析、计划候选导入和联网资料检索。
 
 请不要将 API key 写入 settings.json、WebDAV、项目文件、日志或地址栏。未来 AI 未配置时，离线训练、模板、动作库/动作详情与 WebDAV 必须保持可用。

@@ -4,6 +4,7 @@ export type DocId = string;
 export type ISODate = string;
 export type ISODateTime = string;
 export type WeightUnit = "kg" | "lb";
+export const DEFAULT_THEME_ID = "emerald-slate";
 export type PlanMode = "weekly" | "cyclic" | "flexible";
 export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
 export type MuscleGroupId =
@@ -30,6 +31,7 @@ export interface ProfileDoc extends BaseDoc {
 
 export interface SettingsDoc extends BaseDoc {
   weightUnit: WeightUnit;
+  themeId: string;
   lastSyncAt: ISODateTime | null;
 }
 

@@ -9,8 +9,20 @@ describe("local-first schema migration", () => {
     expect(snapshot.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(snapshot.manifest.shards.map((shard) => shard.path)).not.toContain("workouts/index.json");
     expect(snapshot.profile.id).toBe("profile-local");
+    expect(snapshot.settings.themeId).toBe("emerald-slate");
     expect(snapshot.exercises.length).toBeGreaterThan(0);
     expect(typeof snapshot.exercises[0].id).toBe("string");
+  });
+
+  it("preserves unknown theme ids while migrating settings", () => {
+    const snapshot = migrateSnapshot({
+      settings: {
+        ...makeEmptySnapshot("device-test").settings,
+        themeId: "future-theme",
+      },
+    }, "device-test");
+
+    expect(snapshot.settings.themeId).toBe("future-theme");
   });
 
   it("lists a separate shard for each workout month without an index shard", () => {

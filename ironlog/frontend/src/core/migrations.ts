@@ -1,5 +1,6 @@
 import {
   CURRENT_SCHEMA_VERSION,
+  DEFAULT_THEME_ID,
   type DataSnapshot,
   type ExerciseDoc,
   type ExerciseType,
@@ -58,6 +59,7 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
   const settings: SettingsDoc = doc({
     id: "settings-local",
     weightUnit: "kg",
+    themeId: DEFAULT_THEME_ID,
     lastSyncAt: null,
   });
   return {
@@ -155,8 +157,13 @@ function normalizeSettings(value: SettingsDoc | undefined, fallback: SettingsDoc
   return doc({
     ...settings,
     weightUnit: settings.weightUnit === "lb" ? "lb" : "kg",
+    themeId: normalizeThemeId(settings.themeId),
     lastSyncAt: settings.lastSyncAt ?? null,
   });
+}
+
+function normalizeThemeId(value: unknown): string {
+  return typeof value === "string" && value.length > 0 ? value : DEFAULT_THEME_ID;
 }
 
 function normalizeResources(value: unknown): Record<string, string> {

@@ -1,7 +1,7 @@
 # P3 详细设计文档：WebDAV 同步与 Android 平台
 
 > 对应概要设计：M3 同步部分、M4 Android 平台；M5/M6 设置同步与秘密隔离
-> 状态：当前实现基线，包含明确的安全和冲突限制；主题与 AI 同步影响为规划中
+> 状态：当前实现基线，包含明确的安全和冲突限制；themeId 作为非秘密设置同步，AI 同步影响为规划中
 > 前置依赖：P2 本地文档存储与数据迁移。
 
 ---
@@ -44,9 +44,9 @@ WebDAV 请求使用 Basic Authorization，必须优先要求 HTTPS。建议用�
 
 ---
 
-### 2.3 规划中的主题与 AI 设置同步
+### 2.3 主题与规划中的 AI 设置同步
 
-themeId 是非秘密设置，应按当前 settings 的 LWW 语义同步；未知值保持原值，由 UI 运行时回退默认主题。未来 AI 的 provider/model/能力开关属于候选非秘密设置；是否同步 endpoint、预算和审计偏好需在实现前决定。
+themeId 是非秘密设置，按当前 settings 的 LWW 语义同步；未知值保持原值，由 UI 运行时回退默认主题。未来 AI 的 provider/model/能力开关属于候选非秘密设置；是否同步 endpoint、预算和审计偏好需在实现前决定。
 
 apiKeyRef 与任何未来秘密引用必须同 passwordRef 一样，在远端 settings.json、backups 和日志中清空；merge 必须保留当前设备自己的秘密引用，不能从远端恢复或覆盖。AI provider 或未来 agent gateway 是可选外部依赖；其失败不得阻塞本地训练、模板、动作库或 WebDAV。
 
@@ -228,6 +228,6 @@ cd android
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
 | 动作详情元数据 | `primaryMuscleGroupIds`、`secondaryMuscleGroupIds` 与 `description` 随 `exercises.json` 同步；个人统计不写入远端 JSON。 |
 | 头像资源 | `profile.avatarUrl` 引用资源路径；头像资源随 manifest、backup、tmp/MOVE 往返；清除后远端过期头像资源被删除。 |
-| 主题/AI 规划字段 | 实现后验证 themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
+| 主题与 AI 规划字段 | themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
 当前自动测试位于 `src/sync/syncService.test.ts`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。

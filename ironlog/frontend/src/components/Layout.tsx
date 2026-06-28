@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, CalendarDays, User, ClipboardList, Dumbbell } from "lucide-react";
+import { getSettings } from "@/services/settings";
+import { applyThemeId } from "@/theme/applyTheme";
 
 const NAV_ITEMS = [
   { path: "/", icon: Home, label: "首页" },
@@ -13,18 +16,28 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    getSettings()
+      .then((settings) => applyThemeId(settings.theme_id))
+      .catch(() => applyThemeId(null));
+  }, []);
+
   return (
-    <div className="flex flex-col min-h-screen min-h-dvh">
+    <div className="app-screen flex flex-col min-h-screen min-h-dvh">
       <main className="flex-1 pb-24 overflow-y-auto">
         <Outlet />
       </main>
 
       <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 md:max-w-[768px]">
         <div
-          className="bg-white/90 backdrop-blur-md border-t border-slate-200/80 pb-safe"
-          style={{ boxShadow: "0 -1px 0 0 rgba(0,0,0,0.06)" }}
+          className="backdrop-blur-md border-t pb-safe"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            borderColor: "var(--color-border)",
+            boxShadow: "0 -1px 0 0 rgba(0,0,0,0.06)",
+          }}
         >
-          <div className="flex justify-around items-center h-16 px-2">
+          <div className="grid grid-cols-5 items-stretch h-16 px-1.5">
             {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
               const isActive =
                 path === "/"
@@ -32,29 +45,24 @@ export default function Layout() {
                   : location.pathname.startsWith(path);
               return (
                 <button
+                  type="button"
                   key={path}
                   onClick={() => navigate(navigationTarget(path))}
-                  className="flex flex-col items-center gap-0.5 flex-1 py-1.5 transition-all duration-200"
+                  className="min-w-0 h-16 px-1 py-1.5 flex flex-col items-center justify-center gap-0.5 transition-all duration-200"
                 >
                   <span
-                    className={`flex items-center justify-center w-12 h-7 rounded-full transition-all duration-200 ${
-                      isActive
-                        ? "bg-emerald-100"
-                        : ""
-                    }`}
+                    className="flex items-center justify-center w-11 max-w-full h-7 rounded-full transition-all duration-200"
+                    style={{ backgroundColor: isActive ? "var(--color-primary-soft)" : "transparent" }}
                   >
                     <Icon
                       size={20}
                       strokeWidth={isActive ? 2.5 : 1.8}
-                      className={
-                        isActive ? "text-emerald-600" : "text-slate-400"
-                      }
+                      style={{ color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)" }}
                     />
                   </span>
                   <span
-                    className={`text-[10px] font-medium transition-colors duration-200 ${
-                      isActive ? "text-emerald-600" : "text-slate-400"
-                    }`}
+                    className="max-w-full truncate text-[10px] font-medium transition-colors duration-200"
+                    style={{ color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)" }}
                   >
                     {label}
                   </span>
