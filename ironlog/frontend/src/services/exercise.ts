@@ -39,7 +39,6 @@ export async function createExercise(body: {
     description: input.description ?? null,
     primaryMuscleGroupIds: input.primaryMuscleGroupIds ?? [],
     secondaryMuscleGroupIds: input.secondaryMuscleGroupIds ?? [],
-    metValue: null,
   });
   return toExercise(doc);
 }

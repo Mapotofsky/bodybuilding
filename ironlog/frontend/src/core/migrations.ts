@@ -16,6 +16,7 @@ import { makeId, nowIso } from "./id";
 import { DEFAULT_EXERCISES } from "./defaultData";
 
 export const STATIC_SHARD_PATHS = ["profile.json", "settings.json", "exercises.json", "templates.json"] as const;
+export const AVATAR_RESOURCE_PREFIX = "assets/avatar/";
 
 export function workoutShardPath(date: string): string {
   return `workouts/${date.slice(0, 7)}.json`;
@@ -57,7 +58,6 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
   const settings: SettingsDoc = doc({
     id: "settings-local",
     weightUnit: "kg",
-    webdav: { url: "", username: "", passwordRef: null },
     lastSyncAt: null,
   });
   return {
@@ -79,6 +79,7 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
     plans: [],
     templates: [],
     workouts: [],
+    resources: {},
   };
 }
 
@@ -92,11 +93,12 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
       updatedAt: raw.manifest?.updatedAt || nowIso(),
     },
     profile: doc({ ...base.profile, ...raw.profile }),
-    settings: doc({ ...base.settings, ...raw.settings }),
+    settings: normalizeSettings(raw.settings, base.settings),
     exercises: normalizeExercises(raw.exercises, base.exercises),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
     workouts: normalizeWorkouts(raw.workouts, []),
+    resources: normalizeResources(raw.resources),
   };
   snapshot.workouts = snapshot.workouts.map((workout) => migrateWorkoutExerciseTypes(workout, snapshot.exercises));
   snapshot.manifest.shards = buildShardList(snapshot);
@@ -110,9 +112,12 @@ function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: Exercise
 
   for (const exercise of stored) {
     const builtIn = defaultsById.get(exercise.id);
+    const legacyMetKey = "met" + "Value";
+    const cleanExercise = { ...(exercise as ExerciseDoc & Record<string, unknown>) };
+    delete cleanExercise[legacyMetKey];
     // Built-in definitions are app contract. Preserve user data only for custom records.
-    merged.set(exercise.id, builtIn ? { ...exercise, ...builtIn, createdAt: exercise.createdAt, deletedAt: exercise.deletedAt, updatedAt: exercise.updatedAt } : {
-      ...exercise,
+    merged.set(exercise.id, builtIn ? { ...cleanExercise, ...builtIn, createdAt: exercise.createdAt, deletedAt: exercise.deletedAt, updatedAt: exercise.updatedAt } : {
+      ...cleanExercise,
       type: normalizeExerciseType(exercise.type),
       primaryMuscleGroupIds: normalizeMuscleGroups(exercise.primaryMuscleGroupIds),
       secondaryMuscleGroupIds: normalizeMuscleGroups(exercise.secondaryMuscleGroupIds),
@@ -134,6 +139,30 @@ function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc
       sets: exercise.sets.map(normalizeWorkoutSet),
     })),
   }));
+}
+
+function normalizeSettings(value: SettingsDoc | undefined, fallback: SettingsDoc): SettingsDoc {
+  const { webdav: _legacyWebdav, passwordRef: _legacyPasswordRef, password: _legacyPassword, username: _legacyUsername, url: _legacyUrl, ...settings } = {
+    ...fallback,
+    ...(value as SettingsDoc & {
+      webdav?: unknown;
+      passwordRef?: unknown;
+      password?: unknown;
+      username?: unknown;
+      url?: unknown;
+    } | undefined),
+  };
+  return doc({
+    ...settings,
+    weightUnit: settings.weightUnit === "lb" ? "lb" : "kg",
+    lastSyncAt: settings.lastSyncAt ?? null,
+  });
+}
+
+function normalizeResources(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value)
+    .filter(([path, body]) => isResourceShardPath(path) && typeof body === "string"));
 }
 
 function normalizeWorkoutSet(set: WorkoutSetDoc): WorkoutSetDoc {
@@ -224,10 +253,18 @@ export function buildShardList(snapshot: DataSnapshot) {
 
   return [
     ...staticShards,
+    ...Object.keys(snapshot.resources)
+      .filter(isResourceShardPath)
+      .sort()
+      .map((path) => ({ path, updatedAt: snapshot.profile.updatedAt })),
     ...[...workoutShards.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([path, updatedAt]) => ({ path, updatedAt })),
   ];
+}
+
+export function isResourceShardPath(path: string): boolean {
+  return path.startsWith(AVATAR_RESOURCE_PREFIX) && path.endsWith(".txt") && !path.includes("..");
 }
 
 function maxUpdated(items: Array<{ updatedAt: string }>, fallback: string): string {

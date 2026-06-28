@@ -145,11 +145,11 @@ WebDAV 只能被当作远端文件系统。
 
 不得把 WebDAV 当作实时查询数据库。
 
-### A5. 密码不得写入 JSON
+### A5. WebDAV 端点配置不得写入同步 JSON
 
-WebDAV 密码只能通过平台 secret/Preferences 或明确隔离的 secret 存储保存。
+WebDAV `url`、`username`、`passwordRef` 和密码明文都是本机-only 同步端点配置，不得进入 `settings.json`、manifest、远端 JSON 分片或 backup。
 
-`settings.json` 只能保存 `passwordRef`。
+WebDAV 密码只能通过平台 secret/Preferences 或明确隔离的 secret 存储保存。清除同步配置只清除本机端点配置和对应 secret，不删除训练、动作、模板、资料或头像资源。
 
 ---
 
@@ -268,6 +268,19 @@ allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
 ```
 
 不得用排序替代过滤。
+
+### F4a. 自定义动作创建/编辑必须复用共享表单
+
+动作库、模板编辑、训练创建和训练编辑中的自定义动作创建/编辑必须复用共享组件和同一 `services/exercise` 字段契约。
+
+共享字段至少覆盖：
+
+- 名称。
+- 分类。
+- 记录类型。
+- description。
+- primaryMuscleGroupIds。
+- secondaryMuscleGroupIds。
 
 ### F5. 全局样式不得覆盖 Tailwind 间距工具类
 

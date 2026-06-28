@@ -25,7 +25,6 @@ export interface Exercise {
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
   secondary_muscle_group_ids: MuscleGroupId[];
-  met_value: number | null;
   is_custom: boolean;
 }
 
@@ -224,7 +223,6 @@ export interface ExerciseDetail {
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
   secondary_muscle_group_ids: MuscleGroupId[];
-  met_value: number | null;
   is_custom: boolean;
   usage_count: number;
   last_used_date: string | null;

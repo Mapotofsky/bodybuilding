@@ -37,4 +37,17 @@ describe("document file serialization", () => {
     expect((files["exercises.json"] as typeof snapshot.exercises)[0]).toHaveProperty("secondaryMuscleGroupIds");
     expect(files).not.toHaveProperty("workouts/index.json");
   });
+
+  it("serializes avatar resources as separate files", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.profile.avatarUrl = "assets/avatar/profile-local.txt";
+    snapshot.resources["assets/avatar/profile-local.txt"] = "data:image/png;base64,AAA";
+    snapshot.manifest.shards = buildShardList(snapshot);
+
+    const files = snapshotToFiles(snapshot);
+
+    expect(files["profile.json"]).toMatchObject({ avatarUrl: "assets/avatar/profile-local.txt" });
+    expect(files["assets/avatar/profile-local.txt"]).toBe("data:image/png;base64,AAA");
+    expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("assets/avatar/profile-local.txt");
+  });
 });

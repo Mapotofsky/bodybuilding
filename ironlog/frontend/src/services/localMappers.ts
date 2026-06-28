@@ -31,7 +31,6 @@ export function toExercise(doc: ExerciseDoc): Exercise {
     description: doc.description,
     primary_muscle_group_ids: doc.primaryMuscleGroupIds ?? [],
     secondary_muscle_group_ids: doc.secondaryMuscleGroupIds ?? [],
-    met_value: doc.metValue,
     is_custom: doc.isCustom,
   };
 }
@@ -57,7 +56,6 @@ export async function toExerciseDetail(doc: ExerciseDoc): Promise<ExerciseDetail
     description: doc.description,
     primary_muscle_group_ids: doc.primaryMuscleGroupIds ?? [],
     secondary_muscle_group_ids: doc.secondaryMuscleGroupIds ?? [],
-    met_value: doc.metValue,
     is_custom: doc.isCustom,
     usage_count: usageCount,
     last_used_date: lastUsedDate,

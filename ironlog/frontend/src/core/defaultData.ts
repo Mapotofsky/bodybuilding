@@ -20,7 +20,6 @@ function exercise(
     description,
     primaryMuscleGroupIds,
     secondaryMuscleGroupIds,
-    metValue: null,
     isCustom: false,
     replacedByExerciseId: null,
     createdAt: seedTime,

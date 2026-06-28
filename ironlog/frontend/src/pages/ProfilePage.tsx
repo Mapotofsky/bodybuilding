@@ -1,14 +1,17 @@
-import { useState, useEffect } from "react";
-import { Save, User as UserIcon, RefreshCw } from "lucide-react";
-import { getProfile, updateProfile } from "@/services/profile";
+import { useState, useEffect, useRef } from "react";
+import { Camera, Save, Trash2, User as UserIcon, RefreshCw } from "lucide-react";
+import { clearProfileAvatar, getProfile, getProfileAvatarDataUrl, saveProfileAvatar, updateProfile } from "@/services/profile";
 import { getSettings, updateSettings } from "@/services/settings";
 import type { User } from "@/types";
 import { useToastStore } from "@/components/Toast";
 import { useNavigate } from "react-router-dom";
+import { useConfirmStore } from "@/components/ConfirmDialog";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [profile, setProfile] = useState<User | null>(null);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     nickname: "",
@@ -19,10 +22,12 @@ export default function ProfilePage() {
     weight_unit: "kg" as "kg" | "lb",
   });
   const [saving, setSaving] = useState(false);
+  const confirm = useConfirmStore((state) => state.show);
 
   useEffect(() => {
-    Promise.all([getProfile(), getSettings()]).then(([data, settings]) => {
+    Promise.all([getProfile(), getSettings(), getProfileAvatarDataUrl()]).then(([data, settings, avatar]) => {
       setProfile(data);
+      setAvatarDataUrl(avatar);
       setForm({
         nickname: data.nickname || "",
         gender: data.gender || "",
@@ -57,6 +62,34 @@ export default function ProfilePage() {
     }
   };
 
+  const handleAvatarFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const next = await saveProfileAvatar(dataUrl);
+      setProfile(next);
+      setAvatarDataUrl(dataUrl);
+      useToastStore.getState().add("头像已保存", "success");
+    } catch (err) {
+      useToastStore.getState().add(err instanceof Error ? err.message : "头像保存失败", "error");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClearAvatar = async () => {
+    const ok = await confirm("清除头像", "只会清除本机资料中的头像引用和头像资源，不会影响训练数据。");
+    if (!ok) return;
+    try {
+      const next = await clearProfileAvatar();
+      setProfile(next);
+      setAvatarDataUrl(null);
+      useToastStore.getState().add("头像已清除", "success");
+    } catch (err) {
+      useToastStore.getState().add(err instanceof Error ? err.message : "清除头像失败", "error");
+    }
+  };
+
   if (!profile) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">加载中...</div>;
   }
@@ -66,11 +99,23 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-8">
       <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-6 pt-8 pb-12 flex flex-col items-center text-white">
-        <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mb-3 shadow-lg ring-2 ring-white/30">
-          <UserIcon size={36} className="text-white" />
+        <div className="relative mb-3">
+          <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/30 overflow-hidden">
+            {avatarDataUrl ? <img src={avatarDataUrl} alt="头像" className="w-full h-full object-cover" /> : <UserIcon size={36} className="text-white" />}
+          </div>
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute -right-1 -bottom-1 w-8 h-8 rounded-full bg-white text-emerald-600 shadow-sm flex items-center justify-center" aria-label="选择头像">
+            <Camera size={16} />
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
         </div>
         <h1 className="text-xl font-bold">{profile.nickname || "训练者"}</h1>
         <p className="text-emerald-100 text-sm mt-0.5">本地单人版</p>
+        {avatarDataUrl && (
+          <button type="button" onClick={handleClearAvatar} className="mt-3 inline-flex items-center gap-1.5 text-xs bg-white/15 px-3 py-1.5 rounded-full text-white">
+            <Trash2 size={12} />
+            清除头像
+          </button>
+        )}
       </div>
 
       <div className="px-5 -mt-5 space-y-4">
@@ -173,4 +218,13 @@ export default function ProfilePage() {
       </div>
     </div>
   );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("读取图片失败"));
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  });
 }

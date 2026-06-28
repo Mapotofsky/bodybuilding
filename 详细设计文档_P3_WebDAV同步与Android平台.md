@@ -18,19 +18,13 @@
 
 ## 2. 同步配置与秘密边界
 
-### 2.1 SettingsDoc
+### 2.1 本机-only 同步端点配置
 
 ```ts
-interface WebDavSettings {
+interface SyncEndpointConfig {
   url: string;
   username: string;
   passwordRef: string | null;
-}
-
-interface SettingsDoc extends BaseDoc {
-  weightUnit: "kg" | "lb";
-  webdav: WebDavSettings;
-  lastSyncAt: string | null;
 }
 ```
 
@@ -38,9 +32,9 @@ SyncPage 输入 URL、用户名、密码。保存密码时：
 
 1. 页面生成或复用 `passwordRef`。
 2. 调用 `localRepository.writeSecret(passwordRef, password)`。
-3. `settings.json` 只保存 `passwordRef`，不保存 password。
+3. 调用本地配置接口保存 `url`、`username`、`passwordRef`。
 
-同步到远端前，`snapshotToFiles` 强制将 remote `settings.json` 的 `passwordRef`、`lastSyncAt` 清空。URL 和用户名当前仍会同步，便于同一用户在另一设备补齐密码后继续使用。
+WebDAV `url`、`username`、`passwordRef` 和 password 都是本机-only 端点配置，不属于可同步 SettingsDoc。它们不得进入远端 `settings.json`、manifest、JSON 分片或 backup；另一设备必须自行配置端点和密码。SyncPage 的“清除同步配置”只删除本机端点配置和对应 secret，不删除训练、动作、模板、资料或头像资源。
 
 ### 2.2 当前安全状态
 
@@ -66,7 +60,7 @@ apiKeyRef 与任何未来秘密引用必须同 passwordRef 一样，在远端 se
 | `get(path)` | GET | 拉取 manifest 与分片。 |
 | `put(path, body, etag?)` | PUT | 上传 JSON 或备份；客户端支持可选 If-Match。 |
 | `move(from, to, overwrite)` | MOVE | 发布临时文件。 |
-| `delete(path)` | DELETE | 删除远端过期训练月分片。 |
+| `delete(path)` | DELETE | 删除远端过期训练月分片或头像资源。 |
 | `mkcol(path)` | MKCOL | 创建同步根、workouts、backups 目录。 |
 
 路径由 `joinUrl(base, path)` 拼接，不能以用户输入直接替换分片路径。`remoteDataUrl` 会确保根目录以 `ironlog-data` 结尾，避免把分片直接写到用户 WebDAV 根目录。
@@ -96,7 +90,7 @@ frontend/android/app/src/main/java/app/ironlog/local/WebDavHttpPlugin.java
 
 ```text
 SyncPage 测试连接
-  -> 保存 URL/用户名/密码引用
+  -> 保存本机-only URL/用户名/密码引用
   -> configuredClient()
   -> MKCOL(ironlog-data)
   -> PROPFIND(ironlog-data)
@@ -109,7 +103,7 @@ MKCOL 返回 201 表示创建成功，405 表示目录已存在，均视为正�
 ```text
 SyncPage 手动同步
   -> configuredClient
-  -> 读取 local snapshot
+  -> 读取本机-only 端点配置与 local snapshot
   -> GET remote manifest
   -> GET manifest 列出的分片
   -> migrate remote snapshot
@@ -119,7 +113,7 @@ SyncPage 手动同步
   -> 备份远端分片
   -> 每个本地分片 PUT tmp
   -> MOVE tmp 到正式分片
-  -> 删除过期远端训练月分片
+  -> 删除过期远端训练月分片和头像资源
   -> 更新本地 lastSyncAt
 ```
 
@@ -146,6 +140,8 @@ backups/<ISO timestamp>-<path 中 / 替换为 ->
 
 备份是远端覆盖前的副本。当前没有压缩、校验、保留数量或恢复 UI；备份失败目前也没有独立状态建模。后续增强应先定义恢复流程，再增加“自动清理”。
 
+头像资源文件与 JSON 分片共用同一发布语义：manifest 记录 `assets/avatar/*` 路径，上传时先 `PUT <path>.tmp-*`，再 `MOVE` 到正式路径；覆盖前将远端旧资源写入 `backups/`。ProfilePage 清除头像会删除本地资源并把 `profile.avatarUrl` 置为 null；下一次同步根据新 manifest 删除远端过期头像资源。远端拉取时只接受 manifest 中的头像资源路径，导入后 profile 引用才能解析为本地预览。
+
 ---
 
 ## 5. 合并规则与冲突
@@ -160,7 +156,7 @@ backups/<ISO timestamp>-<path 中 / 替换为 ->
 只存在于一方：保留该文档
 ```
 
-settings 特殊处理：选择较新的设置后，强制保留本地 `passwordRef` 和 `lastSyncAt`，防止秘密引用被远端覆盖。
+settings 特殊处理：只合并可同步偏好并强制保留本地 `lastSyncAt`。WebDAV 端点配置不在 SettingsDoc 中，不能被远端覆盖。
 
 ### 5.2 当前不足
 
@@ -222,13 +218,16 @@ cd android
 | 场景 | 期望 |
 |---|---|
 | 未配置同步 | SyncPage 显示未配置，训练功能照常工作。 |
-| 保存密码 | 本地 settings 保存 passwordRef，导出的远端 settings 清空 passwordRef。 |
+| 保存同步配置 | 本机-only 配置保存 url、username、passwordRef；password 只进 secret。 |
+| 清除同步配置 | 删除 passwordRef 对应 secret，清空本机-only url、username、passwordRef，不删除业务数据。 |
+| 远端脱敏 | 远端 settings、manifest、JSON 分片和 backup 均不包含 url、username、password、passwordRef。 |
 | 首次同步 | 无 manifest 时创建目录和全部分片。 |
 | 常规同步 | 先 pull/merge，再 tmp/MOVE 发布，lastSyncAt 更新。 |
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
 | Android WebDAV | PROPFIND/MOVE/MKCOL 走原生插件，不被 WebView 限制。 |
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
 | 动作详情元数据 | `primaryMuscleGroupIds`、`secondaryMuscleGroupIds` 与 `description` 随 `exercises.json` 同步；个人统计不写入远端 JSON。 |
+| 头像资源 | `profile.avatarUrl` 引用资源路径；头像资源随 manifest、backup、tmp/MOVE 往返；清除后远端过期头像资源被删除。 |
 | 主题/AI 规划字段 | 实现后验证 themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
 当前自动测试位于 `src/sync/syncService.test.ts`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。

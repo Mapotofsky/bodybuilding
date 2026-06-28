@@ -1,5 +1,5 @@
 import { localRepository } from "@/repositories/localJsonRepository";
-import { buildShardList, isWorkoutShardPath, migrateSnapshot, STATIC_SHARD_PATHS, workoutShardPath, workoutShardPathsFromManifest } from "@/core/migrations";
+import { buildShardList, isResourceShardPath, isWorkoutShardPath, migrateSnapshot, STATIC_SHARD_PATHS, workoutShardPath, workoutShardPathsFromManifest } from "@/core/migrations";
 import type { DataSnapshot, IronLogManifest, SettingsDoc, WorkoutDoc } from "@/core/models";
 import { WebDavClient } from "./webdavClient";
 
@@ -54,15 +54,15 @@ export async function syncNow(): Promise<SyncResult> {
 }
 
 async function configuredClient(): Promise<WebDavClient> {
-  const settings = await localRepository.getSettings();
-  if (!settings.webdav.url || !settings.webdav.username || !settings.webdav.passwordRef) {
+  const endpoint = await localRepository.getSyncEndpoint();
+  if (!endpoint.url || !endpoint.username || !endpoint.passwordRef) {
     throw new Error("WebDAV 未配置");
   }
-  const password = await localRepository.readSecret(settings.webdav.passwordRef);
+  const password = await localRepository.readSecret(endpoint.passwordRef);
   if (!password) throw new Error("WebDAV 密码不存在");
   return new WebDavClient({
-    url: remoteDataUrl(settings.webdav.url),
-    username: settings.webdav.username,
+    url: remoteDataUrl(endpoint.url),
+    username: endpoint.username,
     password,
   });
 }
@@ -105,7 +105,7 @@ async function pushSnapshot(client: WebDavClient, snapshot: DataSnapshot): Promi
   }
 
   const nextPaths = new Set(Object.keys(files));
-  for (const path of remotePaths.filter((path) => isWorkoutShardPath(path) && !nextPaths.has(path))) {
+  for (const path of remotePaths.filter((path) => (isWorkoutShardPath(path) || isResourceShardPath(path)) && !nextPaths.has(path))) {
     const deleted = await client.delete(path);
     if (deleted.status !== 404 && (deleted.status < 200 || deleted.status >= 300)) {
       throw new Error(`DELETE ${path} failed: ${deleted.status}`);
@@ -126,10 +126,21 @@ async function backupRemote(client: WebDavClient): Promise<string[]> {
     const res = await client.get(path);
     if (res.status === 404) continue;
     if (res.status >= 200 && res.status < 300) {
-      await client.put(`backups/${stamp}-${path.replace("/", "-")}`, res.body);
+      await client.put(`backups/${stamp}-${path.replace("/", "-")}`, sanitizeBackupBody(path, res.body));
     }
   }
   return paths;
+}
+
+function sanitizeBackupBody(path: string, body: string): string {
+  if (path !== "settings.json") return body;
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const { webdav: _webdav, passwordRef: _passwordRef, password: _password, username: _username, url: _url, ...rest } = parsed;
+    return JSON.stringify(rest, null, 2);
+  } catch {
+    return "{}";
+  }
 }
 
 export function mergeSnapshots(local: DataSnapshot, remote: DataSnapshot, conflicts: string[]): DataSnapshot {
@@ -148,7 +159,6 @@ function mergeSettings(local: SettingsDoc, remote: SettingsDoc, conflicts: strin
   const winner = newer(local, remote, "settings", conflicts);
   return {
     ...winner,
-    webdav: { ...winner.webdav, passwordRef: local.webdav.passwordRef },
     lastSyncAt: local.lastSyncAt,
   };
 }
@@ -173,18 +183,20 @@ export function snapshotToFiles(snapshot: DataSnapshot): Record<string, unknown>
   return {
     [MANIFEST_PATH]: snapshot.manifest,
     "profile.json": snapshot.profile,
-    "settings.json": {
-      ...snapshot.settings,
-      lastSyncAt: null,
-      webdav: { ...snapshot.settings.webdav, passwordRef: null },
-    },
+    "settings.json": remoteSettingsFile(snapshot.settings),
     "exercises.json": snapshot.exercises,
     "templates.json": {
       plans: snapshot.plans,
       templates: snapshot.templates,
     },
+    ...snapshot.resources,
     ...workoutMonthFiles(snapshot),
   };
+}
+
+function remoteSettingsFile(settings: SettingsDoc): SettingsDoc {
+  const { webdav: _webdav, passwordRef: _passwordRef, password: _password, username: _username, url: _url, ...rest } = settings as SettingsDoc & Record<string, unknown>;
+  return { ...rest, lastSyncAt: null } as SettingsDoc;
 }
 
 function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> {
@@ -200,6 +212,8 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
     plans: templateFile?.plans as Partial<DataSnapshot>["plans"],
     templates: templateFile?.templates as Partial<DataSnapshot>["templates"],
     workouts: workouts as Partial<DataSnapshot>["workouts"],
+    resources: Object.fromEntries(Object.entries(files)
+      .filter(([path, value]) => isResourceShardPath(path) && typeof value === "string")) as Partial<DataSnapshot>["resources"],
   };
 }
 
@@ -217,7 +231,7 @@ function shardPathsFromManifest(manifest: Pick<IronLogManifest, "shards">): stri
   const staticPaths = new Set<string>(STATIC_SHARD_PATHS);
   const paths = manifest.shards
     .map((shard) => shard.path)
-    .filter((path) => staticPaths.has(path) || isWorkoutShardPath(path));
+    .filter((path) => staticPaths.has(path) || isWorkoutShardPath(path) || isResourceShardPath(path));
   return [...new Set(paths)].sort();
 }
 

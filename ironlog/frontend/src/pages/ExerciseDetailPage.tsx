@@ -9,15 +9,14 @@ import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { CATEGORY_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
+import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
-  strength: "力量",
-  cardio: "有氧",
-  reps_only: "徒手次数",
-  static_hold: "静态保持",
+  strength: "负重训练",
+  cardio: "心肺训练",
+  reps_only: "自重训练",
+  static_hold: "静力训练",
 };
-
-const MUSCLE_GROUP_OPTIONS = Object.entries(MUSCLE_GROUP_LABELS) as Array<[MuscleGroupId, string]>;
 
 export default function ExerciseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -292,6 +291,23 @@ function ExerciseEditor(props: {
   onClose: () => void;
   onSave: () => void;
 }) {
+  const value: CustomExerciseFormValue = {
+    name: props.name,
+    category: props.category,
+    type: props.type,
+    description: props.description,
+    primary_muscle_group_ids: props.primary,
+    secondary_muscle_group_ids: props.secondary,
+  };
+  function onChange(next: CustomExerciseFormValue) {
+    props.onName(next.name);
+    props.onCategory(next.category);
+    props.onType(next.type);
+    props.onDescription(next.description);
+    props.onPrimary(next.primary_muscle_group_ids);
+    props.onSecondary(next.secondary_muscle_group_ids);
+  }
+
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center">
       <button className="absolute inset-0 bg-black/50" onClick={props.onClose} aria-label="关闭编辑动作" />
@@ -302,64 +318,7 @@ function ExerciseEditor(props: {
             <X size={18} />
           </button>
         </div>
-        <input value={props.name} onChange={(event) => props.onName(event.target.value)} className="w-full h-11 border border-slate-200 rounded-xl px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" />
-        <input value={props.category} onChange={(event) => props.onCategory(event.target.value)} className="w-full h-11 border border-slate-200 rounded-xl px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" />
-        <select value={props.type} onChange={(event) => props.onType(event.target.value as Exercise["type"])} className="w-full h-11 border border-slate-200 rounded-xl px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400">
-          <option value="strength">力量</option>
-          <option value="cardio">有氧</option>
-          <option value="reps_only">徒手次数</option>
-          <option value="static_hold">静态保持</option>
-        </select>
-        <textarea value={props.description} onChange={(event) => props.onDescription(event.target.value)} rows={4} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" placeholder="动作要领" />
-        <MusclePicker title="主目标肌群" selected={props.primary} disabled={props.secondary} max={3} onChange={props.onPrimary} />
-        <MusclePicker title="次要目标肌群" selected={props.secondary} disabled={props.primary} max={6} onChange={props.onSecondary} />
-        <button onClick={props.onSave} className="w-full h-11 bg-emerald-500 text-white rounded-xl font-semibold text-sm">保存</button>
-      </div>
-    </div>
-  );
-}
-
-function MusclePicker({ title, selected, disabled, max, onChange }: {
-  title: string;
-  selected: MuscleGroupId[];
-  disabled: MuscleGroupId[];
-  max: number;
-  onChange: (value: MuscleGroupId[]) => void;
-}) {
-  function toggle(id: MuscleGroupId) {
-    if (disabled.includes(id)) return;
-    if (selected.includes(id)) {
-      onChange(selected.filter((item) => item !== id));
-      return;
-    }
-    if (selected.length >= max) return;
-    onChange([...selected, id]);
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold text-slate-500">{title}</p>
-      <div className="flex flex-wrap gap-2">
-        {MUSCLE_GROUP_OPTIONS.map(([id, label]) => {
-          const active = selected.includes(id);
-          const blocked = disabled.includes(id);
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => toggle(id)}
-              className={`px-2.5 py-1.5 rounded-full border text-xs font-medium ${
-                active
-                  ? "bg-emerald-500 border-emerald-500 text-white"
-                  : blocked
-                    ? "bg-slate-50 border-slate-100 text-slate-300"
-                    : "bg-white border-slate-200 text-slate-600"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+        <CustomExerciseForm value={value} onChange={onChange} onSubmit={props.onSave} submitLabel="保存" />
       </div>
     </div>
   );

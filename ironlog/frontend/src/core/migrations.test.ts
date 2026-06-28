@@ -106,7 +106,7 @@ describe("local-first schema migration", () => {
 
   it("incrementally adds missing built-ins to a non-empty exercise file without replacing custom records", () => {
     const custom = {
-      id: "custom-ex-kept", name: "我的动作", category: "core", type: "reps_only" as const, description: null, metValue: null,
+      id: "custom-ex-kept", name: "我的动作", category: "core", type: "reps_only" as const, description: null,
       primaryMuscleGroupIds: ["core" as const], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: null, createdAt: "2026-02-01T00:00:00.000Z", updatedAt: "2026-02-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1,
     };
     const snapshot = migrateSnapshot({ exercises: [custom] }, "device-test");

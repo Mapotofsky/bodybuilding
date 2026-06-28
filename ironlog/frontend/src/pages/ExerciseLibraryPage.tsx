@@ -5,12 +5,13 @@ import { createExercise, deleteExercise, getExercises } from "@/services/exercis
 import { CATEGORY_LABELS, type Exercise } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
+import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
-  strength: "力量",
-  cardio: "有氧",
-  reps_only: "徒手次数",
-  static_hold: "静态保持",
+  strength: "负重训练",
+  cardio: "心肺训练",
+  reps_only: "自重训练",
+  static_hold: "静力训练",
 };
 
 const FILTER_STORAGE_KEY = "ironlog.exerciseLibraryQuery";
@@ -27,10 +28,7 @@ export default function ExerciseLibraryPage() {
   const [deleteTarget, setDeleteTarget] = useState<Exercise | null>(null);
   const [replacement, setReplacement] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newCategory, setNewCategory] = useState("core");
-  const [newType, setNewType] = useState<Exercise["type"]>("strength");
-  const [newDescription, setNewDescription] = useState("");
+  const [createForm, setCreateForm] = useState<CustomExerciseFormValue>(EMPTY_CUSTOM_EXERCISE_FORM);
   const confirm = useConfirmStore((state) => state.show);
   const toast = useToastStore((state) => state.add);
 
@@ -110,10 +108,7 @@ export default function ExerciseLibraryPage() {
   async function createCustomExercise() {
     try {
       const created = await createExercise({
-        name: newName,
-        category: newCategory,
-        type: newType,
-        description: newDescription,
+        ...createForm,
       });
       setAllExercises((items) => [...items, created]);
       setExercises((items) => {
@@ -122,10 +117,7 @@ export default function ExerciseLibraryPage() {
         return nameMatches && categoryMatches ? [...items, created] : items;
       });
       setShowCreate(false);
-      setNewName("");
-      setNewCategory("core");
-      setNewType("strength");
-      setNewDescription("");
+      setCreateForm(EMPTY_CUSTOM_EXERCISE_FORM);
       toast("自定义动作已创建", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "创建失败", "error");
@@ -240,18 +232,13 @@ export default function ExerciseLibraryPage() {
                 <X size={18} />
               </button>
             </div>
-            <input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="动作名称" className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" />
-            <input value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="分类" className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" />
-            <select value={newType} onChange={(event) => setNewType(event.target.value as Exercise["type"])} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400">
-              <option value="strength">力量</option>
-              <option value="cardio">有氧</option>
-              <option value="reps_only">徒手次数</option>
-              <option value="static_hold">静态保持</option>
-            </select>
-            <textarea value={newDescription} onChange={(event) => setNewDescription(event.target.value)} placeholder="动作要领（可选）" rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" />
-            <button onClick={createCustomExercise} className="w-full h-11 rounded-xl bg-emerald-500 text-white text-sm font-semibold">
-              保存
-            </button>
+            <CustomExerciseForm
+              value={createForm}
+              onChange={setCreateForm}
+              onSubmit={createCustomExercise}
+              submitLabel="保存"
+              compact={false}
+            />
           </div>
         </div>
       )}

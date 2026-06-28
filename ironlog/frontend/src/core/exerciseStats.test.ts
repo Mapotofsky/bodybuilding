@@ -14,7 +14,6 @@ describe("exercise personal stats", () => {
       description: null,
       primaryMuscleGroupIds: [],
       secondaryMuscleGroupIds: [],
-      metValue: null,
       isCustom: true,
       replacedByExerciseId: "ex-plank",
       createdAt: "2026-06-20T00:00:00.000Z",

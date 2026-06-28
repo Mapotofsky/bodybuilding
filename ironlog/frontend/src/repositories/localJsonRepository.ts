@@ -4,6 +4,7 @@ import type {
   ExerciseDoc,
   ProfileDoc,
   SettingsDoc,
+  SyncEndpointConfig,
   TemplateDoc,
   TrainingPlanDoc,
   WorkoutDoc,
@@ -50,7 +51,7 @@ export class LocalJsonRepository {
     return snapshot.exercises.find((e) => e.id === id && !e.deletedAt) || null;
   }
 
-  async create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & Partial<Pick<ExerciseDoc, "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> & { metValue?: number | null }): Promise<ExerciseDoc> {
+  async create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & Partial<Pick<ExerciseDoc, "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise: ExerciseDoc = withDoc({
         name: body.name,
@@ -59,7 +60,6 @@ export class LocalJsonRepository {
         description: body.description || null,
         primaryMuscleGroupIds: body.primaryMuscleGroupIds ?? [],
         secondaryMuscleGroupIds: body.secondaryMuscleGroupIds ?? [],
-        metValue: body.metValue ?? null,
         isCustom: true,
         replacedByExerciseId: null,
       }, makeCustomExerciseId());
@@ -68,7 +68,7 @@ export class LocalJsonRepository {
     });
   }
 
-  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds" | "metValue">>): Promise<ExerciseDoc> {
+  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
       if (!exercise) throw new Error("动作不存在");
@@ -267,6 +267,43 @@ export class LocalJsonRepository {
     });
   }
 
+  async getSyncEndpoint(): Promise<SyncEndpointConfig> {
+    return (await this.storePromise).readSyncEndpoint();
+  }
+
+  async updateSyncEndpoint(config: SyncEndpointConfig): Promise<SyncEndpointConfig> {
+    const next = {
+      url: config.url.trim(),
+      username: config.username.trim(),
+      passwordRef: config.passwordRef,
+    };
+    await (await this.storePromise).writeSyncEndpoint(next);
+    return next;
+  }
+
+  async clearSyncEndpoint(): Promise<void> {
+    await (await this.storePromise).clearSyncEndpoint();
+  }
+
+  async readResource(path: string): Promise<string | null> {
+    const snapshot = await this.getSnapshot();
+    return snapshot.resources[path] ?? null;
+  }
+
+  async writeResource(path: string, value: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      snapshot.resources[path] = value;
+      return undefined;
+    });
+  }
+
+  async removeResource(path: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      delete snapshot.resources[path];
+      return undefined;
+    });
+  }
+
   async readSecret(key: string): Promise<string | null> {
     return (await this.storePromise).readSecret(key);
   }
@@ -341,10 +378,7 @@ function withoutUndefined<T extends Record<string, unknown>>(value: T): Partial<
 
 function sameSettings(left: SettingsDoc, right: SettingsDoc): boolean {
   return left.weightUnit === right.weightUnit
-    && left.lastSyncAt === right.lastSyncAt
-    && left.webdav.url === right.webdav.url
-    && left.webdav.username === right.webdav.username
-    && left.webdav.passwordRef === right.webdav.passwordRef;
+    && left.lastSyncAt === right.lastSyncAt;
 }
 
 function localDeviceId(): string {

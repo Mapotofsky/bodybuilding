@@ -30,11 +30,10 @@ export interface ProfileDoc extends BaseDoc {
 
 export interface SettingsDoc extends BaseDoc {
   weightUnit: WeightUnit;
-  webdav: WebDavSettings;
   lastSyncAt: ISODateTime | null;
 }
 
-export interface WebDavSettings {
+export interface SyncEndpointConfig {
   url: string;
   username: string;
   passwordRef: string | null;
@@ -47,7 +46,6 @@ export interface ExerciseDoc extends BaseDoc {
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
   secondaryMuscleGroupIds: MuscleGroupId[];
-  metValue: number | null;
   isCustom: boolean;
   /** Directed replacement used to resolve historical references after a custom exercise is deleted. */
   replacedByExerciseId: DocId | null;
@@ -134,4 +132,5 @@ export interface DataSnapshot {
   plans: TrainingPlanDoc[];
   templates: TemplateDoc[];
   workouts: WorkoutDoc[];
+  resources: Record<string, string>;
 }

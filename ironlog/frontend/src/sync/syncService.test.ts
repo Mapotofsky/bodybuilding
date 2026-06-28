@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeEmptySnapshot } from "@/core/migrations";
-import type { DataSnapshot } from "@/core/models";
+import type { DataSnapshot, SyncEndpointConfig } from "@/core/models";
 import type { DocumentStore } from "@/platform/documentStore";
 import { LocalJsonRepository } from "@/repositories/localJsonRepository";
 import { mergeSnapshots, snapshotToFiles } from "./syncService";
@@ -24,7 +24,6 @@ describe("settings WebDAV sync", () => {
     const initial = makeEmptySnapshot("device-test");
     initial.settings = {
       ...initial.settings,
-      webdav: { url: "https://dav.example.test", username: "athlete", passwordRef: "local-secret" },
       updatedAt: FIRST_SYNC_AT,
     };
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(initial)));
@@ -33,7 +32,6 @@ describe("settings WebDAV sync", () => {
     await repository.updateLastSyncAt(SECOND_SYNC_AT);
     await repository.updateSettings({
       weightUnit: firstUploaded.settings.weightUnit,
-      webdav: firstUploaded.settings.webdav,
     });
     const localForSecondSync = await repository.getSnapshot();
     const conflicts: string[] = [];
@@ -46,7 +44,8 @@ describe("settings WebDAV sync", () => {
     expect(merged.settings.weightUnit).toBe(firstUploaded.settings.weightUnit);
     expect(conflicts).not.toContain("settings 使用 last-write-wins 合并");
     expect(settingsFile.lastSyncAt).toBeNull();
-    expect(settingsFile.webdav.passwordRef).toBeNull();
+    expect(settingsFile).not.toHaveProperty("webdav");
+    expect(settingsFile).not.toHaveProperty("passwordRef");
   });
 
   it("keeps last-write-wins and records a conflict for real user settings changes", () => {
@@ -54,7 +53,6 @@ describe("settings WebDAV sync", () => {
     local.settings = {
       ...local.settings,
       weightUnit: "kg",
-      webdav: { url: "https://local.example.test", username: "local-user", passwordRef: "local-secret" },
       lastSyncAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
     };
@@ -62,7 +60,6 @@ describe("settings WebDAV sync", () => {
     remote.settings = {
       ...remote.settings,
       weightUnit: "lb",
-      webdav: { url: "https://remote.example.test", username: "remote-user", passwordRef: null },
       lastSyncAt: null,
       updatedAt: SECOND_SYNC_AT,
     };
@@ -72,11 +69,7 @@ describe("settings WebDAV sync", () => {
 
     expect(conflicts).toContain("settings 使用 last-write-wins 合并");
     expect(merged.settings.weightUnit).toBe("lb");
-    expect(merged.settings.webdav).toEqual({
-      url: "https://remote.example.test",
-      username: "remote-user",
-      passwordRef: "local-secret",
-    });
+    expect(merged.settings).not.toHaveProperty("webdav");
     expect(merged.settings.lastSyncAt).toBe(FIRST_SYNC_AT);
   });
 
@@ -92,9 +85,28 @@ describe("settings WebDAV sync", () => {
     expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseType: "cardio" });
   });
 
+  it("does not serialize local-only endpoint config into remote files", () => {
+    const snapshot = makeEmptySnapshot("device-test") as DataSnapshot & { settings: DataSnapshot["settings"] & { webdav?: unknown; passwordRef?: string; username?: string; url?: string } };
+    snapshot.settings.webdav = { url: "https://dav.example.test", username: "athlete", passwordRef: "secret-1" };
+    snapshot.settings.passwordRef = "secret-1";
+    snapshot.settings.username = "athlete";
+    snapshot.settings.url = "https://dav.example.test";
+    snapshot.resources["assets/avatar/profile-local.txt"] = "data:image/png;base64,AAA";
+    snapshot.profile.avatarUrl = "assets/avatar/profile-local.txt";
+
+    const files = snapshotToFiles(snapshot);
+    const settingsFile = files["settings.json"] as Record<string, unknown>;
+
+    expect(settingsFile).not.toHaveProperty("webdav");
+    expect(settingsFile).not.toHaveProperty("passwordRef");
+    expect(settingsFile).not.toHaveProperty("username");
+    expect(settingsFile).not.toHaveProperty("url");
+    expect(files["assets/avatar/profile-local.txt"]).toBe("data:image/png;base64,AAA");
+  });
+
   it("serializes deleted exercise redirects without changing workout historical IDs or type snapshots", () => {
     const snapshot = makeEmptySnapshot("device-test");
-    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", type: "reps_only", description: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [], metValue: null, isCustom: true, replacedByExerciseId: "ex-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: 1 });
+    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", type: "reps_only", description: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: "ex-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: 1 });
     snapshot.workouts = [{ id: "history-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [{ id: "history-exercise", exerciseId: "custom-ex-old", exerciseType: "reps_only", sortOrder: 0, supersetGroup: null, sets: [] }], createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: null, schemaVersion: 1 }];
     const files = snapshotToFiles(snapshot);
     expect((files["exercises.json"] as DataSnapshot["exercises"]).find((exercise) => exercise.id === "custom-ex-old")).toMatchObject({ deletedAt: SECOND_SYNC_AT, replacedByExerciseId: "ex-plank", primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [] });
@@ -104,6 +116,7 @@ describe("settings WebDAV sync", () => {
 
 function memoryStore(initial: DataSnapshot): DocumentStore {
   let snapshot = clone(initial);
+  let endpoint: SyncEndpointConfig = { url: "", username: "", passwordRef: null };
   return {
     load: async () => clone(snapshot),
     save: async (next) => {
@@ -112,6 +125,13 @@ function memoryStore(initial: DataSnapshot): DocumentStore {
     readSecret: async () => null,
     writeSecret: async () => undefined,
     removeSecret: async () => undefined,
+    readSyncEndpoint: async () => endpoint,
+    writeSyncEndpoint: async (config) => {
+      endpoint = config;
+    },
+    clearSyncEndpoint: async () => {
+      endpoint = { url: "", username: "", passwordRef: null };
+    },
     exportFiles: () => ({}),
     importFiles: () => ({}),
   };

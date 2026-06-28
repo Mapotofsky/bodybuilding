@@ -22,5 +22,5 @@ describe("exercise replacement resolution", () => {
 });
 
 function custom(id: string, replacedByExerciseId: string | null) {
-  return { id, name: id, category: "core", type: "reps_only" as const, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], metValue: null, isCustom: true, replacedByExerciseId, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "2026-01-02T00:00:00.000Z", schemaVersion: 1 };
+  return { id, name: id, category: "core", type: "reps_only" as const, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "2026-01-02T00:00:00.000Z", schemaVersion: 1 };
 }

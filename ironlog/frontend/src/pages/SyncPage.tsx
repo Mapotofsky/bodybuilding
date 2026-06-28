@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
-import { localRepository } from "@/repositories/localJsonRepository";
-import { makePasswordKey } from "@/platform/documentStore";
+import { ArrowLeft, CheckCircle2, RefreshCw, Trash2, XCircle } from "lucide-react";
 import { syncNow, testWebDavConnection, type SyncStatus } from "@/sync/syncService";
 import { useToastStore } from "@/components/Toast";
+import { useConfirmStore } from "@/components/ConfirmDialog";
+import { clearSyncEndpoint, getSyncEndpoint, saveSyncEndpoint } from "@/services/syncSettings";
+import { getSettings } from "@/services/settings";
 
 export default function SyncPage() {
   const navigate = useNavigate();
@@ -17,30 +18,55 @@ export default function SyncPage() {
   const [message, setMessage] = useState("未配置");
   const [busy, setBusy] = useState(false);
   const [conflicts, setConflicts] = useState<string[]>([]);
+  const confirm = useConfirmStore((state) => state.show);
 
   useEffect(() => {
-    localRepository.getSettings().then((settings) => {
-      setUrl(settings.webdav.url);
-      setUsername(settings.webdav.username);
-      setPasswordRef(settings.webdav.passwordRef);
-      setLastSyncAt(settings.lastSyncAt);
-      const configured = Boolean(settings.webdav.url && settings.webdav.username && settings.webdav.passwordRef);
+    Promise.all([getSyncEndpoint(), getSettings()]).then(([endpoint, settings]) => {
+      setUrl(endpoint.url);
+      setUsername(endpoint.username);
+      setPasswordRef(endpoint.password_ref);
+      setLastSyncAt(settings.last_sync_at);
+      const configured = Boolean(endpoint.url && endpoint.username && endpoint.password_ref);
       setStatus(configured ? "success" : "unconfigured");
       setMessage(configured ? "已配置" : "未配置");
     });
   }, []);
 
   async function saveSettings() {
-    const nextPasswordRef = password ? (passwordRef || makePasswordKey()) : passwordRef;
-    if (password && nextPasswordRef) await localRepository.writeSecret(nextPasswordRef, password);
-    await localRepository.updateSettings({
-      webdav: { url: url.trim(), username: username.trim(), passwordRef: nextPasswordRef },
+    const endpoint = await saveSyncEndpoint({
+      url,
+      username,
+      password,
+      password_ref: passwordRef,
     });
     setPassword("");
-    setPasswordRef(nextPasswordRef);
-    setStatus(url && username && nextPasswordRef ? "success" : "unconfigured");
-    setMessage(url && username && nextPasswordRef ? "已配置" : "未配置");
+    setPasswordRef(endpoint.password_ref);
+    setUrl(endpoint.url);
+    setUsername(endpoint.username);
+    const configured = Boolean(endpoint.url && endpoint.username && endpoint.password_ref);
+    setStatus(configured ? "success" : "unconfigured");
+    setMessage(configured ? "已配置" : "未配置");
     useToastStore.getState().add("同步设置已保存", "success");
+  }
+
+  async function handleClear() {
+    const ok = await confirm("清除同步配置", "只会清除本机 WebDAV URL、用户名和密码引用，不会删除训练、动作、模板、资料或头像。");
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await clearSyncEndpoint();
+      setUrl("");
+      setUsername("");
+      setPassword("");
+      setPasswordRef(null);
+      setStatus("unconfigured");
+      setMessage("未配置");
+      useToastStore.getState().add("同步配置已清除", "success");
+    } catch (err) {
+      useToastStore.getState().add(err instanceof Error ? err.message : "清除失败", "error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleTest() {
@@ -110,6 +136,10 @@ export default function SyncPage() {
           </div>
           <button onClick={saveSettings} disabled={busy} className="w-full py-3 bg-emerald-500 text-white rounded-2xl font-semibold disabled:opacity-50">
             保存设置
+          </button>
+          <button onClick={handleClear} disabled={busy || (!url && !username && !passwordRef)} className="w-full py-3 bg-white border border-red-100 text-red-600 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+            <Trash2 size={16} />
+            清除同步配置
           </button>
         </div>
 

@@ -60,7 +60,7 @@ describe("workout aggregate persistence", () => {
   it("creates custom IDs, keeps them stable on edit, and atomically migrates active template references", async () => {
     const initial = makeEmptySnapshot("device-test");
     initial.templates.push({ id: "template-1", planId: "plan-1", name: "模板", sortOrder: 0, color: null, scheduleRule: null, exercises: [{ id: "te-1", exerciseId: "custom-ex-source", sortOrder: 0, note: null }], createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1 });
-    initial.exercises.push({ id: "custom-ex-source", name: "源动作", category: "core", type: "reps_only", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], metValue: null, isCustom: true, replacedByExerciseId: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1 });
+    initial.exercises.push({ id: "custom-ex-source", name: "源动作", category: "core", type: "reps_only", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: null, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 1 });
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(initial)));
     const created = await repository.create({ name: "新动作", category: "core", type: "strength", description: null });
     expect(created.id).toMatch(/^custom-ex-/);
@@ -95,6 +95,41 @@ describe("workout aggregate persistence", () => {
 
     expect(edited.description).toBe("保留这段说明");
   });
+
+  it("stores and clears WebDAV endpoint config outside the snapshot", async () => {
+    const store = memoryStore(makeEmptySnapshot("device-test"));
+    const repository = new LocalJsonRepository(Promise.resolve(store));
+
+    await repository.writeSecret("secret-1", "pass");
+    await repository.updateSyncEndpoint({ url: " https://dav.example.test ", username: " athlete ", passwordRef: "secret-1" });
+
+    expect(await repository.getSyncEndpoint()).toEqual({ url: "https://dav.example.test", username: "athlete", passwordRef: "secret-1" });
+    expect(await repository.readSecret("secret-1")).toBe("pass");
+    expect((await repository.getSnapshot()).settings).not.toHaveProperty("webdav");
+
+    await repository.removeSecret("secret-1");
+    await repository.clearSyncEndpoint();
+
+    expect(await repository.getSyncEndpoint()).toEqual({ url: "", username: "", passwordRef: null });
+    expect(await repository.readSecret("secret-1")).toBeNull();
+  });
+
+  it("saves and removes avatar resources without clearing profile fields", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    await repository.updateProfile({ nickname: "保留昵称" });
+    await repository.writeResource("assets/avatar/profile-local.txt", "data:image/png;base64,AAA");
+    await repository.updateProfile({ avatarUrl: "assets/avatar/profile-local.txt" });
+
+    expect(await repository.readResource("assets/avatar/profile-local.txt")).toBe("data:image/png;base64,AAA");
+    expect((await repository.getProfile()).nickname).toBe("保留昵称");
+    expect((await repository.getSnapshot()).manifest.shards.map((shard) => shard.path)).toContain("assets/avatar/profile-local.txt");
+
+    await repository.removeResource("assets/avatar/profile-local.txt");
+    await repository.updateProfile({ avatarUrl: null });
+
+    expect(await repository.readResource("assets/avatar/profile-local.txt")).toBeNull();
+    expect((await repository.getProfile()).nickname).toBe("保留昵称");
+  });
 });
 
 function set(setNumber: number) {
@@ -103,10 +138,17 @@ function set(setNumber: number) {
 
 function memoryStore(initial: DataSnapshot): DocumentStore {
   let snapshot = JSON.parse(JSON.stringify(initial)) as DataSnapshot;
+  let endpoint = { url: "", username: "", passwordRef: null as string | null };
+  const secrets = new Map<string, string>();
   return {
     load: async () => JSON.parse(JSON.stringify(snapshot)) as DataSnapshot,
     save: async (next) => { snapshot = JSON.parse(JSON.stringify(next)) as DataSnapshot; },
-    readSecret: async () => null, writeSecret: async () => undefined, removeSecret: async () => undefined,
+    readSecret: async (key) => secrets.get(key) ?? null,
+    writeSecret: async (key, value) => { secrets.set(key, value); },
+    removeSecret: async (key) => { secrets.delete(key); },
+    readSyncEndpoint: async () => endpoint,
+    writeSyncEndpoint: async (config) => { endpoint = config; },
+    clearSyncEndpoint: async () => { endpoint = { url: "", username: "", passwordRef: null }; },
     exportFiles: () => ({}), importFiles: () => ({}),
   };
 }

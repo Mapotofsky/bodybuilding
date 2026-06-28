@@ -4,6 +4,7 @@ import { createExercise } from "@/services/exercise";
 import type { Exercise } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import { useToastStore } from "@/components/Toast";
+import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 
 export interface ExercisePickerProps {
   exercises: Exercise[];
@@ -28,9 +29,7 @@ export default function ExercisePicker({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [name, setName] = useState("");
-  const [createCategory, setCreateCategory] = useState("core");
-  const [type, setType] = useState<Exercise["type"]>("strength");
+  const [createForm, setCreateForm] = useState<CustomExerciseFormValue>(EMPTY_CUSTOM_EXERCISE_FORM);
 
   const filtered = useMemo(() => exercises.filter((exercise) => (
     (!query || exercise.name.toLowerCase().includes(query.toLowerCase()))
@@ -39,12 +38,10 @@ export default function ExercisePicker({
 
   async function handleCreate() {
     try {
-      const exercise = await createExercise({ name, category: createCategory, type });
+      const exercise = await createExercise(createForm);
       await onCreated(exercise);
       onSelect(exercise);
-      setName("");
-      setCreateCategory("core");
-      setType("strength");
+      setCreateForm(EMPTY_CUSTOM_EXERCISE_FORM);
       setShowCreate(false);
       onClose?.();
       useToastStore.getState().add("已创建自定义动作", "success");
@@ -77,5 +74,5 @@ export default function ExercisePicker({
     </div>
   );
 
-  return <>{presentation === "sheet" ? <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">{picker}</div> : picker}{showCreate && <div className="fixed inset-0 z-[60] bg-black/50 flex items-end"><div className="w-full max-w-[480px] mx-auto bg-white rounded-t-3xl p-5 space-y-4"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900">新建自定义动作</h3><button type="button" onClick={() => setShowCreate(false)} className="text-slate-500"><X size={20} /></button></div><input value={name} onChange={(event) => setName(event.target.value)} placeholder="动作名称" className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" autoFocus /><select value={createCategory} onChange={(event) => setCreateCategory(event.target.value)} className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm">{Object.entries(CATEGORY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><select value={type} onChange={(event) => setType(event.target.value as Exercise["type"])} className="w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2.5 text-sm"><option value="strength">力量</option><option value="cardio">有氧</option><option value="reps_only">徒手次数</option><option value="static_hold">静态保持</option></select><div className="grid grid-cols-2 gap-3"><button type="button" onClick={() => setShowCreate(false)} className="py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm">取消</button><button type="button" onClick={handleCreate} className="py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold">创建并使用</button></div></div></div>}</>;
+  return <>{presentation === "sheet" ? <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">{picker}</div> : picker}{showCreate && <div className="fixed inset-0 z-[60] bg-black/50 flex items-end"><div className="w-full max-w-[480px] max-h-[88dvh] overflow-y-auto mx-auto bg-white rounded-t-3xl p-5 space-y-4"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900">新建自定义动作</h3><button type="button" onClick={() => setShowCreate(false)} className="text-slate-500"><X size={20} /></button></div><CustomExerciseForm value={createForm} onChange={setCreateForm} onSubmit={handleCreate} onCancel={() => setShowCreate(false)} submitLabel="创建并使用" compact /></div></div>}</>;
 }

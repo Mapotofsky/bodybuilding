@@ -1,5 +1,5 @@
-import { workoutShardPath, workoutShardPathsFromManifest } from "@/core/migrations";
-import type { DataSnapshot, IronLogManifest, WorkoutDoc } from "@/core/models";
+import { isResourceShardPath, workoutShardPath, workoutShardPathsFromManifest } from "@/core/migrations";
+import type { DataSnapshot, IronLogManifest, SyncEndpointConfig, WorkoutDoc } from "@/core/models";
 import { makeId } from "@/core/id";
 
 export interface DocumentStore {
@@ -8,6 +8,9 @@ export interface DocumentStore {
   readSecret(key: string): Promise<string | null>;
   writeSecret(key: string, value: string): Promise<void>;
   removeSecret(key: string): Promise<void>;
+  readSyncEndpoint(): Promise<SyncEndpointConfig>;
+  writeSyncEndpoint(config: SyncEndpointConfig): Promise<void>;
+  clearSyncEndpoint(): Promise<void>;
   exportFiles(snapshot: DataSnapshot): Record<string, unknown>;
   importFiles(files: Record<string, unknown>): Partial<DataSnapshot>;
 }
@@ -16,6 +19,7 @@ const DB_NAME = "ironlog-local";
 const STORE_NAME = "documents";
 const MANIFEST_PATH = "manifest.json";
 const STATIC_FILE_PATHS = ["profile.json", "settings.json", "exercises.json", "templates.json"];
+const SYNC_ENDPOINT_KEY = "local:sync-endpoint";
 
 class IndexedDbDocumentStore implements DocumentStore {
   async load(): Promise<Partial<DataSnapshot> | null> {
@@ -25,7 +29,7 @@ class IndexedDbDocumentStore implements DocumentStore {
     const files = await this.readDocuments([
       MANIFEST_PATH,
       ...STATIC_FILE_PATHS,
-      ...workoutShardPathsFromManifest(manifest),
+      ...managedPathsFromManifest(manifest),
     ]);
     return filesToSnapshot(files);
   }
@@ -34,11 +38,11 @@ class IndexedDbDocumentStore implements DocumentStore {
     const previousManifest = await this.readDocument<IronLogManifest>(MANIFEST_PATH);
     const files = snapshotToFiles(snapshot);
     const nextPaths = new Set(Object.keys(files));
-    const staleWorkoutPaths = workoutShardPathsFromManifest(previousManifest).filter((path) => !nextPaths.has(path));
+    const stalePaths = managedPathsFromManifest(previousManifest).filter((path) => !nextPaths.has(path));
 
     await this.tx("readwrite", async (store) => {
       await Promise.all(Object.entries(files).map(([path, value]) => request(store.put(value, path))));
-      await Promise.all(staleWorkoutPaths.map((path) => request(store.delete(path))));
+      await Promise.all(stalePaths.map((path) => request(store.delete(path))));
     });
   }
 
@@ -52,6 +56,19 @@ class IndexedDbDocumentStore implements DocumentStore {
 
   async removeSecret(key: string): Promise<void> {
     await this.tx("readwrite", (store) => request(store.delete(`secret:${key}`)));
+  }
+
+  async readSyncEndpoint(): Promise<SyncEndpointConfig> {
+    const value = await this.tx("readonly", (store) => request(store.get(SYNC_ENDPOINT_KEY)));
+    return normalizeSyncEndpoint(value);
+  }
+
+  async writeSyncEndpoint(config: SyncEndpointConfig): Promise<void> {
+    await this.tx("readwrite", (store) => request(store.put(normalizeSyncEndpoint(config), SYNC_ENDPOINT_KEY)));
+  }
+
+  async clearSyncEndpoint(): Promise<void> {
+    await this.tx("readwrite", (store) => request(store.delete(SYNC_ENDPOINT_KEY)));
   }
 
   exportFiles(snapshot: DataSnapshot): Record<string, unknown> {
@@ -102,7 +119,7 @@ class CapacitorDocumentStore implements DocumentStore {
     if (!manifest) return null;
 
     const files: Record<string, unknown> = { [MANIFEST_PATH]: manifest };
-    for (const path of [...STATIC_FILE_PATHS, ...workoutShardPathsFromManifest(manifest)]) {
+    for (const path of [...STATIC_FILE_PATHS, ...managedPathsFromManifest(manifest)]) {
       const value = await this.readJson(path);
       if (value != null) files[path] = value;
     }
@@ -113,14 +130,15 @@ class CapacitorDocumentStore implements DocumentStore {
     const previousManifest = await this.readJson(MANIFEST_PATH) as IronLogManifest | null;
     const files = snapshotToFiles(snapshot);
     const nextPaths = new Set(Object.keys(files));
-    const staleWorkoutPaths = workoutShardPathsFromManifest(previousManifest).filter((path) => !nextPaths.has(path));
+    const stalePaths = managedPathsFromManifest(previousManifest).filter((path) => !nextPaths.has(path));
     await this.ensureDir(this.baseDir);
     await this.ensureDir(`${this.baseDir}/workouts`);
+    await this.ensureDir(`${this.baseDir}/assets/avatar`);
     for (const [path, value] of Object.entries(files).filter(([path]) => path !== MANIFEST_PATH)) {
       await this.writeJson(path, value);
     }
     await this.writeJson(MANIFEST_PATH, files[MANIFEST_PATH]);
-    for (const path of staleWorkoutPaths) {
+    for (const path of stalePaths) {
       await this.deleteJson(path);
     }
   }
@@ -139,6 +157,22 @@ class CapacitorDocumentStore implements DocumentStore {
   async removeSecret(key: string): Promise<void> {
     const { Preferences } = await import("@capacitor/preferences");
     await Preferences.remove({ key: `ironlog.secret.${key}` });
+  }
+
+  async readSyncEndpoint(): Promise<SyncEndpointConfig> {
+    const { Preferences } = await import("@capacitor/preferences");
+    const result = await Preferences.get({ key: "ironlog.syncEndpoint" });
+    return normalizeSyncEndpoint(result.value ? JSON.parse(result.value) : null);
+  }
+
+  async writeSyncEndpoint(config: SyncEndpointConfig): Promise<void> {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key: "ironlog.syncEndpoint", value: JSON.stringify(normalizeSyncEndpoint(config)) });
+  }
+
+  async clearSyncEndpoint(): Promise<void> {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.remove({ key: "ironlog.syncEndpoint" });
   }
 
   exportFiles(snapshot: DataSnapshot): Record<string, unknown> {
@@ -224,6 +258,7 @@ export function snapshotToFiles(snapshot: DataSnapshot): Record<string, unknown>
       plans: snapshot.plans,
       templates: snapshot.templates,
     },
+    ...snapshot.resources,
     ...workoutMonthFiles(snapshot),
   };
 }
@@ -251,5 +286,26 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
     plans: templateFile?.plans as Partial<DataSnapshot>["plans"],
     templates: templateFile?.templates as Partial<DataSnapshot>["templates"],
     workouts: monthWorkouts as Partial<DataSnapshot>["workouts"],
+    resources: Object.fromEntries(Object.entries(files)
+      .filter(([path, value]) => isResourceShardPath(path) && typeof value === "string")) as Partial<DataSnapshot>["resources"],
+  };
+}
+
+function managedPathsFromManifest(manifest: Pick<IronLogManifest, "shards"> | null | undefined): string[] {
+  return [...new Set((manifest?.shards || [])
+    .map((shard) => shard.path)
+    .filter((path) => workoutShardPathsFromManifest(manifest).includes(path) || isResourceShardPath(path)))]
+    .sort();
+}
+
+function normalizeSyncEndpoint(value: unknown): SyncEndpointConfig {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { url: "", username: "", passwordRef: null };
+  }
+  const raw = value as Partial<SyncEndpointConfig>;
+  return {
+    url: typeof raw.url === "string" ? raw.url : "",
+    username: typeof raw.username === "string" ? raw.username : "",
+    passwordRef: typeof raw.passwordRef === "string" ? raw.passwordRef : null,
   };
 }
