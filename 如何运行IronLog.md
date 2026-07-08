@@ -32,6 +32,14 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 - 默认动作库。
 - schemaVersion 为 1 的 manifest。
 
+### 2.1 开发期数据重置
+
+当前项目仍处于开发期。遇到数据模型直接替换时，例如 P6 将旧 `ProfileDoc.height` / `ProfileDoc.weight` 身体数据模型替换为 `BodyMetricDoc`，不为旧测试数据编写迁移或兼容读取逻辑。人类开发者在切换到新模型后应先清空旧测试数据，再重新创建本地数据。
+
+- Web 开发：在浏览器开发者工具中进入 `Application -> Storage`，对当前 `localhost` 站点执行 `Clear site data`，清除 IndexedDB 后刷新页面。
+- Android Studio 模拟器：卸载 IronLog，或在系统设置中进入 `Apps -> IronLog -> Storage -> Clear storage` 清除应用数据；也可在设备已连接时执行 `adb shell pm clear app.ironlog.local`。
+- 如果旧测试数据已经同步到测试用 WebDAV 目录，清空本地数据前应确认不会被旧远端分片再次同步回来；开发测试建议使用独立 WebDAV 测试目录。
+
 ## 3. 日常验证命令
 
 在提交或修改核心逻辑前执行：
