@@ -22,6 +22,38 @@
   --color-chart-1: #10b981;
   --color-chart-2: #14b8a6;
   --color-chart-3: #f59e0b;
+  --color-chart-4: #ef4444;
+  --color-chart-5: #6366f1;
+  --category-chest-bg: #ffe4e6;
+  --category-chest-text: #be123c;
+  --category-chest-border: #fecdd3;
+  --category-back-bg: #dcfce7;
+  --category-back-text: #166534;
+  --category-back-border: #bbf7d0;
+  --category-legs-bg: #fef3c7;
+  --category-legs-text: #92400e;
+  --category-legs-border: #fde68a;
+  --category-shoulders-bg: #ede9fe;
+  --category-shoulders-text: #5b21b6;
+  --category-shoulders-border: #ddd6fe;
+  --category-arms-bg: #ffedd5;
+  --category-arms-text: #9a3412;
+  --category-arms-border: #fed7aa;
+  --category-core-bg: #ccfbf1;
+  --category-core-text: #0f766e;
+  --category-core-border: #99f6e4;
+  --category-cardio-bg: #fee2e2;
+  --category-cardio-text: #b91c1c;
+  --category-cardio-border: #fecaca;
+  --category-compound-bg: #e0f2fe;
+  --category-compound-text: #075985;
+  --category-compound-border: #bae6fd;
+  --category-stretch-bg: #f3e8ff;
+  --category-stretch-text: #7e22ce;
+  --category-stretch-border: #e9d5ff;
+  --category-other-bg: var(--color-surface-2);
+  --category-other-text: var(--color-text-secondary);
+  --category-other-border: var(--color-border);
 }
 
 [data-theme="forest-parchment"] {
@@ -45,6 +77,8 @@
   --color-chart-1: #2f6b4f;
   --color-chart-2: #7a9f58;
   --color-chart-3: #b7791f;
+  --color-chart-4: #b84a4a;
+  --color-chart-5: #5c6bc0;
 }
 
 [data-theme="sunset-coral"] {
@@ -68,6 +102,8 @@
   --color-chart-1: #d95d39;
   --color-chart-2: #2e8b6b;
   --color-chart-3: #b7791f;
+  --color-chart-4: #c43d3d;
+  --color-chart-5: #6d5bd0;
 }
 
 [data-theme="violet-ink"] {
@@ -91,6 +127,8 @@
   --color-chart-1: #6d4aa2;
   --color-chart-2: #2e8b6b;
   --color-chart-3: #a86d16;
+  --color-chart-4: #b33d57;
+  --color-chart-5: #4f6bc5;
 }
 
 [data-theme="graphite-lime"] {
@@ -114,6 +152,8 @@
   --color-chart-1: #a3d94c;
   --color-chart-2: #77c66e;
   --color-chart-3: #e0b34b;
+  --color-chart-4: #f07171;
+  --color-chart-5: #8aa4ff;
 }
 
 :root,

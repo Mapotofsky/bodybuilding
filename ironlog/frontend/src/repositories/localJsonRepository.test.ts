@@ -130,6 +130,85 @@ describe("workout aggregate persistence", () => {
     expect(await repository.readResource("assets/avatar/profile-local.txt")).toBeNull();
     expect((await repository.getProfile()).nickname).toBe("保留昵称");
   });
+
+  it("persists body metrics, timeline notes, and performance records through snapshot shards", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    const metric = await repository.createBodyMetric({
+      recordedAt: "2026-06-20T08:00:00.000Z",
+      heightCm: 180,
+      weightKg: null,
+      bodyFatPercent: null,
+      measurementsCm: {
+        neck: null, shoulder: null, chest: null, waist: null, hip: null,
+        upperArmLeft: null, upperArmRight: null, forearmLeft: null, forearmRight: null,
+        thighLeft: null, thighRight: null, calfLeft: null, calfRight: null,
+      },
+      note: null,
+    });
+    const note = await repository.createTimelineNote({
+      content: "换了训练环境",
+      rangeType: "single_day",
+      startDate: "2026-06-20",
+      endDate: "2026-06-20",
+      workoutId: null,
+    });
+    await repository.replaceExercisePerformanceRecords({ all: true }, [{
+      id: "performance:strength.max_weight:workout-1:workout-exercise-1:set-1:true_pr",
+      exerciseId: "ex-bench-press",
+      kind: "true_pr",
+      metricType: "strength.max_weight",
+      value: 100,
+      unit: "kg",
+      achievedAt: "2026-06-20T10:00:00.000Z",
+      sourceWorkoutId: "workout-1",
+      sourceWorkoutExerciseId: "workout-exercise-1",
+      sourceSetId: "set-1",
+      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      rm: null,
+      createdAt: "2026-06-20T10:00:00.000Z",
+      updatedAt: "2026-06-20T10:00:00.000Z",
+      deletedAt: null,
+      schemaVersion: 2,
+    }]);
+
+    const snapshot = await repository.getSnapshot();
+
+    expect(snapshot.bodyMetrics).toContainEqual(metric);
+    expect(snapshot.timelineNotes).toContainEqual(note);
+    expect(snapshot.exercisePerformanceRecords).toHaveLength(1);
+    expect(snapshot.manifest.shards.map((shard) => shard.path)).toEqual(expect.arrayContaining([
+      "body-metrics.json",
+      "timeline-notes.json",
+      "exercise-performance/2026-06.json",
+    ]));
+  });
+
+  it("tombstones stale performance records when a scoped replacement no longer emits them", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    await repository.replaceExercisePerformanceRecords({ all: true }, [{
+      id: "performance-1",
+      exerciseId: "ex-bench-press",
+      kind: "true_pr",
+      metricType: "strength.max_weight",
+      value: 100,
+      unit: "kg",
+      achievedAt: "2026-06-20T10:00:00.000Z",
+      sourceWorkoutId: "workout-1",
+      sourceWorkoutExerciseId: "workout-exercise-1",
+      sourceSetId: "set-1",
+      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      rm: null,
+      createdAt: "2026-06-20T10:00:00.000Z",
+      updatedAt: "2026-06-20T10:00:00.000Z",
+      deletedAt: null,
+      schemaVersion: 2,
+    }]);
+
+    await repository.replaceExercisePerformanceRecords({ sourceWorkoutIds: ["workout-1"] }, []);
+
+    const records = await repository.listExercisePerformanceRecords({ includeDeleted: true });
+    expect(records[0]).toMatchObject({ id: "performance-1", deletedAt: expect.any(String) });
+  });
 });
 
 function set(setNumber: number) {

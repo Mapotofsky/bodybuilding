@@ -1,6 +1,17 @@
 import { localRepository } from "@/repositories/localJsonRepository";
-import { buildShardList, isResourceShardPath, isWorkoutShardPath, migrateSnapshot, STATIC_SHARD_PATHS, workoutShardPath, workoutShardPathsFromManifest } from "@/core/migrations";
-import type { DataSnapshot, IronLogManifest, SettingsDoc, WorkoutDoc } from "@/core/models";
+import {
+  buildShardList,
+  exercisePerformanceShardPath,
+  exercisePerformanceShardPathsFromManifest,
+  isExercisePerformanceShardPath,
+  isResourceShardPath,
+  isWorkoutShardPath,
+  migrateSnapshot,
+  STATIC_SHARD_PATHS,
+  workoutShardPath,
+  workoutShardPathsFromManifest,
+} from "@/core/migrations";
+import type { DataSnapshot, ExercisePerformanceRecordDoc, IronLogManifest, SettingsDoc, WorkoutDoc } from "@/core/models";
 import { WebDavClient } from "./webdavClient";
 
 export type SyncStatus = "unconfigured" | "syncing" | "success" | "failed" | "conflict";
@@ -105,7 +116,7 @@ export async function pushSnapshot(client: WebDavClient, snapshot: DataSnapshot)
   }
 
   const nextPaths = new Set(Object.keys(files));
-  for (const path of remotePaths.filter((path) => (isWorkoutShardPath(path) || isResourceShardPath(path)) && !nextPaths.has(path))) {
+  for (const path of remotePaths.filter((path) => (isWorkoutShardPath(path) || isExercisePerformanceShardPath(path) || isResourceShardPath(path)) && !nextPaths.has(path))) {
     const deleted = await client.delete(path);
     if (deleted.status !== 404 && (deleted.status < 200 || deleted.status >= 300)) {
       throw new Error(`DELETE ${path} failed: ${deleted.status}`);
@@ -168,6 +179,9 @@ export function mergeSnapshots(local: DataSnapshot, remote: DataSnapshot, confli
     plans: mergeDocs(local.plans, remote.plans, "plan", conflicts),
     templates: mergeDocs(local.templates, remote.templates, "template", conflicts),
     workouts: mergeDocs(local.workouts, remote.workouts, "workout", conflicts),
+    bodyMetrics: mergeDocs(local.bodyMetrics, remote.bodyMetrics, "bodyMetric", conflicts),
+    timelineNotes: mergeDocs(local.timelineNotes, remote.timelineNotes, "timelineNote", conflicts),
+    exercisePerformanceRecords: mergeDocs(local.exercisePerformanceRecords, remote.exercisePerformanceRecords, "performance", conflicts),
   };
 }
 
@@ -205,8 +219,11 @@ export function snapshotToFiles(snapshot: DataSnapshot): Record<string, unknown>
       plans: snapshot.plans,
       templates: snapshot.templates,
     },
+    "body-metrics.json": snapshot.bodyMetrics,
+    "timeline-notes.json": snapshot.timelineNotes,
     ...snapshot.resources,
     ...workoutMonthFiles(snapshot),
+    ...exercisePerformanceMonthFiles(snapshot),
   };
 }
 
@@ -220,6 +237,8 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
   const manifest = files[MANIFEST_PATH] as IronLogManifest | undefined;
   const workouts = workoutShardPathsFromManifest(manifest)
     .flatMap((path) => (Array.isArray(files[path]) ? files[path] : []));
+  const performanceRecords = exercisePerformanceShardPathsFromManifest(manifest)
+    .flatMap((path) => (Array.isArray(files[path]) ? files[path] : []));
   return {
     manifest: manifest as Partial<DataSnapshot>["manifest"],
     profile: files["profile.json"] as Partial<DataSnapshot>["profile"],
@@ -228,6 +247,9 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
     plans: templateFile?.plans as Partial<DataSnapshot>["plans"],
     templates: templateFile?.templates as Partial<DataSnapshot>["templates"],
     workouts: workouts as Partial<DataSnapshot>["workouts"],
+    bodyMetrics: files["body-metrics.json"] as Partial<DataSnapshot>["bodyMetrics"],
+    timelineNotes: files["timeline-notes.json"] as Partial<DataSnapshot>["timelineNotes"],
+    exercisePerformanceRecords: performanceRecords as Partial<DataSnapshot>["exercisePerformanceRecords"],
     resources: Object.fromEntries(Object.entries(files)
       .filter(([path, value]) => isResourceShardPath(path) && typeof value === "string")) as Partial<DataSnapshot>["resources"],
   };
@@ -243,11 +265,21 @@ function workoutMonthFiles(snapshot: DataSnapshot): Record<string, WorkoutDoc[]>
   return grouped;
 }
 
+function exercisePerformanceMonthFiles(snapshot: DataSnapshot): Record<string, ExercisePerformanceRecordDoc[]> {
+  const grouped: Record<string, ExercisePerformanceRecordDoc[]> = {};
+  for (const record of snapshot.exercisePerformanceRecords) {
+    const path = exercisePerformanceShardPath(record.achievedAt);
+    if (!grouped[path]) grouped[path] = [];
+    grouped[path].push(record);
+  }
+  return grouped;
+}
+
 function shardPathsFromManifest(manifest: Pick<IronLogManifest, "shards">): string[] {
   const staticPaths = new Set<string>(STATIC_SHARD_PATHS);
   const paths = manifest.shards
     .map((shard) => shard.path)
-    .filter((path) => staticPaths.has(path) || isWorkoutShardPath(path) || isResourceShardPath(path));
+    .filter((path) => staticPaths.has(path) || isWorkoutShardPath(path) || isExercisePerformanceShardPath(path) || isResourceShardPath(path));
   return [...new Set(paths)].sort();
 }
 

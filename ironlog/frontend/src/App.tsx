@@ -5,6 +5,12 @@ import WorkoutsPage from "@/pages/WorkoutsPage";
 import WorkoutDetailPage from "@/pages/WorkoutDetailPage";
 import WorkoutCreatePage from "@/pages/WorkoutCreatePage";
 import ProfilePage from "@/pages/ProfilePage";
+import PersonalProfilePage from "@/pages/PersonalProfilePage";
+import SettingsPage from "@/pages/SettingsPage";
+import BodyMetricsPage from "@/pages/BodyMetricsPage";
+import TimelineNotesPage from "@/pages/TimelineNotesPage";
+import ToolsPage from "@/pages/ToolsPage";
+import RmCalculatorPage from "@/pages/RmCalculatorPage";
 import WorkoutEditPage from "@/pages/WorkoutEditPage";
 import PlansPage from "@/pages/PlansPage";
 import PlanCreatePage from "@/pages/PlanCreatePage";
@@ -26,6 +32,12 @@ export default function App() {
         <Route path="workouts/:id" element={<WorkoutDetailPage />} />
         <Route path="workouts/:id/edit" element={<WorkoutEditPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile/details" element={<PersonalProfilePage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="body-metrics" element={<BodyMetricsPage />} />
+        <Route path="timeline-notes" element={<TimelineNotesPage />} />
+        <Route path="tools" element={<ToolsPage />} />
+        <Route path="tools/rm" element={<RmCalculatorPage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="plans/new" element={<PlanCreatePage />} />
         <Route path="plans/:id" element={<PlanDetailPage />} />

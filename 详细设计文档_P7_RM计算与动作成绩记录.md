@@ -10,7 +10,7 @@
 
 P7 提供两个能力：
 
-1. RM 计算器：独立小工具，支持手动输入重量、次数、RPE，展示公式明细、均值、离散程度和说明。
+1. RM 计算器：从“小工具”集合页进入，支持手动输入重量、次数、RPE，展示四公式结果、均值、具体公式和倍率曲线。
 2. 动作成绩记录：从已完成训练派生真实 PR 与基于 RPE 修正 RM 刷新事件，持久化后供动作详情、统计页和分享图消费。
 
 当前代码事实：
@@ -222,9 +222,9 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 
 - 手动输入重量、单位、次数、RPE。
 - 展示 `RIR = 10 - RPE`、`effectiveReps = reps + RIR`。
-- 展示 Epley / Brzycki / Lombardi / Wathen 明细、均值、标准差或范围。
-- 展示“次数 - RM 估算倍率”曲线。
-- 说明公式适用范围和限制。
+- 展示 Epley / Brzycki / Lombardi / Wathen 明细和均值；计算器已同时展示四个公式，不额外展示范围或标准差说明。
+- 展示以 `effectiveReps` 为 x 轴、`1RM / 重量` 为 y 轴的四公式倍率曲线。
+- 说明公式限制；不在结果区补充估算范围或标准差。
 - 说明力量训练 RPE 与有氧训练 RPE 的不同解释。
 
 计算器结果不自动写入训练、模板或成绩事件；只有来源于已完成 WorkoutDoc 的记录才进入 `ExercisePerformanceRecordDoc`。
@@ -236,11 +236,11 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 动作详情页回答“这个动作我练得怎么样”。P7 在现有 P1 动作详情基础上新增：
 
 - 真实 PR 摘要。
-- 基于 RPE 修正 RM 摘要。
-- 最近刷新记录。
+- 基于 RPE 修正 RM 摘要，1RM 预测展示为四公式均值 ± 标准差。
 - 来源训练/来源组跳转。
 - 周期对比。
-- 趋势图表：单次训练容量、工作组数、最大重量、基于 RPE 修正 RM 均值。
+- 动作成绩按 `metricType` 分组展示当前最佳，每个指标只保留最新/最大的一条。
+- 趋势图表展示当前趋势指标名称；力量训练使用每次训练的最大 `strength.rpe_adjusted_rm_mean`，有氧训练使用每次训练的 `cardio.best_average_speed`。
 - 年份 / 全部切换。
 - 手动重算或重建入口。
 

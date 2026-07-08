@@ -4,8 +4,6 @@ export interface User {
   nickname: string | null;
   avatar_url: string | null;
   gender: string | null;
-  height: number | null;
-  weight: number | null;
   birth_date: string | null;
   role: string;
   created_at: string;

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Check, ChevronLeft, Dumbbell, Gauge, ListChecks, NotebookText, Pencil, Rocket, Trash2, TrendingUp, X } from "lucide-react";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
 import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
 import type { Exercise, ExerciseDetail, MuscleGroupId } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
+import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
 import { CATEGORY_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
@@ -26,6 +28,8 @@ export default function ExerciseDetailPage() {
   const toast = useToastStore((state) => state.add);
   const [detail, setDetail] = useState<ExerciseDetail | null>(null);
   const [history, setHistory] = useState<ExerciseHistoryRecord[]>([]);
+  const [performance, setPerformance] = useState<PerformanceRecord[]>([]);
+  const [trend, setTrend] = useState<ExercisePerformanceTrend | null>(null);
   const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +48,14 @@ export default function ExerciseDetailPage() {
     let alive = true;
     setLoading(true);
     setError(null);
-    Promise.all([getExerciseDetail(id), getExerciseHistory(id, 20), getExercises()])
-      .then(([nextDetail, nextHistory, exercises]) => {
+    Promise.all([getExerciseDetail(id), getExerciseHistory(id, 20), getExercises(), getExercisePerformanceRecords(id), getExercisePerformanceTrend(id)])
+      .then(([nextDetail, nextHistory, exercises, nextPerformance, nextTrend]) => {
         if (!alive) return;
         setDetail(nextDetail);
         setHistory(nextHistory);
         setAvailableExercises(exercises);
+        setPerformance(nextPerformance);
+        setTrend(nextTrend);
         setEditorState(nextDetail);
       })
       .catch((err) => {
@@ -73,6 +79,7 @@ export default function ExerciseDetailPage() {
     return byDate;
   }, [history]);
   const dates = Object.keys(groupedHistory).sort((a, b) => b.localeCompare(a));
+  const currentBestPerformance = useMemo(() => currentBestByMetric(performance), [performance]);
 
   function setEditorState(nextDetail: ExerciseDetail) {
     setName(nextDetail.name);
@@ -127,6 +134,19 @@ export default function ExerciseDetailPage() {
     }
   }
 
+  async function rebuildPerformance() {
+    if (!detail) return;
+    try {
+      await rebuildPerformanceForExercise(detail.id);
+      const [nextPerformance, nextTrend] = await Promise.all([getExercisePerformanceRecords(detail.id), getExercisePerformanceTrend(detail.id)]);
+      setPerformance(nextPerformance);
+      setTrend(nextTrend);
+      toast("成绩记录已重算", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "重算失败", "error");
+    }
+  }
+
   if (loading) return <LoadingDetail />;
 
   if (error || !detail) {
@@ -171,6 +191,7 @@ export default function ExerciseDetailPage() {
 
         <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-bold text-slate-700">目标肌群</h2>
+          <MuscleMap primary={detail.primary_muscle_group_ids} secondary={detail.secondary_muscle_group_ids} />
           <MuscleGroupLine label="主目标" values={detail.primary_muscle_group_ids} />
           <MuscleGroupLine label="次要目标" values={detail.secondary_muscle_group_ids} />
         </section>
@@ -189,6 +210,46 @@ export default function ExerciseDetailPage() {
               <StatCard key={card.label} icon={card.icon} label={card.label} value={card.value} unit={card.unit} />
             ))}
           </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-sm font-bold text-slate-700">动作成绩</h2>
+            <button onClick={rebuildPerformance} className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">重算</button>
+          </div>
+          {currentBestPerformance.length === 0 ? (
+            <p className="text-sm text-slate-400">暂无 PR/RM 刷新记录</p>
+          ) : (
+            <div className="space-y-2">
+              {currentBestPerformance.map((record) => (
+                <button key={record.id} onClick={() => navigate(`/workouts/${record.source_workout_id}`)} className="w-full text-left bg-slate-50 rounded-xl p-3">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-sm font-semibold text-slate-800 truncate">{record.metric_label}</span>
+                    <span className="text-sm font-bold text-emerald-600">{formatPerformanceValue(record)}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{record.kind === "rpe_adjusted_rm" ? "基于 RPE 修正" : "真实 PR"} · {record.achieved_at.slice(0, 10)}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <h2 className="text-sm font-bold text-slate-700 mb-3">{trend ? `${trend.metric_label}趋势` : "趋势"}</h2>
+          {!trend || trend.points.length === 0 ? (
+            <p className="text-sm text-slate-400">暂无趋势数据</p>
+          ) : (
+            <div className="h-40 bg-slate-50 rounded-xl border border-slate-100 p-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trend.points}>
+                  <XAxis dataKey="date" hide />
+                  <YAxis width={36} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </section>
 
         <section>
@@ -335,6 +396,49 @@ function MuscleGroupLine({ label, values }: { label: string; values: MuscleGroup
   );
 }
 
+function MuscleMap({ primary, secondary }: { primary: MuscleGroupId[]; secondary: MuscleGroupId[] }) {
+  const primarySet = new Set(primary);
+  const secondarySet = new Set(secondary);
+  const fillFor = (id: MuscleGroupId) => primarySet.has(id)
+    ? "var(--color-primary)"
+    : secondarySet.has(id)
+    ? "var(--color-primary-soft)"
+    : "var(--color-surface-2)";
+  const strokeFor = (id: MuscleGroupId) => primarySet.has(id) || secondarySet.has(id)
+    ? "var(--color-primary)"
+    : "var(--color-border)";
+  const parts: Array<{ id: MuscleGroupId; x: number; y: number; w: number; h: number; label: string }> = [
+    { id: "shoulders", x: 73, y: 34, w: 54, h: 18, label: "肩" },
+    { id: "chest", x: 78, y: 54, w: 44, h: 26, label: "胸" },
+    { id: "back", x: 78, y: 83, w: 44, h: 22, label: "背" },
+    { id: "core", x: 82, y: 108, w: 36, h: 28, label: "核" },
+    { id: "biceps", x: 50, y: 58, w: 18, h: 44, label: "臂" },
+    { id: "triceps", x: 132, y: 58, w: 18, h: 44, label: "臂" },
+    { id: "glutes", x: 82, y: 138, w: 36, h: 20, label: "臀" },
+    { id: "quadriceps", x: 74, y: 162, w: 22, h: 50, label: "腿" },
+    { id: "hamstrings", x: 104, y: 162, w: 22, h: 50, label: "腿" },
+    { id: "calves", x: 78, y: 218, w: 18, h: 38, label: "小" },
+    { id: "forearms", x: 45, y: 106, w: 16, h: 42, label: "前" },
+  ];
+  return (
+    <div className="app-surface-muted rounded-xl border app-border p-3">
+      <svg viewBox="0 0 200 270" className="w-full h-48" role="img" aria-label="目标肌群示意图">
+        <circle cx="100" cy="20" r="14" fill="var(--color-surface)" stroke="var(--color-border)" />
+        {parts.map((part) => (
+          <g key={`${part.id}-${part.x}`}>
+            <rect x={part.x} y={part.y} width={part.w} height={part.h} rx="9" fill={fillFor(part.id)} stroke={strokeFor(part.id)} />
+            <text x={part.x + part.w / 2} y={part.y + part.h / 2 + 4} textAnchor="middle" fontSize="10" fill={primarySet.has(part.id) ? "var(--color-surface)" : "var(--color-text-secondary)"}>{part.label}</text>
+          </g>
+        ))}
+      </svg>
+      <div className="flex gap-3 text-xs app-text-muted">
+        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: "var(--color-primary)" }} />主目标</span>
+        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: "var(--color-primary-soft)", border: "1px solid var(--color-primary)" }} />次要目标</span>
+      </div>
+    </div>
+  );
+}
+
 function Badge({ children }: { children: string }) {
   return <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-semibold border border-emerald-100">{children}</span>;
 }
@@ -450,4 +554,46 @@ function formatDuration(seconds: number): string {
   const remain = seconds % 60;
   if (minutes === 0) return `${remain} 秒`;
   return remain === 0 ? `${minutes} 分钟` : `${minutes} 分 ${remain} 秒`;
+}
+
+function formatPerformanceValue(record: PerformanceRecord): string {
+  if (record.metric_type === "strength.rpe_adjusted_rm_mean" && record.rm) {
+    return `${round(record.rm.meanKg)} ± ${round(record.rm.standardDeviationKg)} kg`;
+  }
+  const value = Math.round(record.value * 10) / 10;
+  if (record.unit === "kg_reps") return `${value} kg·次`;
+  if (record.unit === "m_per_sec") return `${value} m/s`;
+  if (record.unit === "sec") return formatDuration(Math.round(record.value));
+  if (record.unit === "reps") return `${value} 次`;
+  return `${value} ${record.unit}`;
+}
+
+function currentBestByMetric(records: PerformanceRecord[]): PerformanceRecord[] {
+  const best = new Map<string, PerformanceRecord>();
+  for (const record of records) {
+    const previous = best.get(record.metric_type);
+    if (!previous || record.value > previous.value || (record.value === previous.value && record.achieved_at > previous.achieved_at)) {
+      best.set(record.metric_type, record);
+    }
+  }
+  return [...best.values()].sort((left, right) => metricOrder(left.metric_type) - metricOrder(right.metric_type));
+}
+
+function metricOrder(metricType: PerformanceRecord["metric_type"]): number {
+  const order: PerformanceRecord["metric_type"][] = [
+    "strength.max_weight",
+    "strength.max_reps",
+    "strength.max_set_volume",
+    "strength.max_workout_volume",
+    "strength.rpe_adjusted_rm_mean",
+    "cardio.max_distance",
+    "cardio.max_duration",
+    "cardio.best_average_speed",
+    "reps_only.max_set_reps",
+    "reps_only.max_workout_reps",
+    "static_hold.max_set_duration",
+    "static_hold.max_workout_duration",
+  ];
+  const index = order.indexOf(metricType);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }

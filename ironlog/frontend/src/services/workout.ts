@@ -2,6 +2,7 @@ import type { ExerciseType, WorkoutDoc, WorkoutExerciseDoc, WorkoutSetDoc } from
 import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 import { localRepository } from "@/repositories/localJsonRepository";
 import { toWorkout, toWorkoutSummary } from "@/services/localMappers";
+import { rebuildAllPerformanceRecords } from "@/services/performance";
 import type { Workout, WorkoutSummary } from "@/types";
 
 export const WORKOUT_LIMITS = {
@@ -67,7 +68,9 @@ export async function getLatestWorkoutDraft(): Promise<Workout | null> {
 
 export async function createWorkout(body: WorkoutCreatePayload): Promise<Workout> {
   const doc = await normalizeWorkoutPayload(body);
-  return toWorkout(await localRepository.createWorkout(doc));
+  const created = await localRepository.createWorkout(doc);
+  if (created.endTime != null) await rebuildAllPerformanceRecords();
+  return toWorkout(created);
 }
 
 export async function updateWorkout(id: string, body: Partial<WorkoutCreatePayload>): Promise<Workout> {
@@ -75,7 +78,9 @@ export async function updateWorkout(id: string, body: Partial<WorkoutCreatePaylo
   if (!existing) throw new Error("训练记录不存在");
   const merged = mergeWithExisting(existing, body);
   const doc = await normalizeWorkoutPayload(merged);
-  return toWorkout(await localRepository.updateWorkout(id, doc));
+  const updated = await localRepository.updateWorkout(id, doc);
+  if (existing.endTime != null || updated.endTime != null) await rebuildAllPerformanceRecords();
+  return toWorkout(updated);
 }
 
 /** Mark an unfinished auto-saved workout as completed at its last recorded activity. */
@@ -90,7 +95,9 @@ export function draftCompletionTime(draft: Pick<WorkoutDoc, "createdAt" | "updat
 }
 
 export async function deleteWorkout(id: string): Promise<void> {
+  const existing = await localRepository.getWorkout(id);
   await localRepository.deleteWorkout(id);
+  if (existing?.endTime != null) await rebuildAllPerformanceRecords();
 }
 
 export async function copyWorkout(id: string, targetDate: string): Promise<Workout> {

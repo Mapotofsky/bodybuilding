@@ -1,13 +1,17 @@
 import { buildShardList, makeEmptySnapshot, migrateSnapshot } from "@/core/migrations";
-import type {
-  DataSnapshot,
-  ExerciseDoc,
-  ProfileDoc,
-  SettingsDoc,
-  SyncEndpointConfig,
-  TemplateDoc,
-  TrainingPlanDoc,
-  WorkoutDoc,
+import {
+  CURRENT_SCHEMA_VERSION,
+  type BodyMetricDoc,
+  type DataSnapshot,
+  type ExercisePerformanceRecordDoc,
+  type ExerciseDoc,
+  type ProfileDoc,
+  type SettingsDoc,
+  type SyncEndpointConfig,
+  type TemplateDoc,
+  type TimelineNoteDoc,
+  type TrainingPlanDoc,
+  type WorkoutDoc,
 } from "@/core/models";
 import { makeCustomExerciseId, makeId, nowIso } from "@/core/id";
 import { resolveExerciseId } from "@/core/exerciseRedirects";
@@ -234,6 +238,119 @@ export class LocalJsonRepository {
     });
   }
 
+  async listBodyMetrics(params?: { from?: string; to?: string; includeDeleted?: boolean; includeFuture?: boolean }): Promise<BodyMetricDoc[]> {
+    const now = nowIso();
+    const snapshot = await this.getSnapshot();
+    return snapshot.bodyMetrics
+      .filter((item) => params?.includeDeleted || !item.deletedAt)
+      .filter((item) => params?.includeFuture || item.recordedAt <= now)
+      .filter((item) => !params?.from || item.recordedAt >= params.from)
+      .filter((item) => !params?.to || item.recordedAt <= params.to)
+      .sort((left, right) => right.recordedAt.localeCompare(left.recordedAt) || right.updatedAt.localeCompare(left.updatedAt));
+  }
+
+  async getBodyMetric(id: string): Promise<BodyMetricDoc | null> {
+    const snapshot = await this.getSnapshot();
+    return snapshot.bodyMetrics.find((item) => item.id === id && !item.deletedAt) || null;
+  }
+
+  async createBodyMetric(body: Omit<BodyMetricDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<BodyMetricDoc> {
+    return this.mutate((snapshot) => {
+      const metric: BodyMetricDoc = withDoc(body);
+      snapshot.bodyMetrics.push(metric);
+      return metric;
+    });
+  }
+
+  async updateBodyMetric(id: string, body: Partial<Omit<BodyMetricDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">>): Promise<BodyMetricDoc> {
+    return this.updateDoc("bodyMetrics", id, body);
+  }
+
+  async deleteBodyMetric(id: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      tombstone(snapshot.bodyMetrics, id);
+      return undefined;
+    });
+  }
+
+  async listTimelineNotes(params?: { includeDeleted?: boolean }): Promise<TimelineNoteDoc[]> {
+    const snapshot = await this.getSnapshot();
+    return snapshot.timelineNotes
+      .filter((item) => params?.includeDeleted || !item.deletedAt)
+      .sort((left, right) => right.startDate.localeCompare(left.startDate) || right.updatedAt.localeCompare(left.updatedAt));
+  }
+
+  async getTimelineNote(id: string): Promise<TimelineNoteDoc | null> {
+    const snapshot = await this.getSnapshot();
+    return snapshot.timelineNotes.find((item) => item.id === id && !item.deletedAt) || null;
+  }
+
+  async createTimelineNote(body: Omit<TimelineNoteDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<TimelineNoteDoc> {
+    return this.mutate((snapshot) => {
+      const note: TimelineNoteDoc = withDoc(body);
+      snapshot.timelineNotes.push(note);
+      return note;
+    });
+  }
+
+  async updateTimelineNote(id: string, body: Partial<Omit<TimelineNoteDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">>): Promise<TimelineNoteDoc> {
+    return this.updateDoc("timelineNotes", id, body);
+  }
+
+  async deleteTimelineNote(id: string): Promise<void> {
+    await this.mutate((snapshot) => {
+      tombstone(snapshot.timelineNotes, id);
+      return undefined;
+    });
+  }
+
+  async listExercisePerformanceRecords(params?: {
+    includeDeleted?: boolean;
+    exerciseId?: string;
+    sourceWorkoutId?: string;
+    from?: string;
+    to?: string;
+    month?: string;
+  }): Promise<ExercisePerformanceRecordDoc[]> {
+    const snapshot = await this.getSnapshot();
+    return snapshot.exercisePerformanceRecords
+      .filter((item) => params?.includeDeleted || !item.deletedAt)
+      .filter((item) => !params?.exerciseId || item.exerciseId === params.exerciseId)
+      .filter((item) => !params?.sourceWorkoutId || item.sourceWorkoutId === params.sourceWorkoutId)
+      .filter((item) => !params?.month || item.achievedAt.startsWith(params.month))
+      .filter((item) => !params?.from || item.achievedAt.slice(0, 10) >= params.from)
+      .filter((item) => !params?.to || item.achievedAt.slice(0, 10) <= params.to)
+      .sort((left, right) => right.achievedAt.localeCompare(left.achievedAt) || right.updatedAt.localeCompare(left.updatedAt));
+  }
+
+  async replaceExercisePerformanceRecords(
+    scope: { all?: boolean; exerciseIds?: string[]; sourceWorkoutIds?: string[] },
+    records: ExercisePerformanceRecordDoc[]
+  ): Promise<void> {
+    await this.mutate((snapshot) => {
+      const timestamp = nowIso();
+      const nextIds = new Set(records.map((record) => record.id));
+      for (const existing of snapshot.exercisePerformanceRecords) {
+        if (!matchesPerformanceScope(existing, scope) || nextIds.has(existing.id) || existing.deletedAt) continue;
+        existing.deletedAt = timestamp;
+        existing.updatedAt = timestamp;
+      }
+      for (const record of records) {
+        const existing = snapshot.exercisePerformanceRecords.find((item) => item.id === record.id);
+        const next: ExercisePerformanceRecordDoc = {
+          ...record,
+          createdAt: existing?.createdAt || record.createdAt || timestamp,
+          updatedAt: record.updatedAt || timestamp,
+          deletedAt: record.deletedAt ?? null,
+          schemaVersion: record.schemaVersion || CURRENT_SCHEMA_VERSION,
+        };
+        if (existing) Object.assign(existing, next);
+        else snapshot.exercisePerformanceRecords.push(next);
+      }
+      return undefined;
+    });
+  }
+
   async getProfile(): Promise<ProfileDoc> {
     return (await this.getSnapshot()).profile;
   }
@@ -342,7 +459,7 @@ export class LocalJsonRepository {
     await (await this.storePromise).save(snapshot);
   }
 
-  private async updateDoc<K extends "plans" | "templates" | "workouts">(
+  private async updateDoc<K extends "plans" | "templates" | "workouts" | "bodyMetrics" | "timelineNotes">(
     key: K,
     id: string,
     body: Partial<DataSnapshot[K][number]>
@@ -358,9 +475,9 @@ export class LocalJsonRepository {
 
 export const localRepository = LocalJsonRepository.create();
 
-function withDoc<T>(value: T, id = makeId()): T & { id: string; createdAt: string; updatedAt: string; deletedAt: null; schemaVersion: 1 } {
+function withDoc<T>(value: T, id = makeId()): T & { id: string; createdAt: string; updatedAt: string; deletedAt: null; schemaVersion: number } {
   const t = nowIso();
-  return { ...value, id, createdAt: t, updatedAt: t, deletedAt: null, schemaVersion: 1 };
+  return { ...value, id, createdAt: t, updatedAt: t, deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION };
 }
 
 function tombstone<T extends { id: string; deletedAt: string | null; updatedAt: string }>(items: T[], id: string): void {
@@ -380,6 +497,13 @@ function sameSettings(left: SettingsDoc, right: SettingsDoc): boolean {
   return left.weightUnit === right.weightUnit
     && left.themeId === right.themeId
     && left.lastSyncAt === right.lastSyncAt;
+}
+
+function matchesPerformanceScope(record: ExercisePerformanceRecordDoc, scope: { all?: boolean; exerciseIds?: string[]; sourceWorkoutIds?: string[] }): boolean {
+  if (scope.all) return true;
+  if (scope.exerciseIds?.includes(record.exerciseId)) return true;
+  if (scope.sourceWorkoutIds?.includes(record.sourceWorkoutId)) return true;
+  return false;
 }
 
 function localDeviceId(): string {

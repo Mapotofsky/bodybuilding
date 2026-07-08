@@ -33,9 +33,40 @@ describe("document file serialization", () => {
     expect(files["workouts/2026-06.json"]).toEqual([juneWorkout]);
     expect(files["workouts/2026-07.json"]).toEqual([julyWorkout]);
     expect(files["templates.json"]).toEqual({ plans: [], templates: [] });
+    expect(files["body-metrics.json"]).toEqual([]);
+    expect(files["timeline-notes.json"]).toEqual([]);
     expect((files["exercises.json"] as typeof snapshot.exercises)[0]).toHaveProperty("primaryMuscleGroupIds");
     expect((files["exercises.json"] as typeof snapshot.exercises)[0]).toHaveProperty("secondaryMuscleGroupIds");
     expect(files).not.toHaveProperty("workouts/index.json");
+  });
+
+  it("writes exercise performance records to achieved month files", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const record = {
+      id: "performance-1",
+      exerciseId: "ex-bench-press",
+      kind: "true_pr" as const,
+      metricType: "strength.max_weight" as const,
+      value: 120,
+      unit: "kg" as const,
+      achievedAt: "2026-07-02T10:00:00.000Z",
+      sourceWorkoutId: "workout-1",
+      sourceWorkoutExerciseId: "workout-exercise-1",
+      sourceSetId: "set-1",
+      input: { weightKg: 120, reps: 3, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      rm: null,
+      createdAt: "2026-07-02T10:00:00.000Z",
+      updatedAt: "2026-07-02T10:00:00.000Z",
+      deletedAt: null,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
+    snapshot.exercisePerformanceRecords = [record];
+    snapshot.manifest.shards = buildShardList(snapshot);
+
+    const files = snapshotToFiles(snapshot);
+
+    expect(files["exercise-performance/2026-07.json"]).toEqual([record]);
+    expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("exercise-performance/2026-07.json");
   });
 
   it("serializes avatar resources as separate files", () => {

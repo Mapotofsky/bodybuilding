@@ -1,7 +1,10 @@
 import {
   CURRENT_SCHEMA_VERSION,
   DEFAULT_THEME_ID,
+  type BodyMetricDoc,
+  type BodyMeasurementsCm,
   type DataSnapshot,
+  type ExercisePerformanceRecordDoc,
   type ExerciseDoc,
   type ExerciseType,
   type IronLogManifest,
@@ -9,6 +12,7 @@ import {
   type ProfileDoc,
   type SettingsDoc,
   type TemplateDoc,
+  type TimelineNoteDoc,
   type TrainingPlanDoc,
   type WorkoutDoc,
   type WorkoutSetDoc,
@@ -16,7 +20,14 @@ import {
 import { makeId, nowIso } from "./id";
 import { DEFAULT_EXERCISES } from "./defaultData";
 
-export const STATIC_SHARD_PATHS = ["profile.json", "settings.json", "exercises.json", "templates.json"] as const;
+export const STATIC_SHARD_PATHS = [
+  "profile.json",
+  "settings.json",
+  "exercises.json",
+  "templates.json",
+  "body-metrics.json",
+  "timeline-notes.json",
+] as const;
 export const AVATAR_RESOURCE_PREFIX = "assets/avatar/";
 
 export function workoutShardPath(date: string): string {
@@ -27,8 +38,20 @@ export function isWorkoutShardPath(path: string): boolean {
   return /^workouts\/\d{4}-\d{2}\.json$/.test(path);
 }
 
+export function exercisePerformanceShardPath(achievedAt: string): string {
+  return `exercise-performance/${achievedAt.slice(0, 7)}.json`;
+}
+
+export function isExercisePerformanceShardPath(path: string): boolean {
+  return /^exercise-performance\/\d{4}-\d{2}\.json$/.test(path);
+}
+
 export function workoutShardPathsFromManifest(manifest: Pick<IronLogManifest, "shards"> | null | undefined): string[] {
   return [...new Set((manifest?.shards || []).map((shard) => shard.path).filter(isWorkoutShardPath))].sort();
+}
+
+export function exercisePerformanceShardPathsFromManifest(manifest: Pick<IronLogManifest, "shards"> | null | undefined): string[] {
+  return [...new Set((manifest?.shards || []).map((shard) => shard.path).filter(isExercisePerformanceShardPath))].sort();
 }
 
 function doc<T extends { id?: string; createdAt?: string; updatedAt?: string; deletedAt?: string | null; schemaVersion?: number }>(
@@ -52,8 +75,6 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
     nickname: "训练者",
     avatarUrl: null,
     gender: null,
-    height: null,
-    weight: null,
     birthDate: null,
   });
   const settings: SettingsDoc = doc({
@@ -73,6 +94,8 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
         { path: "settings.json", updatedAt: settings.updatedAt },
         { path: "exercises.json", updatedAt: t },
         { path: "templates.json", updatedAt: t },
+        { path: "body-metrics.json", updatedAt: t },
+        { path: "timeline-notes.json", updatedAt: t },
       ],
     },
     profile,
@@ -81,6 +104,9 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
     plans: [],
     templates: [],
     workouts: [],
+    bodyMetrics: [],
+    timelineNotes: [],
+    exercisePerformanceRecords: [],
     resources: {},
   };
 }
@@ -94,17 +120,34 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
       schemaVersion: CURRENT_SCHEMA_VERSION,
       updatedAt: raw.manifest?.updatedAt || nowIso(),
     },
-    profile: doc({ ...base.profile, ...raw.profile }),
+    profile: normalizeProfile(raw.profile, base.profile),
     settings: normalizeSettings(raw.settings, base.settings),
     exercises: normalizeExercises(raw.exercises, base.exercises),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
     workouts: normalizeWorkouts(raw.workouts, []),
+    bodyMetrics: normalizeBodyMetrics(raw.bodyMetrics),
+    timelineNotes: normalizeTimelineNotes(raw.timelineNotes),
+    exercisePerformanceRecords: normalizePerformanceRecords(raw.exercisePerformanceRecords),
     resources: normalizeResources(raw.resources),
   };
   snapshot.workouts = snapshot.workouts.map((workout) => migrateWorkoutExerciseTypes(workout, snapshot.exercises));
   snapshot.manifest.shards = buildShardList(snapshot);
   return snapshot;
+}
+
+function normalizeProfile(value: ProfileDoc | undefined, fallback: ProfileDoc): ProfileDoc {
+  const { height: _legacyHeight, weight: _legacyWeight, ...profile } = {
+    ...fallback,
+    ...(value as ProfileDoc & { height?: unknown; weight?: unknown } | undefined),
+  };
+  return doc({
+    ...profile,
+    nickname: profile.nickname ?? null,
+    avatarUrl: profile.avatarUrl ?? null,
+    gender: profile.gender ?? null,
+    birthDate: profile.birthDate ?? null,
+  });
 }
 
 function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: ExerciseDoc[]): ExerciseDoc[] {
@@ -140,6 +183,56 @@ function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc
       ...exercise,
       sets: exercise.sets.map(normalizeWorkoutSet),
     })),
+  }));
+}
+
+export const BODY_MEASUREMENT_KEYS = [
+  "neck", "shoulder", "chest", "waist", "hip",
+  "upperArmLeft", "upperArmRight",
+  "forearmLeft", "forearmRight",
+  "thighLeft", "thighRight",
+  "calfLeft", "calfRight",
+] as const;
+
+export function emptyBodyMeasurements(): BodyMeasurementsCm {
+  return Object.fromEntries(BODY_MEASUREMENT_KEYS.map((key) => [key, null])) as BodyMeasurementsCm;
+}
+
+function normalizeBodyMetrics(value: BodyMetricDoc[] | undefined): BodyMetricDoc[] {
+  return normalizeArray<BodyMetricDoc>(value, []).map((metric) => ({
+    ...metric,
+    recordedAt: typeof metric.recordedAt === "string" ? metric.recordedAt : metric.createdAt,
+    heightCm: normalizeNullableNumber(metric.heightCm),
+    weightKg: normalizeNullableNumber(metric.weightKg),
+    bodyFatPercent: normalizeNullableNumber(metric.bodyFatPercent),
+    measurementsCm: normalizeMeasurements(metric.measurementsCm),
+    note: metric.note ?? null,
+  }));
+}
+
+function normalizeMeasurements(value: unknown): BodyMeasurementsCm {
+  const raw = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Partial<Record<keyof BodyMeasurementsCm, unknown>>
+    : {};
+  return Object.fromEntries(BODY_MEASUREMENT_KEYS.map((key) => [key, normalizeNullableNumber(raw[key])])) as BodyMeasurementsCm;
+}
+
+function normalizeTimelineNotes(value: TimelineNoteDoc[] | undefined): TimelineNoteDoc[] {
+  return normalizeArray<TimelineNoteDoc>(value, []).map((note) => ({
+    ...note,
+    content: typeof note.content === "string" ? note.content : "",
+    rangeType: note.rangeType === "date_range" || note.rangeType === "open_ended" || note.rangeType === "single_day" ? note.rangeType : "single_day",
+    startDate: typeof note.startDate === "string" ? note.startDate : note.createdAt.slice(0, 10),
+    endDate: typeof note.endDate === "string" ? note.endDate : null,
+    workoutId: note.workoutId ?? null,
+  }));
+}
+
+function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | undefined): ExercisePerformanceRecordDoc[] {
+  return normalizeArray<ExercisePerformanceRecordDoc>(value, []).map((record) => ({
+    ...record,
+    sourceSetId: record.sourceSetId ?? null,
+    rm: record.rm ?? null,
   }));
 }
 
@@ -189,6 +282,10 @@ function normalizeWorkoutSet(set: WorkoutSetDoc): WorkoutSetDoc {
     isFailure: raw.isFailure === true,
     restSeconds: (raw.restSeconds as number | null | undefined) ?? null,
   };
+}
+
+function normalizeNullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function normalizeExerciseType(value: unknown): ExerciseType {
@@ -250,12 +347,22 @@ export function buildShardList(snapshot: DataSnapshot) {
       workoutShards.set(path, workout.updatedAt);
     }
   }
+  const performanceShards = new Map<string, string>();
+  for (const record of snapshot.exercisePerformanceRecords) {
+    const path = exercisePerformanceShardPath(record.achievedAt);
+    const latestUpdate = performanceShards.get(path);
+    if (!latestUpdate || record.updatedAt > latestUpdate) {
+      performanceShards.set(path, record.updatedAt);
+    }
+  }
 
   const staticShards = [
     { path: "profile.json", updatedAt: snapshot.profile.updatedAt },
     { path: "settings.json", updatedAt: snapshot.settings.updatedAt },
     { path: "exercises.json", updatedAt: maxUpdated(snapshot.exercises, snapshot.manifest.updatedAt) },
     { path: "templates.json", updatedAt: maxUpdated([...snapshot.plans, ...snapshot.templates], snapshot.manifest.updatedAt) },
+    { path: "body-metrics.json", updatedAt: maxUpdated(snapshot.bodyMetrics, snapshot.manifest.updatedAt) },
+    { path: "timeline-notes.json", updatedAt: maxUpdated(snapshot.timelineNotes, snapshot.manifest.updatedAt) },
   ];
 
   return [
@@ -265,6 +372,9 @@ export function buildShardList(snapshot: DataSnapshot) {
       .sort()
       .map((path) => ({ path, updatedAt: snapshot.profile.updatedAt })),
     ...[...workoutShards.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, updatedAt]) => ({ path, updatedAt })),
+    ...[...performanceShards.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([path, updatedAt]) => ({ path, updatedAt })),
   ];

@@ -86,6 +86,64 @@ describe("settings WebDAV sync", () => {
     expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseType: "cardio" });
   });
 
+  it("serializes new P6/P7 business shards for WebDAV", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.bodyMetrics = [{
+      id: "body-1",
+      recordedAt: FIRST_SYNC_AT,
+      heightCm: 180,
+      weightKg: null,
+      bodyFatPercent: null,
+      measurementsCm: {
+        neck: null, shoulder: null, chest: null, waist: null, hip: null,
+        upperArmLeft: null, upperArmRight: null, forearmLeft: null, forearmRight: null,
+        thighLeft: null, thighRight: null, calfLeft: null, calfRight: null,
+      },
+      note: null,
+      createdAt: FIRST_SYNC_AT,
+      updatedAt: FIRST_SYNC_AT,
+      deletedAt: null,
+      schemaVersion: 2,
+    }];
+    snapshot.timelineNotes = [{
+      id: "note-1",
+      content: "换了训练环境",
+      rangeType: "single_day",
+      startDate: "2026-06-20",
+      endDate: "2026-06-20",
+      workoutId: null,
+      createdAt: FIRST_SYNC_AT,
+      updatedAt: FIRST_SYNC_AT,
+      deletedAt: null,
+      schemaVersion: 2,
+    }];
+    snapshot.exercisePerformanceRecords = [{
+      id: "performance-1",
+      exerciseId: "ex-bench-press",
+      kind: "true_pr",
+      metricType: "strength.max_weight",
+      value: 100,
+      unit: "kg",
+      achievedAt: FIRST_SYNC_AT,
+      sourceWorkoutId: "workout-1",
+      sourceWorkoutExerciseId: "workout-exercise-1",
+      sourceSetId: "set-1",
+      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      rm: null,
+      createdAt: FIRST_SYNC_AT,
+      updatedAt: FIRST_SYNC_AT,
+      deletedAt: null,
+      schemaVersion: 2,
+    }];
+    snapshot.manifest.shards = buildShardList(snapshot);
+
+    const files = snapshotToFiles(snapshot);
+
+    expect(files["body-metrics.json"]).toEqual(snapshot.bodyMetrics);
+    expect(files["timeline-notes.json"]).toEqual(snapshot.timelineNotes);
+    expect(files["exercise-performance/2026-06.json"]).toEqual(snapshot.exercisePerformanceRecords);
+  });
+
   it("does not serialize local-only endpoint config into remote files", () => {
     const snapshot = makeEmptySnapshot("device-test") as DataSnapshot & { settings: DataSnapshot["settings"] & { webdav?: unknown; passwordRef?: string; username?: string; url?: string } };
     snapshot.settings.webdav = { url: "https://dav.example.test", username: "athlete", passwordRef: "secret-1" };
@@ -122,9 +180,40 @@ describe("settings WebDAV sync", () => {
     expect(client.moves).toContain("assets/avatar/profile-local.txt");
   });
 
+  it("creates the exercise performance remote directory before upload", async () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.exercisePerformanceRecords = [{
+      id: "performance-1",
+      exerciseId: "ex-bench-press",
+      kind: "true_pr",
+      metricType: "strength.max_weight",
+      value: 100,
+      unit: "kg",
+      achievedAt: FIRST_SYNC_AT,
+      sourceWorkoutId: "workout-1",
+      sourceWorkoutExerciseId: "workout-exercise-1",
+      sourceSetId: "set-1",
+      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      rm: null,
+      createdAt: FIRST_SYNC_AT,
+      updatedAt: FIRST_SYNC_AT,
+      deletedAt: null,
+      schemaVersion: 2,
+    }];
+    snapshot.manifest.shards = buildShardList(snapshot);
+    const client = new DirectoryCheckingWebDavClient();
+
+    await pushSnapshot(client as unknown as WebDavClient, snapshot);
+
+    expect(client.mkcols).toEqual(expect.arrayContaining(["", "workouts", "backups", "exercise-performance"]));
+    expect(client.puts.some((path) => path.startsWith("exercise-performance/2026-06.json.tmp-"))).toBe(true);
+    expect(client.moves).toContain("exercise-performance/2026-06.json");
+  });
+
   it("calculates nested remote parent directories for resource paths", () => {
     expect(remoteParentDirsForPath("assets/avatar/profile-local.txt")).toEqual(["assets", "assets/avatar"]);
     expect(remoteParentDirsForPath("workouts/2026-06.json")).toEqual(["workouts"]);
+    expect(remoteParentDirsForPath("exercise-performance/2026-06.json")).toEqual(["exercise-performance"]);
     expect(remoteParentDirsForPath("settings.json")).toEqual([]);
   });
 

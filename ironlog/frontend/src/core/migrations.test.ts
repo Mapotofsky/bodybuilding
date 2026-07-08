@@ -8,10 +8,31 @@ describe("local-first schema migration", () => {
 
     expect(snapshot.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(snapshot.manifest.shards.map((shard) => shard.path)).not.toContain("workouts/index.json");
+    expect(snapshot.manifest.shards.map((shard) => shard.path)).toEqual(expect.arrayContaining([
+      "body-metrics.json",
+      "timeline-notes.json",
+    ]));
     expect(snapshot.profile.id).toBe("profile-local");
     expect(snapshot.settings.themeId).toBe("emerald-slate");
     expect(snapshot.exercises.length).toBeGreaterThan(0);
     expect(typeof snapshot.exercises[0].id).toBe("string");
+    expect(snapshot.bodyMetrics).toEqual([]);
+    expect(snapshot.timelineNotes).toEqual([]);
+    expect(snapshot.exercisePerformanceRecords).toEqual([]);
+  });
+
+  it("drops legacy profile height and weight instead of migrating body data", () => {
+    const snapshot = migrateSnapshot({
+      profile: {
+        ...makeEmptySnapshot("device-test").profile,
+        height: 180,
+        weight: 80,
+      } as never,
+    }, "device-test");
+
+    expect(snapshot.profile).not.toHaveProperty("height");
+    expect(snapshot.profile).not.toHaveProperty("weight");
+    expect(snapshot.bodyMetrics).toEqual([]);
   });
 
   it("preserves unknown theme ids while migrating settings", () => {
@@ -63,6 +84,34 @@ describe("local-first schema migration", () => {
     expect(paths).toContain("workouts/2026-06.json");
     expect(paths).toContain("workouts/2026-07.json");
     expect(paths).not.toContain("workouts/index.json");
+  });
+
+  it("lists exercise performance records by achieved month", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.exercisePerformanceRecords = [
+      {
+        id: "performance-1",
+        exerciseId: "ex-bench-press",
+        kind: "true_pr",
+        metricType: "strength.max_weight",
+        value: 100,
+        unit: "kg",
+        achievedAt: "2026-06-30T10:00:00.000Z",
+        sourceWorkoutId: "workout-1",
+        sourceWorkoutExerciseId: "workout-exercise-1",
+        sourceSetId: "set-1",
+        input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+        rm: null,
+        createdAt: "2026-06-30T10:00:00.000Z",
+        updatedAt: "2026-06-30T10:00:00.000Z",
+        deletedAt: null,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+      },
+    ];
+
+    const paths = buildShardList(snapshot).map((shard) => shard.path);
+
+    expect(paths).toContain("exercise-performance/2026-06.json");
   });
 
   it("migrates missing metadata without losing tombstones", () => {

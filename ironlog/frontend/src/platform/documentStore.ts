@@ -1,5 +1,13 @@
-import { isResourceShardPath, workoutShardPath, workoutShardPathsFromManifest } from "@/core/migrations";
-import type { DataSnapshot, IronLogManifest, SyncEndpointConfig, WorkoutDoc } from "@/core/models";
+import {
+  exercisePerformanceShardPath,
+  exercisePerformanceShardPathsFromManifest,
+  isExercisePerformanceShardPath,
+  isResourceShardPath,
+  STATIC_SHARD_PATHS,
+  workoutShardPath,
+  workoutShardPathsFromManifest,
+} from "@/core/migrations";
+import type { DataSnapshot, ExercisePerformanceRecordDoc, IronLogManifest, SyncEndpointConfig, WorkoutDoc } from "@/core/models";
 import { makeId } from "@/core/id";
 
 export interface DocumentStore {
@@ -18,7 +26,6 @@ export interface DocumentStore {
 const DB_NAME = "ironlog-local";
 const STORE_NAME = "documents";
 const MANIFEST_PATH = "manifest.json";
-const STATIC_FILE_PATHS = ["profile.json", "settings.json", "exercises.json", "templates.json"];
 const SYNC_ENDPOINT_KEY = "local:sync-endpoint";
 
 class IndexedDbDocumentStore implements DocumentStore {
@@ -28,7 +35,7 @@ class IndexedDbDocumentStore implements DocumentStore {
 
     const files = await this.readDocuments([
       MANIFEST_PATH,
-      ...STATIC_FILE_PATHS,
+      ...STATIC_SHARD_PATHS,
       ...managedPathsFromManifest(manifest),
     ]);
     return filesToSnapshot(files);
@@ -119,7 +126,7 @@ class CapacitorDocumentStore implements DocumentStore {
     if (!manifest) return null;
 
     const files: Record<string, unknown> = { [MANIFEST_PATH]: manifest };
-    for (const path of [...STATIC_FILE_PATHS, ...managedPathsFromManifest(manifest)]) {
+    for (const path of [...STATIC_SHARD_PATHS, ...managedPathsFromManifest(manifest)]) {
       const value = await this.readJson(path);
       if (value != null) files[path] = value;
     }
@@ -133,6 +140,7 @@ class CapacitorDocumentStore implements DocumentStore {
     const stalePaths = managedPathsFromManifest(previousManifest).filter((path) => !nextPaths.has(path));
     await this.ensureDir(this.baseDir);
     await this.ensureDir(`${this.baseDir}/workouts`);
+    await this.ensureDir(`${this.baseDir}/exercise-performance`);
     await this.ensureDir(`${this.baseDir}/assets/avatar`);
     for (const [path, value] of Object.entries(files).filter(([path]) => path !== MANIFEST_PATH)) {
       await this.writeJson(path, value);
@@ -258,8 +266,11 @@ export function snapshotToFiles(snapshot: DataSnapshot): Record<string, unknown>
       plans: snapshot.plans,
       templates: snapshot.templates,
     },
+    "body-metrics.json": snapshot.bodyMetrics,
+    "timeline-notes.json": snapshot.timelineNotes,
     ...snapshot.resources,
     ...workoutMonthFiles(snapshot),
+    ...exercisePerformanceMonthFiles(snapshot),
   };
 }
 
@@ -273,10 +284,22 @@ function workoutMonthFiles(snapshot: DataSnapshot): Record<string, WorkoutDoc[]>
   return grouped;
 }
 
+function exercisePerformanceMonthFiles(snapshot: DataSnapshot): Record<string, ExercisePerformanceRecordDoc[]> {
+  const grouped: Record<string, ExercisePerformanceRecordDoc[]> = {};
+  for (const record of snapshot.exercisePerformanceRecords) {
+    const key = exercisePerformanceShardPath(record.achievedAt);
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(record);
+  }
+  return grouped;
+}
+
 function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> {
   const templateFile = files["templates.json"] as { plans?: unknown; templates?: unknown } | undefined;
   const manifest = files[MANIFEST_PATH] as IronLogManifest | undefined;
   const monthWorkouts = workoutShardPathsFromManifest(manifest)
+    .flatMap((path) => (Array.isArray(files[path]) ? files[path] : []));
+  const performanceRecords = exercisePerformanceShardPathsFromManifest(manifest)
     .flatMap((path) => (Array.isArray(files[path]) ? files[path] : []));
   return {
     manifest: manifest as Partial<DataSnapshot>["manifest"],
@@ -286,6 +309,9 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
     plans: templateFile?.plans as Partial<DataSnapshot>["plans"],
     templates: templateFile?.templates as Partial<DataSnapshot>["templates"],
     workouts: monthWorkouts as Partial<DataSnapshot>["workouts"],
+    bodyMetrics: files["body-metrics.json"] as Partial<DataSnapshot>["bodyMetrics"],
+    timelineNotes: files["timeline-notes.json"] as Partial<DataSnapshot>["timelineNotes"],
+    exercisePerformanceRecords: performanceRecords as Partial<DataSnapshot>["exercisePerformanceRecords"],
     resources: Object.fromEntries(Object.entries(files)
       .filter(([path, value]) => isResourceShardPath(path) && typeof value === "string")) as Partial<DataSnapshot>["resources"],
   };
@@ -294,7 +320,7 @@ function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> 
 function managedPathsFromManifest(manifest: Pick<IronLogManifest, "shards"> | null | undefined): string[] {
   return [...new Set((manifest?.shards || [])
     .map((shard) => shard.path)
-    .filter((path) => workoutShardPathsFromManifest(manifest).includes(path) || isResourceShardPath(path)))]
+    .filter((path) => workoutShardPathsFromManifest(manifest).includes(path) || isExercisePerformanceShardPath(path) || isResourceShardPath(path)))]
     .sort();
 }
 

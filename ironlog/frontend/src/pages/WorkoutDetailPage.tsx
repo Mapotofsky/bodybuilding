@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getWorkout, deleteWorkout, copyWorkout, shareWorkout } from "@/services/workout";
-import type { WorkoutShareData } from "@/services/workout";
+import { getWorkout, deleteWorkout, copyWorkout } from "@/services/workout";
 import { getSettings } from "@/services/settings";
+import { dataUrlToFile, prepareWorkoutShareImage, type WorkoutShareImage } from "@/services/shareImage";
 import type { Workout } from "@/types";
 import { CATEGORY_LABELS, MOOD_LABELS } from "@/types";
 import {
   ArrowLeft,
   Copy,
   Trash2,
-  Clock,
-  Dumbbell,
   MoreHorizontal,
   Pencil,
   Share2,
@@ -22,8 +20,6 @@ import { useToastStore } from "@/components/Toast";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { calculateStrengthVolume, calculateWorkoutMetrics, formatVolume } from "@/core/workoutMetrics";
 
-const MOOD_EMOJI: Record<number, string> = { 1: "😫", 2: "😕", 3: "😐", 4: "😊", 5: "🔥" };
-
 export default function WorkoutDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,7 +29,8 @@ export default function WorkoutDetailPage() {
   const [copyDate, setCopyDate] = useState("");
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareData, setShareData] = useState<WorkoutShareData | null>(null);
+  const [shareImage, setShareImage] = useState<WorkoutShareImage | null>(null);
+  const [shareDetails, setShareDetails] = useState(false);
   const [displayUnit, setDisplayUnit] = useState<"kg" | "lb">("kg");
 
   useEffect(() => {
@@ -63,35 +60,32 @@ export default function WorkoutDetailPage() {
   const handleShare = async () => {
     if (!workout) return;
     try {
-      const data = await shareWorkout(workout.id);
-      setShareData(data);
+      const image = await prepareWorkoutShareImage(workout.id, { show_details: shareDetails });
+      setShareImage(image);
       setShowShareModal(true);
     } catch {
-      useToastStore.getState().add("生成分享数据失败", "error");
+      useToastStore.getState().add("生成分享图失败", "error");
     }
   };
 
-  const doShare = async (data: WorkoutShareData) => {
-    const text = [
-      `🏋️ IronLog 训练记录`,
-      `📅 ${data.date}`,
-      `💪 ${data.exercise_count}个动作 · ${data.total_sets}组${data.total_volume ? ` · ${formatVolume(data.total_volume, data.total_volume_unit)}` : ""}${data.total_distance_m ? ` · ${Math.round(data.total_distance_m)}m` : ""}`,
-      data.duration_minutes ? `⏱ ${data.duration_minutes}分钟` : "",
-      "",
-      ...data.exercises.map((e) => `• ${e.name}: ${e.sets}组 ${e.type === "cardio" ? `${Math.round(e.distance_m)}m · ${e.duration_sec}s` : e.type === "static_hold" ? `${e.duration_sec}s` : e.type === "reps_only" ? `${e.reps}次` : formatVolume(e.volume, data.total_volume_unit)}`),
-    ]
-      .filter(Boolean)
-      .join("\n");
+  const saveShareImage = (image: WorkoutShareImage) => {
+    const link = document.createElement("a");
+    link.href = image.data_url;
+    link.download = image.file_name;
+    link.click();
+  };
 
-    if (navigator.share) {
+  const doShareImage = async (image: WorkoutShareImage) => {
+    const file = await dataUrlToFile(image.data_url, image.file_name);
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    if (navigator.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
       try {
-        await navigator.share({ title: "IronLog 训练记录", text });
+        await navigator.share({ title: "IronLog 训练记录", files: [file] });
       } catch {
         /* user cancelled */
       }
     } else {
-      await navigator.clipboard.writeText(text);
-      useToastStore.getState().add("已复制到剪贴板", "success");
+      useToastStore.getState().add("当前环境不支持系统图片分享，请先保存图片", "error");
     }
   };
 
@@ -328,46 +322,24 @@ export default function WorkoutDetailPage() {
       )}
 
       {/* Share Modal */}
-      {showShareModal && shareData && (
+      {showShareModal && shareImage && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center animate-fade-in">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowShareModal(false)} />
           <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl overflow-hidden animate-slide-up md:max-w-[768px]">
-            <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-6 text-white">
-              <div className="flex items-center gap-2 mb-4">
-                <Dumbbell size={18} className="text-white" />
-                <span className="font-bold text-base">IronLog</span>
-              </div>
-              <p className="text-emerald-100 text-sm">
-                {format(new Date(shareData.date), "yyyy年M月d日 EEEE", { locale: zhCN })}
-              </p>
-              <div className="grid grid-cols-3 gap-2 mt-4">
-                {[
-                  { v: shareData.exercise_count, l: "动作" },
-                  { v: shareData.total_sets, l: "总组数" },
-                  { v: shareData.total_volume ? formatVolume(shareData.total_volume, shareData.total_volume_unit) : `${Math.round(shareData.total_distance_m)}m`, l: shareData.total_volume ? "容量" : "距离" },
-                ].map(({ v, l }) => (
-                  <div key={l} className="bg-white/15 rounded-xl p-3 text-center">
-                    <p className="text-xl font-bold">{v}</p>
-                    <p className="text-xs text-emerald-100 mt-0.5">{l}</p>
-                  </div>
-                ))}
-              </div>
-              {shareData.duration_minutes != null && shareData.duration_minutes > 0 && (
-                <p className="text-sm text-emerald-100 mt-3 flex items-center gap-1">
-                  <Clock size={13} /> 训练时长 {shareData.duration_minutes} 分钟
-                </p>
-              )}
-              <div className="mt-3 space-y-1">
-                {shareData.exercises.map((ex, i) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span>{ex.name}</span>
-                    <span className="text-emerald-200">{ex.sets}组 · {ex.type === "cardio" ? `${Math.round(ex.distance_m)}m` : ex.type === "static_hold" ? `${ex.duration_sec}s` : ex.type === "reps_only" ? `${ex.reps}次` : formatVolume(ex.volume, shareData.total_volume_unit)}</span>
-                  </div>
-                ))}
-              </div>
-              {shareData.mood != null && shareData.mood in MOOD_EMOJI && (
-                <p className="mt-3 text-lg">{MOOD_EMOJI[shareData.mood]}</p>
-              )}
+            <div className="p-4 bg-slate-50 max-h-[70dvh] overflow-y-auto">
+              <label className="flex items-center justify-between gap-3 mb-3 bg-white rounded-2xl border border-slate-100 px-4 py-3">
+                <span className="text-sm font-semibold text-slate-700">显示组明细</span>
+                <input
+                  type="checkbox"
+                  checked={shareDetails}
+                  onChange={async (event) => {
+                    const next = event.target.checked;
+                    setShareDetails(next);
+                    if (workout) setShareImage(await prepareWorkoutShareImage(workout.id, { show_details: next }));
+                  }}
+                />
+              </label>
+              <img src={shareImage.data_url} alt="训练分享图预览" className="w-full rounded-2xl border border-slate-100 shadow-sm" />
             </div>
             <div className="p-4 flex gap-3">
               <button
@@ -377,7 +349,13 @@ export default function WorkoutDetailPage() {
                 <X size={15} /> 关闭
               </button>
               <button
-                onClick={() => doShare(shareData)}
+                onClick={() => saveShareImage(shareImage)}
+                className="flex-1 py-3 bg-slate-100 rounded-2xl font-medium text-sm text-slate-700 flex items-center justify-center gap-1.5"
+              >
+                保存图片
+              </button>
+              <button
+                onClick={() => doShareImage(shareImage)}
                 className="flex-1 py-3 bg-emerald-500 text-white rounded-2xl font-semibold text-sm flex items-center justify-center gap-1.5"
               >
                 <Share2 size={15} /> 分享

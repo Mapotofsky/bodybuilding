@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export type DocId = string;
 export type ISODate = string;
@@ -24,8 +24,6 @@ export interface ProfileDoc extends BaseDoc {
   nickname: string | null;
   avatarUrl: string | null;
   gender: string | null;
-  height: number | null;
-  weight: number | null;
   birthDate: ISODate | null;
 }
 
@@ -112,6 +110,87 @@ export interface WorkoutDoc extends BaseDoc {
   exercises: WorkoutExerciseDoc[];
 }
 
+export type BodyMeasurementKey =
+  | "neck" | "shoulder" | "chest" | "waist" | "hip"
+  | "upperArmLeft" | "upperArmRight"
+  | "forearmLeft" | "forearmRight"
+  | "thighLeft" | "thighRight"
+  | "calfLeft" | "calfRight";
+
+export type BodyMeasurementsCm = Record<BodyMeasurementKey, number | null>;
+
+export interface BodyMetricDoc extends BaseDoc {
+  recordedAt: ISODateTime;
+  heightCm: number | null;
+  weightKg: number | null;
+  bodyFatPercent: number | null;
+  measurementsCm: BodyMeasurementsCm;
+  note: string | null;
+}
+
+export type TimelineNoteRangeType = "single_day" | "date_range" | "open_ended";
+
+export interface TimelineNoteDoc extends BaseDoc {
+  content: string;
+  rangeType: TimelineNoteRangeType;
+  startDate: ISODate;
+  endDate: ISODate | null;
+  workoutId: DocId | null;
+}
+
+export type PerformanceRecordKind = "true_pr" | "rpe_adjusted_rm";
+
+export type PerformanceMetricType =
+  | "strength.max_weight"
+  | "strength.max_reps"
+  | "strength.max_set_volume"
+  | "strength.max_workout_volume"
+  | "strength.rpe_adjusted_rm_mean"
+  | "cardio.max_distance"
+  | "cardio.max_duration"
+  | "cardio.best_average_speed"
+  | "reps_only.max_set_reps"
+  | "reps_only.max_workout_reps"
+  | "static_hold.max_set_duration"
+  | "static_hold.max_workout_duration";
+
+export type PerformanceUnit = "kg" | "kg_reps" | "m" | "sec" | "m_per_sec" | "reps";
+
+export interface RmFormulaResults {
+  epleyKg: number;
+  brzyckiKg: number;
+  lombardiKg: number;
+  wathenKg: number;
+  meanKg: number;
+  standardDeviationKg: number;
+  minKg: number;
+  maxKg: number;
+}
+
+export interface PerformanceInputSummary {
+  weightKg: number | null;
+  reps: number | null;
+  rpe: number | null;
+  effectiveReps: number | null;
+  distanceM: number | null;
+  durationSec: number | null;
+  workoutVolumeKgReps: number | null;
+}
+
+export interface ExercisePerformanceRecordDoc extends BaseDoc {
+  exerciseId: DocId;
+  kind: PerformanceRecordKind;
+  metricType: PerformanceMetricType;
+  value: number;
+  unit: PerformanceUnit;
+  achievedAt: ISODateTime;
+  sourceWorkoutId: DocId;
+  sourceWorkoutExerciseId: DocId;
+  sourceSetId: DocId | null;
+  input: PerformanceInputSummary;
+  rm: RmFormulaResults | null;
+}
+
 export interface ManifestShard {
   path: string;
   updatedAt: ISODateTime;
@@ -134,5 +213,8 @@ export interface DataSnapshot {
   plans: TrainingPlanDoc[];
   templates: TemplateDoc[];
   workouts: WorkoutDoc[];
+  bodyMetrics: BodyMetricDoc[];
+  timelineNotes: TimelineNoteDoc[];
+  exercisePerformanceRecords: ExercisePerformanceRecordDoc[];
   resources: Record<string, string>;
 }
