@@ -12,6 +12,7 @@ import { CATEGORY_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
+import MuscleHighlightMap from "@/components/MuscleHighlightMap";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
   strength: "负重训练",
@@ -189,9 +190,12 @@ export default function ExerciseDetailPage() {
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-          <h2 className="text-sm font-bold text-slate-700">目标肌群</h2>
-          <MuscleMap primary={detail.primary_muscle_group_ids} secondary={detail.secondary_muscle_group_ids} />
+        <section className="app-surface rounded-2xl border app-border shadow-sm p-4 space-y-3">
+          <h2 className="text-sm font-bold app-text">目标肌群</h2>
+          <MuscleHighlightMap
+            primaryMuscleGroupIds={detail.primary_muscle_group_ids}
+            secondaryMuscleGroupIds={detail.secondary_muscle_group_ids}
+          />
           <MuscleGroupLine label="主目标" values={detail.primary_muscle_group_ids} />
           <MuscleGroupLine label="次要目标" values={detail.secondary_muscle_group_ids} />
         </section>
@@ -388,59 +392,16 @@ function ExerciseEditor(props: {
 function MuscleGroupLine({ label, values }: { label: string; values: MuscleGroupId[] }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="w-16 shrink-0 text-xs text-slate-500 pt-1">{label}</span>
+      <span className="w-16 shrink-0 text-xs app-text-muted pt-1">{label}</span>
       <div className="flex-1 flex flex-wrap gap-1.5">
-        {values.length > 0 ? values.map((id) => <Badge key={id}>{MUSCLE_GROUP_LABELS[id]}</Badge>) : <span className="text-sm text-slate-400">暂无</span>}
-      </div>
-    </div>
-  );
-}
-
-function MuscleMap({ primary, secondary }: { primary: MuscleGroupId[]; secondary: MuscleGroupId[] }) {
-  const primarySet = new Set(primary);
-  const secondarySet = new Set(secondary);
-  const fillFor = (id: MuscleGroupId) => primarySet.has(id)
-    ? "var(--color-primary)"
-    : secondarySet.has(id)
-    ? "var(--color-primary-soft)"
-    : "var(--color-surface-2)";
-  const strokeFor = (id: MuscleGroupId) => primarySet.has(id) || secondarySet.has(id)
-    ? "var(--color-primary)"
-    : "var(--color-border)";
-  const parts: Array<{ id: MuscleGroupId; x: number; y: number; w: number; h: number; label: string }> = [
-    { id: "shoulders", x: 73, y: 34, w: 54, h: 18, label: "肩" },
-    { id: "chest", x: 78, y: 54, w: 44, h: 26, label: "胸" },
-    { id: "back", x: 78, y: 83, w: 44, h: 22, label: "背" },
-    { id: "core", x: 82, y: 108, w: 36, h: 28, label: "核" },
-    { id: "biceps", x: 50, y: 58, w: 18, h: 44, label: "臂" },
-    { id: "triceps", x: 132, y: 58, w: 18, h: 44, label: "臂" },
-    { id: "glutes", x: 82, y: 138, w: 36, h: 20, label: "臀" },
-    { id: "quadriceps", x: 74, y: 162, w: 22, h: 50, label: "腿" },
-    { id: "hamstrings", x: 104, y: 162, w: 22, h: 50, label: "腿" },
-    { id: "calves", x: 78, y: 218, w: 18, h: 38, label: "小" },
-    { id: "forearms", x: 45, y: 106, w: 16, h: 42, label: "前" },
-  ];
-  return (
-    <div className="app-surface-muted rounded-xl border app-border p-3">
-      <svg viewBox="0 0 200 270" className="w-full h-48" role="img" aria-label="目标肌群示意图">
-        <circle cx="100" cy="20" r="14" fill="var(--color-surface)" stroke="var(--color-border)" />
-        {parts.map((part) => (
-          <g key={`${part.id}-${part.x}`}>
-            <rect x={part.x} y={part.y} width={part.w} height={part.h} rx="9" fill={fillFor(part.id)} stroke={strokeFor(part.id)} />
-            <text x={part.x + part.w / 2} y={part.y + part.h / 2 + 4} textAnchor="middle" fontSize="10" fill={primarySet.has(part.id) ? "var(--color-surface)" : "var(--color-text-secondary)"}>{part.label}</text>
-          </g>
-        ))}
-      </svg>
-      <div className="flex gap-3 text-xs app-text-muted">
-        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: "var(--color-primary)" }} />主目标</span>
-        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: "var(--color-primary-soft)", border: "1px solid var(--color-primary)" }} />次要目标</span>
+        {values.length > 0 ? values.map((id) => <Badge key={id}>{MUSCLE_GROUP_LABELS[id]}</Badge>) : <span className="text-sm app-text-muted">暂无</span>}
       </div>
     </div>
   );
 }
 
 function Badge({ children }: { children: string }) {
-  return <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-semibold border border-emerald-100">{children}</span>;
+  return <span className="text-xs app-primary-soft px-2 py-0.5 rounded-full font-semibold border">{children}</span>;
 }
 
 function StatCard({ icon, label, value, unit }: { icon: ReactNode; label: string; value: string | number; unit?: string }) {
