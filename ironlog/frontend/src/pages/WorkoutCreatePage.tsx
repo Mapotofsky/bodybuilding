@@ -599,7 +599,7 @@ export default function WorkoutCreatePage() {
                 <div className="flex items-center gap-2.5 px-3.5 py-3 bg-emerald-50 border border-emerald-200 rounded-2xl">
                   <span
                     className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: activeTemplate.color || "#10b981" }}
+                    style={{ backgroundColor: activeTemplate.color || "var(--color-primary)" }}
                   />
                   <span className="text-sm text-emerald-800 font-semibold flex-1">{activeTemplate.name}</span>
                   <span className="text-xs text-emerald-500 bg-emerald-100 px-2 py-0.5 rounded-full">已过滤动作</span>
@@ -934,13 +934,13 @@ export default function WorkoutCreatePage() {
               <circle
                 cx={68} cy={68} r={56}
                 fill="none"
-                stroke="#e2e8f0"
+                stroke="var(--color-border)"
                 strokeWidth={10}
               />
               <circle
                 cx={68} cy={68} r={56}
                 fill="none"
-                stroke={isOvertime ? "#ef4444" : "#10b981"}
+                stroke={isOvertime ? "var(--color-danger)" : "var(--color-primary)"}
                 strokeWidth={10}
                 strokeLinecap="round"
                 strokeDasharray={circumference}

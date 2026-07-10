@@ -186,13 +186,15 @@ export default function WorkoutDetailPage() {
               <span
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
                 style={{
-                  backgroundColor: `${workout.template_color || workout.plan_color || "#10b981"}22`,
-                  color: workout.template_color || workout.plan_color || "#059669",
+                  backgroundColor: workout.template_color || workout.plan_color
+                    ? `${workout.template_color || workout.plan_color}22`
+                    : "var(--color-primary-soft)",
+                  color: workout.template_color || workout.plan_color || "var(--color-primary-hover)",
                 }}
               >
                 <span
                   className="w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor: workout.template_color || workout.plan_color || "#10b981" }}
+                  style={{ backgroundColor: workout.template_color || workout.plan_color || "var(--color-primary)" }}
                 />
                 {workout.template_name}
               </span>

@@ -89,7 +89,7 @@ export default function WorkoutsPage() {
                 <div
                   className="w-2 h-10 rounded-full flex-shrink-0"
                   style={{
-                    backgroundColor: w.template_color || w.plan_color || "#e2e8f0",
+                    backgroundColor: w.template_color || w.plan_color || "var(--color-border)",
                   }}
                 />
                 <div className="flex-1 min-w-0">

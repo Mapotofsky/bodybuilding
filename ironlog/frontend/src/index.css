@@ -281,6 +281,15 @@ body {
   border-color: var(--color-border);
 }
 
+.app-danger-text {
+  color: var(--color-danger);
+}
+
+.app-danger-bg {
+  background-color: var(--color-danger);
+  color: var(--color-surface);
+}
+
 .app-input {
   background-color: var(--color-surface-2);
   border-color: var(--color-border);

@@ -161,26 +161,26 @@ export default function ExerciseDetailPage() {
 
   if (error || !detail) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-400 gap-3 px-5">
+      <div className="app-screen min-h-screen flex flex-col items-center justify-center app-text-muted gap-3 px-5">
         <p>{error || "动作不存在"}</p>
-        <button onClick={goBack} className="text-emerald-600 text-sm font-medium">返回动作库</button>
+        <button onClick={goBack} className="app-primary-text text-sm font-medium">返回动作库</button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center gap-3 z-10">
-        <button onClick={goBack} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
-          <ChevronLeft size={20} className="text-slate-700" />
+    <div className="app-screen min-h-screen">
+      <div className="sticky top-0 app-surface border-b app-border px-4 h-14 flex items-center gap-2 z-10">
+        <button onClick={goBack} className="app-surface-muted w-9 h-9 shrink-0 flex items-center justify-center rounded-full" aria-label="返回动作库">
+          <ChevronLeft size={20} className="app-text" />
         </button>
-        <h1 className="text-base font-bold text-slate-900 flex-1 truncate">{detail.name}</h1>
+        <h1 className="text-base font-bold app-text flex-1 min-w-0 truncate">{detail.name}</h1>
         {detail.is_custom && (
           <>
-            <button onClick={() => setShowEditor(true)} className="p-2 text-emerald-600" aria-label="编辑动作">
+            <button onClick={() => setShowEditor(true)} className="app-primary-text w-9 h-9 shrink-0 flex items-center justify-center" aria-label="编辑动作">
               <Pencil size={18} />
             </button>
-            <button onClick={() => setShowDelete(true)} className="p-2 text-red-500" aria-label="删除动作">
+            <button onClick={() => setShowDelete(true)} className="app-danger-text w-9 h-9 shrink-0 flex items-center justify-center" aria-label="删除动作">
               <Trash2 size={18} />
             </button>
           </>
@@ -188,9 +188,9 @@ export default function ExerciseDetailPage() {
       </div>
 
       <div className="px-5 pt-4 space-y-4 pb-8">
-        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
           <div className="min-w-0">
-            <p className="font-bold text-slate-900 truncate">{detail.name}</p>
+            <p className="font-bold app-text break-words">{detail.name}</p>
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <Badge>{CATEGORY_LABELS[detail.category] || detail.category}</Badge>
               <Badge>{TYPE_LABELS[detail.type as Exercise["type"]] || detail.type}</Badge>
@@ -209,13 +209,13 @@ export default function ExerciseDetailPage() {
           <MuscleGroupLine label="次要目标" values={detail.secondary_muscle_group_ids} />
         </section>
 
-        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-          <h2 className="text-sm font-bold text-slate-700 mb-2">动作要领</h2>
-          <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{detail.description || "暂无"}</p>
+        <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
+          <h2 className="text-sm font-bold app-text mb-2">动作要领</h2>
+          <p className="text-sm app-text-muted leading-relaxed whitespace-pre-wrap">{detail.description || "暂无"}</p>
         </section>
 
         <section>
-          <h2 className="text-sm font-bold text-slate-700 mb-2 px-1">我的统计</h2>
+          <h2 className="text-sm font-bold app-text mb-2 px-1">我的统计</h2>
           <div className="grid grid-cols-2 gap-3">
             <StatCard icon={<Check size={14} />} label="已完成训练" value={detail.stats.completed_workout_count} unit="次" />
             <StatCard icon={<NotebookText size={14} />} label="7天内总组" value={detail.stats.recent_7_day_set_count} unit="组" />
@@ -225,39 +225,44 @@ export default function ExerciseDetailPage() {
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <h2 className="text-sm font-bold text-slate-700">动作成绩</h2>
-            <button onClick={rebuildPerformance} className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">重算</button>
+            <h2 className="text-sm font-bold app-text">动作成绩</h2>
+            <button onClick={rebuildPerformance} className="app-primary-soft shrink-0 min-h-9 text-xs font-semibold border px-3 py-1 rounded-full">重算</button>
           </div>
           {currentBestPerformance.length === 0 ? (
-            <p className="text-sm text-slate-400">暂无 PR/RM 刷新记录</p>
+            <p className="text-sm app-text-muted">暂无 PR/RM 刷新记录</p>
           ) : (
             <div className="space-y-2">
               {currentBestPerformance.map((record) => (
-                <button key={record.id} onClick={() => navigate(`/workouts/${record.source_workout_id}`)} className="w-full text-left bg-slate-50 rounded-xl p-3">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-sm font-semibold text-slate-800 truncate">{record.metric_label}</span>
-                    <span className="text-sm font-bold text-emerald-600">{formatPerformanceValue(record, displayUnit)}</span>
+                <button key={record.id} onClick={() => navigate(`/workouts/${record.source_workout_id}`)} className="app-surface-muted w-full min-w-0 text-left rounded-xl border app-border p-3">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                    <span className="text-sm font-semibold app-text break-words">{record.metric_label}</span>
+                    <span className="text-sm font-bold app-primary-text text-right break-words max-w-36">{formatPerformanceValue(record, displayUnit)}</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">{record.kind === "rpe_adjusted_rm" ? "基于 RPE 修正" : "真实 PR"} · {record.achieved_at.slice(0, 10)}</p>
+                  <p className="text-xs app-text-muted mt-1">{record.kind === "rpe_adjusted_rm" ? "基于 RPE 修正" : "真实 PR"} · {record.achieved_at.slice(0, 10)}</p>
                 </button>
               ))}
             </div>
           )}
         </section>
 
-        <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-          <h2 className="text-sm font-bold text-slate-700 mb-3">{trend ? `${trend.metric_label}趋势` : "趋势"}</h2>
+        <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
+          <h2 className="text-sm font-bold app-text mb-3">{trend ? `${trend.metric_label}趋势` : "趋势"}</h2>
           {!trend || trendData.length === 0 ? (
-            <p className="text-sm text-slate-400">暂无趋势数据</p>
+            <p className="text-sm app-text-muted">暂无趋势数据</p>
           ) : (
-            <div className="h-40 bg-slate-50 rounded-xl border border-slate-100 p-2">
+            <div className="app-surface-muted h-40 min-w-0 rounded-xl border app-border p-2">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData}>
                   <XAxis dataKey="date" hide />
                   <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-                  <Tooltip formatter={(value) => [`${formatOneDecimal(Number(value))}${trendUnit ? ` ${trendUnit}` : ""}`, trend.metric_label]} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)", borderRadius: 8, color: "var(--color-text)" }}
+                    itemStyle={{ color: "var(--color-primary)" }}
+                    labelStyle={{ color: "var(--color-text-secondary)" }}
+                    formatter={(value) => [`${formatOneDecimal(Number(value))}${trendUnit ? ` ${trendUnit}` : ""}`, trend.metric_label]}
+                  />
                   <Line type="monotone" dataKey="display_value" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -266,7 +271,7 @@ export default function ExerciseDetailPage() {
         </section>
 
         <section>
-          <h2 className="text-sm font-bold text-slate-700 mb-2 px-1">历史组记录</h2>
+          <h2 className="text-sm font-bold app-text mb-2 px-1">历史组记录</h2>
           {dates.length > 0 ? (
             <div className="space-y-2">
               {dates.map((date) => {
@@ -274,12 +279,12 @@ export default function ExerciseDetailPage() {
                 const dayType = records[0].exercise_type;
                 const maxWeight = dayType === "strength" ? Math.max(...records.map((record) => record.weight ?? 0)) : 0;
                 return (
-                  <div key={date} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="px-4 py-2.5 bg-slate-50/60 border-b border-slate-50 flex items-center justify-between">
-                      <p className="text-xs font-semibold text-slate-500">{date.replace(/-/g, "/")}</p>
-                      <span className="text-xs text-emerald-600 font-semibold">{TYPE_LABELS[dayType]}</span>
+                  <div key={date} className="app-surface rounded-2xl border app-border shadow-sm overflow-hidden">
+                    <div className="app-surface-muted px-4 py-2.5 border-b app-border flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold app-text-muted">{date.replace(/-/g, "/")}</p>
+                      <span className="text-xs app-primary-text font-semibold text-right break-words">{TYPE_LABELS[dayType]}</span>
                     </div>
-                    <div className="divide-y divide-slate-50">
+                    <div className="app-divide divide-y">
                       {records.map((record, index) => (
                         <HistorySet key={`${date}-${index}`} record={record} maxWeight={maxWeight} />
                       ))}
@@ -289,9 +294,9 @@ export default function ExerciseDetailPage() {
               })}
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 py-12 text-center">
-              <Dumbbell size={28} className="mx-auto mb-2 text-slate-300" />
-              <p className="text-sm text-slate-400">还没有使用记录</p>
+            <div className="app-surface rounded-2xl border app-border py-12 text-center">
+              <Dumbbell size={28} className="mx-auto mb-2 app-text-muted" />
+              <p className="text-sm app-text-muted">还没有使用记录</p>
             </div>
           )}
         </section>
@@ -319,27 +324,27 @@ export default function ExerciseDetailPage() {
       {showDelete && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center">
           <button className="absolute inset-0 bg-black/50" onClick={() => setShowDelete(false)} aria-label="关闭删除选择" />
-          <div className="relative w-full max-w-[480px] bg-white rounded-t-3xl p-5 space-y-4 md:max-w-[768px]">
+          <div className="app-surface relative w-full max-w-[480px] max-h-[88dvh] overflow-y-auto rounded-t-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-4 md:max-w-[768px]">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="font-semibold text-slate-900">删除自定义动作</h2>
-              <button onClick={() => setShowDelete(false)} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center">
+              <h2 className="font-semibold app-text min-w-0">删除自定义动作</h2>
+              <button onClick={() => setShowDelete(false)} className="app-surface-muted w-9 h-9 shrink-0 rounded-full flex items-center justify-center" aria-label="关闭">
                 <X size={18} />
               </button>
             </div>
-            <p className="text-sm text-slate-500 leading-relaxed">
+            <p className="text-sm app-text-muted leading-relaxed">
               选择替代动作后，存活模板会迁移到目标动作；历史训练保留原始动作 ID 和记录类型快照。
             </p>
             <select
               value={replacement}
               onChange={(event) => setReplacement(event.target.value)}
-              className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+              className="app-input w-full h-12 rounded-xl border px-3 text-sm"
             >
               <option value="">仅删除，不迁移模板</option>
               {availableExercises.filter((exercise) => exercise.id !== detail.id && exercise.type === detail.type).map((exercise) => (
                 <option key={exercise.id} value={exercise.id}>{exercise.name}</option>
               ))}
             </select>
-            <button onClick={removeExercise} className="w-full h-11 rounded-xl bg-red-500 text-white text-sm font-semibold">
+            <button onClick={removeExercise} className="app-danger-bg w-full min-h-12 rounded-xl px-3 py-2 text-sm font-semibold break-words">
               {replacement ? "迁移模板后删除" : "仅删除"}
             </button>
           </div>
@@ -385,10 +390,10 @@ function ExerciseEditor(props: {
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center">
       <button className="absolute inset-0 bg-black/50" onClick={props.onClose} aria-label="关闭编辑动作" />
-      <div className="relative w-full max-w-[480px] max-h-[88dvh] overflow-y-auto bg-white rounded-t-3xl p-5 space-y-3 md:max-w-[768px]">
-        <div className="flex justify-between items-center">
-          <h2 className="font-semibold text-slate-900">编辑自定义动作</h2>
-          <button onClick={props.onClose} className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center">
+      <div className="app-surface relative w-full max-w-[480px] max-h-[88dvh] overflow-y-auto rounded-t-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-3 md:max-w-[768px]">
+        <div className="flex justify-between items-center gap-3">
+          <h2 className="font-semibold app-text min-w-0">编辑自定义动作</h2>
+          <button onClick={props.onClose} className="app-surface-muted w-9 h-9 shrink-0 rounded-full flex items-center justify-center" aria-label="关闭">
             <X size={18} />
           </button>
         </div>
@@ -415,14 +420,14 @@ function Badge({ children }: { children: string }) {
 
 function StatCard({ icon, label, value, unit }: { icon: ReactNode; label: string; value: string | number; unit?: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-      <div className="flex items-center gap-1.5 mb-2 text-emerald-500">
-        {icon}
-        <span className="text-xs text-slate-500 font-medium">{label}</span>
+    <div className="app-surface min-w-0 rounded-2xl border app-border shadow-sm p-4">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-1.5 mb-2 app-primary-text">
+        <span className="mt-0.5">{icon}</span>
+        <span className="text-xs app-text-muted font-medium break-words">{label}</span>
       </div>
-      <p className="text-xl font-bold text-slate-900">
+      <p className="text-xl font-bold app-text break-words">
         {value}
-        {unit && <span className="text-sm font-normal text-slate-400 ml-1">{unit}</span>}
+        {unit && <span className="text-sm font-normal app-text-muted ml-1">{unit}</span>}
       </p>
     </div>
   );
@@ -478,24 +483,24 @@ function bestStatCards(detail: ExerciseDetail): Array<{ icon: ReactNode; label: 
 
 function HistorySet({ record, maxWeight }: { record: ExerciseHistoryRecord; maxWeight: number }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5">
-      <span className="text-xs font-semibold text-slate-400 w-8">第{record.set_number}组</span>
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-2.5">
+      <span className="text-xs font-semibold app-text-muted whitespace-nowrap">第{record.set_number}组</span>
       {record.exercise_type === "cardio" ? (
-        <span className="text-sm font-semibold text-slate-600">{record.distance_m ?? "—"} m · {record.duration_sec ?? "—"} s</span>
+        <span className="text-sm font-semibold app-text break-words">{record.distance_m ?? "—"} m · {record.duration_sec ?? "—"} s</span>
       ) : record.exercise_type === "static_hold" ? (
-        <span className="text-sm font-semibold text-slate-600">{record.duration_sec ?? "—"} s</span>
+        <span className="text-sm font-semibold app-text break-words">{record.duration_sec ?? "—"} s</span>
       ) : (
-        <>
+        <span className="flex min-w-0 items-center gap-2 flex-wrap">
           {record.exercise_type === "strength" && (
             <>
-              <span className={`text-sm font-bold ${record.weight === maxWeight && maxWeight > 0 ? "text-emerald-600" : "text-slate-800"}`}>
+              <span className={`text-sm font-bold ${record.weight === maxWeight && maxWeight > 0 ? "app-primary-text" : "app-text"}`}>
                 {record.weight !== null ? `${record.weight}${record.unit}` : "—"}
               </span>
-              <span className="text-slate-300">×</span>
+              <span className="app-text-muted">×</span>
             </>
           )}
-          <span className="text-sm font-semibold text-slate-600">{record.reps !== null ? `${record.reps}次` : "—"}</span>
-        </>
+          <span className="text-sm font-semibold app-text">{record.reps !== null ? `${record.reps}次` : "—"}</span>
+        </span>
       )}
     </div>
   );
@@ -503,11 +508,11 @@ function HistorySet({ record, maxWeight }: { record: ExerciseHistoryRecord; maxW
 
 function LoadingDetail() {
   return (
-    <div className="min-h-screen bg-slate-50 px-5 pt-16 pb-4 space-y-3">
+    <div className="app-screen min-h-screen px-5 pt-16 pb-4 space-y-3">
       {[1, 2, 3].map((item) => (
-        <div key={item} className="bg-white rounded-2xl p-4 border border-slate-100 animate-pulse">
-          <div className="h-4 bg-slate-100 rounded-xl w-1/2 mb-2" />
-          <div className="h-3 bg-slate-100 rounded-xl w-3/4" />
+        <div key={item} className="app-surface rounded-2xl p-4 border app-border animate-pulse">
+          <div className="app-surface-muted h-4 rounded-xl w-1/2 mb-2" />
+          <div className="app-surface-muted h-3 rounded-xl w-3/4" />
         </div>
       ))}
     </div>

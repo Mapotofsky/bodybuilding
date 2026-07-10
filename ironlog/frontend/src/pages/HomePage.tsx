@@ -224,13 +224,13 @@ export default function HomePage() {
                     <AreaChart data={volumeChartData}>
                       <defs>
                         <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--color-chart-1)" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="var(--color-chart-1)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <Area type="monotone" dataKey="vol" stroke="#10b981" strokeWidth={2} fill="url(#volGrad)" dot={false} />
+                      <Area type="monotone" dataKey="vol" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#volGrad)" dot={false} />
                       <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}
+                        contentStyle={{ backgroundColor: "var(--color-surface)", color: "var(--color-text)", fontSize: 11, borderRadius: 8, borderColor: "var(--color-border)", boxShadow: "0 2px 8px rgb(0 0 0 / 0.12)" }}
                         formatter={(v: number) => [formatVolume(v, displayUnit), "容量"]}
                         labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                       />
@@ -248,7 +248,7 @@ export default function HomePage() {
                     <div
                       className="w-2 h-10 rounded-full flex-shrink-0"
                       style={{
-                        backgroundColor: w.template_color || w.plan_color || "#e2e8f0",
+                        backgroundColor: w.template_color || w.plan_color || "var(--color-border)",
                       }}
                     />
                     <div className="flex-1 min-w-0">
