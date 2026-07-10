@@ -281,7 +281,7 @@ function VolumeChart({ stats }: { stats: CalendarStats }) {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={stats.volume_points}>
           <XAxis dataKey="label" tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-          <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+          <YAxis width={42} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
           <Tooltip content={(props) => <VolumeTooltip active={props.active} datum={props.payload?.[0]?.payload} period={stats.period} unit={stats.kpis.total_volume_unit} />} />
           <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
         </LineChart>
@@ -293,8 +293,8 @@ function VolumeChart({ stats }: { stats: CalendarStats }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={chartData.interactivePoints}>
-        <XAxis dataKey="label" interval={0} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-        <YAxis width={48} domain={volumeAxisDomain(stats)} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+        <XAxis dataKey="label" interval={0} angle={-15} textAnchor="end" height={35} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+        <YAxis width={42} domain={volumeAxisDomain(stats)} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
         <Tooltip content={(props) => <VolumeTooltip active={props.active} datum={props.payload?.[0]?.payload} period={stats.period} unit={stats.kpis.total_volume_unit} />} />
         <Customized component={<YearVolumeAuxiliaryLine points={chartData.auxiliaryPoints} year={Number(stats.current.from.slice(0, 4))} />} />
         <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2.5} dot={{ r: 2 }} />
