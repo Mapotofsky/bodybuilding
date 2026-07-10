@@ -149,7 +149,8 @@ export default function RmCalculatorPage() {
         <section className="app-surface rounded-2xl border shadow-sm p-4">
           <h2 className="text-sm font-bold app-text mb-3">公式说明</h2>
           <div className="space-y-2 text-sm app-text-muted leading-relaxed">
-            <p>力量训练 RPE 在这里按“还能做几次”解释：<br />RIR = 10 - RPE，修正次数 = 次数 + RIR。</p>
+            <p>RM（Repetition Maximum）是力量训练中衡量训练强度的关键指标，表示在保持标准动作姿势下，个体能完成的最大重复次数所对应的重量。</p>
+            <p>这里使用自觉用力程度（Rating of Perceived Exertion，RPE）和剩余次数（Reps in Reserve，RIR，即“还能做几次”）来修正最大重复次数。<br />RIR = 10 - RPE，修正次数 = 次数 + RIR。</p>
             <p>四个公式都用同一个修正次数估算 1RM。低到中次数、动作标准稳定、接近力竭但没有明显变形时，估算通常更有参考价值。</p>
             <p>次数越高、动作越不熟、RPE 判断越不准，误差越容易放大。结果适合做训练重量参考，不适合替代正式 1RM 测试。</p>
           </div>
