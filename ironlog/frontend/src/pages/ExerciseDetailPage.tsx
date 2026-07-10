@@ -14,6 +14,7 @@ import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import MuscleHighlightMap from "@/components/MuscleHighlightMap";
+import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
@@ -258,9 +259,9 @@ export default function ExerciseDetailPage() {
                   <XAxis dataKey="date" hide />
                   <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "var(--color-surface)", borderColor: "var(--color-border)", borderRadius: 8, color: "var(--color-text)" }}
-                    itemStyle={{ color: "var(--color-primary)" }}
-                    labelStyle={{ color: "var(--color-text-secondary)" }}
+                    contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+                    itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                     formatter={(value) => [`${formatOneDecimal(Number(value))}${trendUnit ? ` ${trendUnit}` : ""}`, trend.metric_label]}
                   />
                   <Line type="monotone" dataKey="display_value" stroke="var(--color-primary)" strokeWidth={2} dot={false} />

@@ -1,4 +1,4 @@
-import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, endOfYear, format, startOfMonth, startOfWeek, startOfYear, subMonths, subWeeks, subYears } from "date-fns";
+import { addDays, eachDayOfInterval, endOfMonth, endOfWeek, endOfYear, format, startOfMonth, startOfWeek, startOfYear, subDays, subMonths, subWeeks, subYears } from "date-fns";
 import { resolveExerciseId } from "@/core/exerciseRedirects";
 import type { ExerciseDoc, WorkoutDoc } from "@/core/models";
 import { calculateWorkoutMetrics, formatVolume } from "@/core/workoutMetrics";
@@ -70,6 +70,7 @@ export interface CalendarStats {
     total_volume: number;
   };
   volume_points: Array<{ date: string; label: string; volume: number; workouts: number }>;
+  volume_auxiliary_points: Array<{ date: string; moving_average: number }>;
   checkins: Array<{ date: string; count: number; intensity: 0 | 1 | 2 | 3 }>;
   muscle_distribution: Array<{ muscle_id: MuscleGroupId | "other"; label: string; value: number; percent: number }>;
   body_summaries: StatsBodyMetricSummary[];
@@ -132,6 +133,9 @@ export async function getCalendarStats(period: StatsPeriod, anchorDate: Date): P
   ]);
   const currentWorkouts = completedInRange(snapshot.workouts, current.from, current.to);
   const previousWorkouts = completedInRange(snapshot.workouts, previous.from, previous.to);
+  const auxiliaryWorkouts = period === "year"
+    ? completedInRange(snapshot.workouts, format(subDays(parseDate(current.from), 6), "yyyy-MM-dd"), current.to)
+    : currentWorkouts;
   const kpis = aggregateWorkoutKpis(currentWorkouts, settings.weightUnit);
   const prevKpis = aggregateWorkoutKpis(previousWorkouts, settings.weightUnit);
   return {
@@ -145,6 +149,7 @@ export async function getCalendarStats(period: StatsPeriod, anchorDate: Date): P
       total_volume: kpis.total_volume - prevKpis.total_volume,
     },
     volume_points: volumePoints(period, current, currentWorkouts, settings.weightUnit),
+    volume_auxiliary_points: volumeAuxiliaryPoints(period, current, auxiliaryWorkouts, settings.weightUnit),
     checkins: checkinPoints(period, current, currentWorkouts),
     muscle_distribution: muscleDistribution(currentWorkouts, snapshot.exercises),
     body_summaries: attachPreviousBodySummaries(bodySummaries, previousBodySummaries),
@@ -258,6 +263,23 @@ function volumePoints(period: StatsPeriod, range: StatsRange, workouts: WorkoutD
       volume: aggregateWorkoutKpis(dayWorkouts, weightUnit).total_volume,
       workouts: dayWorkouts.length,
     };
+  });
+}
+
+function volumeAuxiliaryPoints(period: StatsPeriod, range: StatsRange, workouts: WorkoutDoc[], weightUnit: "kg" | "lb"): CalendarStats["volume_auxiliary_points"] {
+  if (period !== "year") return [];
+  const sourceStart = format(subDays(parseDate(range.from), 6), "yyyy-MM-dd");
+  const dates = eachDayOfInterval({ start: parseDate(sourceStart), end: parseDate(range.to) }).map((date) => format(date, "yyyy-MM-dd"));
+  const dailyVolumes = new Map(dates.map((date) => {
+    const dayWorkouts = workouts.filter((workout) => workout.date === date);
+    return [date, aggregateWorkoutKpis(dayWorkouts, weightUnit).total_volume];
+  }));
+  return dates.slice(6).map((date, index) => {
+    const windowStart = index;
+    const movingAverage = dates
+      .slice(windowStart, windowStart + 7)
+      .reduce((sum, windowDate) => sum + (dailyVolumes.get(windowDate) ?? 0), 0) / 7;
+    return { date, moving_average: movingAverage };
   });
 }
 

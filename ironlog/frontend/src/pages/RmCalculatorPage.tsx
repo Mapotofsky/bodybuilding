@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { calculateRmFormulaResults, calculateRpeAdjustedRm } from "@/core/rm";
 import { convertWeight } from "@/core/workoutMetrics";
+import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 
 const FORMULA_ROWS = [
   {
@@ -199,6 +200,9 @@ export default function RmCalculatorPage() {
                     tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
                   />
                   <Tooltip
+                    contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+                    itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                     formatter={(value) => typeof value === "number" ? value.toFixed(3) : value}
                     labelFormatter={(label) => `修正次数 : ${label}`}
                   />

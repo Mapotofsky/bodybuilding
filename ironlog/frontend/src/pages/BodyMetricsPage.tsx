@@ -23,6 +23,7 @@ import {
 import { getSettings } from "@/services/settings";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
+import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 
 type TrendSelection = BodyMetricKey | `pair:${PairedMeasurementKey}`;
 
@@ -97,6 +98,7 @@ export default function BodyMetricsPage() {
       return { key, label: pair.label, left, right, diff: left.value != null && right.value != null ? Math.abs(left.value - right.value) : null };
     });
   }, [current]);
+  const singleTrendUnit = trendSelection.startsWith("pair:") ? "" : String(trendData[0]?.unit ?? "");
 
   return (
     <div className="app-screen min-h-screen pb-8">
@@ -161,7 +163,7 @@ export default function BodyMetricsPage() {
                 <LineChart data={trendData}>
                   <XAxis dataKey="date" hide />
                   <YAxis width={36} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-                  <Tooltip />
+                  <Tooltip contentStyle={CHART_TOOLTIP_CONTENT_STYLE} itemStyle={CHART_TOOLTIP_ITEM_STYLE} labelStyle={CHART_TOOLTIP_LABEL_STYLE} />
                   <Legend verticalAlign="top" height={26} iconType="plainline" wrapperStyle={{ color: "var(--color-text-secondary)", fontSize: 12 }} />
                   <Line type="monotone" name="左侧" dataKey="left" stroke={LEFT_TREND_COLOR} strokeWidth={2} dot={renderLeftTrendDot} activeDot={renderLeftTrendDot} connectNulls={false} />
                   <Line type="monotone" name="右侧" dataKey="right" stroke={RIGHT_TREND_COLOR} strokeWidth={2} dot={renderRightTrendDot} activeDot={renderRightTrendDot} connectNulls={false} />
@@ -172,7 +174,12 @@ export default function BodyMetricsPage() {
                 <LineChart data={trendData}>
                   <XAxis dataKey="date" hide />
                   <YAxis width={36} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+                    itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+                    formatter={(value) => [`${value}${singleTrendUnit ? ` ${singleTrendUnit}` : ""}`, "数值"]}
+                  />
                   <Line type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} dot={false} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>

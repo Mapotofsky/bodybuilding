@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, isToday, startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Customized, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChevronLeft, ChevronRight, Dumbbell, List, Plus } from "lucide-react";
 import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 import { getCalendarOverview, getCalendarStats, type CalendarDayNote, type CalendarDayOverview, type CalendarStats, type StatsPeriod } from "@/services/calendarStats";
 import { categoryKeyStyle } from "@/theme/categoryColors";
+import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 
 export default function CalendarPage() {
   const navigate = useNavigate();
@@ -182,16 +183,17 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
       </section>
 
       <section className="app-surface rounded-2xl border shadow-sm p-4">
-        <h2 className="text-sm font-bold app-text mb-3">容量曲线</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 className="text-sm font-bold app-text">容量曲线</h2>
+          {stats.period === "year" && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] app-text-muted" aria-label="容量曲线图例">
+              <span className="flex items-center gap-1"><span className="w-3 h-0.5 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} />月日均</span>
+              <span className="flex items-center gap-1"><span className="w-3 border-t border-dashed" style={{ borderColor: "var(--color-text-secondary)" }} />7 日滑动平均</span>
+            </div>
+          )}
+        </div>
         <div className="h-44 app-surface-muted rounded-xl border app-border p-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={stats.volume_points}>
-              <XAxis dataKey="label" tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-              <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-              <Tooltip formatter={(value) => [formatVolume(Number(value), stats.kpis.total_volume_unit), "容量"]} />
-              <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          <VolumeChart stats={stats} />
         </div>
       </section>
 
@@ -270,6 +272,105 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
         )}
       </section>
     </div>
+  );
+}
+
+function VolumeChart({ stats }: { stats: CalendarStats }) {
+  if (stats.period !== "year") {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={stats.volume_points}>
+          <XAxis dataKey="label" tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+          <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+          <Tooltip content={(props) => <VolumeTooltip active={props.active} datum={props.payload?.[0]?.payload} period={stats.period} unit={stats.kpis.total_volume_unit} />} />
+          <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  const chartData = buildYearVolumeChartData(stats);
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={chartData.interactivePoints}>
+        <XAxis dataKey="label" interval={0} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+        <YAxis width={48} domain={volumeAxisDomain(stats)} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+        <Tooltip content={(props) => <VolumeTooltip active={props.active} datum={props.payload?.[0]?.payload} period={stats.period} unit={stats.kpis.total_volume_unit} />} />
+        <Customized component={<YearVolumeAuxiliaryLine points={chartData.auxiliaryPoints} year={Number(stats.current.from.slice(0, 4))} />} />
+        <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2.5} dot={{ r: 2 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+function VolumeTooltip({ active, datum, period, unit }: { active?: boolean; datum?: { date?: string; volume?: number | null }; period: StatsPeriod; unit: CalendarStats["kpis"]["total_volume_unit"] }) {
+  const tooltip = getVolumeTooltipContent(active, datum, period, unit);
+  if (!tooltip) return null;
+  return (
+    <div style={CHART_TOOLTIP_CONTENT_STYLE}>
+      <p style={CHART_TOOLTIP_LABEL_STYLE}>{tooltip.date}</p>
+      <p style={CHART_TOOLTIP_ITEM_STYLE}>{tooltip.label}：{tooltip.value}</p>
+    </div>
+  );
+}
+
+export function buildYearVolumeChartData(stats: CalendarStats) {
+  return {
+    interactivePoints: stats.volume_points.map((point) => ({ date: point.date, label: point.label, volume: point.volume })),
+    auxiliaryPoints: stats.volume_auxiliary_points.map((point) => ({ date: point.date, moving_average: point.moving_average })),
+  };
+}
+
+function volumeAxisDomain(stats: CalendarStats): [number, number] {
+  const values = [
+    ...stats.volume_points.map((point) => point.volume),
+    ...stats.volume_auxiliary_points.map((point) => point.moving_average),
+  ].filter((value) => Number.isFinite(value));
+  const max = Math.max(0, ...values);
+  return [0, max > 0 ? max * 1.1 : 1];
+}
+
+export function getVolumeTooltipContent(active: boolean | undefined, datum: { date?: string; volume?: number | null } | undefined, period: StatsPeriod, unit: CalendarStats["kpis"]["total_volume_unit"]) {
+  if (!active || datum?.date == null || datum.volume == null) return null;
+  return {
+    date: period === "year" ? datum.date.slice(0, 7) : datum.date,
+    label: period === "year" ? "月日均容量" : "容量",
+    value: formatVolume(datum.volume, unit),
+  };
+}
+
+function YearVolumeAuxiliaryLine({ points, year, offset, yAxisMap }: {
+  points: CalendarStats["volume_auxiliary_points"];
+  year: number;
+  offset?: { left: number; top: number; width: number; height: number };
+  yAxisMap?: Record<string, { scale?: (value: number) => number }>;
+}) {
+  const yScale = Object.values(yAxisMap ?? {})[0]?.scale;
+  if (!offset || !yScale || points.length === 0) return null;
+  const yearStart = new Date(year, 0, 1).getTime();
+  const yearEnd = new Date(year, 11, 31).getTime();
+  const span = Math.max(1, yearEnd - yearStart);
+  const path = points
+    .map((point, index) => {
+      const date = new Date(`${point.date}T00:00:00`).getTime();
+      const x = offset.left + ((date - yearStart) / span) * offset.width;
+      const y = yScale(point.moving_average);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
+      return `${index === 0 ? "M" : "L"}${x},${y}`;
+    })
+    .filter(Boolean)
+    .join(" ");
+  if (!path) return null;
+  return (
+    <path
+      d={path}
+      fill="none"
+      stroke="var(--color-text-secondary)"
+      strokeWidth={1.25}
+      strokeDasharray="4 4"
+      strokeOpacity={0.55}
+      pointerEvents="none"
+    />
   );
 }
 

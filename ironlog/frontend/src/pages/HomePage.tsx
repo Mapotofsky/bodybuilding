@@ -10,6 +10,7 @@ import { format, subDays } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { SkeletonList } from "@/components/ui/Skeleton";
+import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 import { formatVolume } from "@/core/workoutMetrics";
 
 export default function HomePage() {
@@ -73,7 +74,7 @@ export default function HomePage() {
 
   const volumeChartData = [...recentWorkouts]
     .reverse()
-    .map((w) => ({ date: w.date.slice(5), vol: w.total_volume }));
+    .map((w) => ({ date: w.date, vol: w.total_volume }));
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
@@ -230,7 +231,9 @@ export default function HomePage() {
                       </defs>
                       <Area type="monotone" dataKey="vol" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#volGrad)" dot={false} />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "var(--color-surface)", color: "var(--color-text)", fontSize: 11, borderRadius: 8, borderColor: "var(--color-border)", boxShadow: "0 2px 8px rgb(0 0 0 / 0.12)" }}
+                        contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+                        itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+                        labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                         formatter={(v: number) => [formatVolume(v, displayUnit), "容量"]}
                         labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                       />
