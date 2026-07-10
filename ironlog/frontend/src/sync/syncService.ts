@@ -1,4 +1,5 @@
 import { localRepository } from "@/repositories/localJsonRepository";
+import { rebuildAllPerformanceRecords } from "@/services/performance";
 import {
   buildShardList,
   exercisePerformanceShardPath,
@@ -50,12 +51,14 @@ export async function syncNow(): Promise<SyncResult> {
     ? migrateSnapshot(filesToSnapshot(remoteFiles), local.manifest.deviceId)
     : null;
   const merged = remote ? mergeSnapshots(local, remote, conflicts) : local;
+  const shouldRebuildPerformance = remote ? hasPerformanceSourceChanges(local, merged) : false;
   merged.manifest.updatedAt = new Date().toISOString();
   merged.manifest.shards = buildShardList(merged);
 
   await localRepository.replaceSnapshot(merged);
   await pushSnapshot(client, merged);
   await localRepository.updateLastSyncAt(merged.manifest.updatedAt);
+  if (shouldRebuildPerformance) await rebuildAllPerformanceRecords();
 
   return {
     status: conflicts.length > 0 ? "conflict" : "success",
@@ -185,6 +188,11 @@ export function mergeSnapshots(local: DataSnapshot, remote: DataSnapshot, confli
   };
 }
 
+export function hasPerformanceSourceChanges(local: DataSnapshot, merged: DataSnapshot): boolean {
+  return revisionSignature(local.workouts) !== revisionSignature(merged.workouts)
+    || revisionSignature(local.exercises) !== revisionSignature(merged.exercises);
+}
+
 function mergeSettings(local: SettingsDoc, remote: SettingsDoc, conflicts: string[]): SettingsDoc {
   const winner = newer(local, remote, "settings", conflicts);
   return {
@@ -293,4 +301,8 @@ async function remoteShardPaths(client: WebDavClient): Promise<string[]> {
 function remoteDataUrl(url: string): string {
   const base = url.replace(/\/+$/, "");
   return base.endsWith(`/${REMOTE_DATA_DIRECTORY}`) ? base : `${base}/${REMOTE_DATA_DIRECTORY}`;
+}
+
+function revisionSignature<T extends { id: string }>(docs: T[]): string {
+  return JSON.stringify(docs.slice().sort((left, right) => left.id.localeCompare(right.id)));
 }

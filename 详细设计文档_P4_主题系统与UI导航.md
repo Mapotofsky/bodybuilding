@@ -16,7 +16,7 @@
 
 ## 2. 主题数据与完整主题定义
 
-P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；除 emerald-slate 外其余主题在首轮以语义 CSS token 形式实现，ProfilePage 可选择主题，应用根节点与底部导航已消费 token；页面硬编码 Tailwind 色彩后续逐步迁移。
+P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；除 emerald-slate 外其余主题在首轮以语义 CSS token 形式实现，SettingsPage 可选择主题，应用根节点与底部导航已消费 token；页面硬编码 Tailwind 色彩后续逐步迁移。
 
 | ID | 名称 | 背景/表面 | 主色/焦点 | 正文/次要文字 | 边框 | 成功/警告/危险 |
 |---|---|---|---|---|---|---|
@@ -34,7 +34,7 @@ P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；�
 
 ## 3. 页面、服务、仓储调用链
 
-    ProfilePage 主题选择
+    SettingsPage 主题选择
       -> services/settings
       -> LocalJsonRepository.updateSettings()
       -> DocumentStore.save()

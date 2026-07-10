@@ -2,7 +2,7 @@ import type { ExerciseType, WorkoutDoc, WorkoutExerciseDoc, WorkoutSetDoc } from
 import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 import { localRepository } from "@/repositories/localJsonRepository";
 import { toWorkout, toWorkoutSummary } from "@/services/localMappers";
-import { rebuildAllPerformanceRecords } from "@/services/performance";
+import { rebuildAllPerformanceRecords, recordPerformanceForCompletedWorkout } from "@/services/performance";
 import type { Workout, WorkoutSummary } from "@/types";
 
 export const WORKOUT_LIMITS = {
@@ -69,7 +69,7 @@ export async function getLatestWorkoutDraft(): Promise<Workout | null> {
 export async function createWorkout(body: WorkoutCreatePayload): Promise<Workout> {
   const doc = await normalizeWorkoutPayload(body);
   const created = await localRepository.createWorkout(doc);
-  if (created.endTime != null) await rebuildAllPerformanceRecords();
+  if (created.endTime != null) await recordPerformanceForCompletedWorkout(created.id);
   return toWorkout(created);
 }
 
@@ -79,7 +79,8 @@ export async function updateWorkout(id: string, body: Partial<WorkoutCreatePaylo
   const merged = mergeWithExisting(existing, body);
   const doc = await normalizeWorkoutPayload(merged);
   const updated = await localRepository.updateWorkout(id, doc);
-  if (existing.endTime != null || updated.endTime != null) await rebuildAllPerformanceRecords();
+  if (existing.endTime == null && updated.endTime != null) await recordPerformanceForCompletedWorkout(updated.id);
+  else if (existing.endTime != null || updated.endTime != null) await rebuildAllPerformanceRecords();
   return toWorkout(updated);
 }
 

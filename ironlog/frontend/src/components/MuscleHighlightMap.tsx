@@ -83,7 +83,7 @@ export default function MuscleHighlightMap({
 }
 
 function Region({ region, state }: { region: MuscleRegion; state: HighlightState }) {
-  const style = styleFor(state);
+  const style = styleFor(state, region.id);
   return (
     <g>
       <title>{`${MUSCLE_GROUP_LABELS[region.id]}：${stateLabel(state)}`}</title>
@@ -123,7 +123,7 @@ function LegendItem({ state, label }: { state: HighlightState; label: string }) 
   );
 }
 
-function styleFor(state: HighlightState) {
+function styleFor(state: HighlightState, regionId?: BodyMuscleGroupId) {
   if (state === "primary") {
     return {
       fill: "var(--color-primary)",
@@ -140,6 +140,15 @@ function styleFor(state: HighlightState) {
       stroke: "var(--color-primary)",
       strokeOpacity: 0.44,
       strokeWidth: 1.08,
+    };
+  }
+  if (state === "idle" && (regionId === "adductors" || regionId === "abductors")) {
+    return {
+      fill: "var(--color-text-secondary)",
+      opacity: 0.24,
+      stroke: "var(--color-surface)",
+      strokeOpacity: 0.68,
+      strokeWidth: 0.88,
     };
   }
   return {

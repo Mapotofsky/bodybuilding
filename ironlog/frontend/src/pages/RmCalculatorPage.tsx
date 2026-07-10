@@ -6,10 +6,49 @@ import { calculateRmFormulaResults, calculateRpeAdjustedRm } from "@/core/rm";
 import { convertWeight } from "@/core/workoutMetrics";
 
 const FORMULA_ROWS = [
-  { key: "epley", label: "Epley", formula: "重量 × (1 + 修正次数 / 30)", stroke: "var(--color-chart-1)" },
-  { key: "brzycki", label: "Brzycki", formula: "重量 × 36 / (37 - 修正次数)", stroke: "var(--color-chart-5)" },
-  { key: "lombardi", label: "Lombardi", formula: "重量 × 修正次数 ^ 0.10", stroke: "var(--color-chart-3)" },
-  { key: "wathen", label: "Wathen", formula: "100 × 重量 / (48.8 + 53.8 × exp(-0.075 × 修正次数))", stroke: "var(--color-chart-4)" },
+  {
+    key: "epley",
+    label: "Epley",
+    formula: "重量 × (1 + 修正次数 / 30)",
+    stroke: "var(--color-chart-1)",
+  },
+  {
+    key: "brzycki",
+    label: "Brzycki",
+    formula: "重量 × 36 / (37 - 修正次数)",
+    stroke: "var(--color-chart-5)",
+  },
+  {
+    key: "lombardi",
+    label: "Lombardi",
+    formula: "重量 × 修正次数 ^ 0.10",
+    stroke: "var(--color-chart-3)",
+  },
+  {
+    key: "wathen",
+    label: "Wathen",
+    formula: "100 × 重量 / (48.8 + 53.8 × exp(-0.075 × 修正次数))",
+    stroke: "var(--color-chart-4)",
+  },
+] as const;
+
+const FORMULA_NOTES = [
+  {
+    label: "Epley",
+    description: "最常用的线性模型，读起来最直观：每增加 1 次，估算 1RM 按固定比例上调。低次数时通常比 Brzycki 略高，适合快速估算主项训练重量。",
+  },
+  {
+    label: "Brzycki",
+    description: "同样是常见线性模型，但低次数结果更保守；到 10 次附近会和 Epley 非常接近。适合不想高估 1RM 时参考。",
+  },
+  {
+    label: "Lombardi",
+    description: "幂函数模型，曲线变化更平滑，每增加一次重复，对预测 1RM 的边际贡献递减。在较高次数时通常不会像部分线性公式那样上扬得太快，适合作为对照。",
+  },
+  {
+    label: "Wathen",
+    description: "指数模型，低到中次数估算中常作为非线性对照；在部分卧推研究中表现较好，但不同动作和人群仍会影响误差。",
+  },
 ] as const;
 
 export default function RmCalculatorPage() {
@@ -55,7 +94,7 @@ export default function RmCalculatorPage() {
   return (
     <div className="app-screen min-h-screen pb-24">
       <div className="sticky top-0 z-10 app-surface border-b app-border px-4 h-14 flex items-center gap-3">
-        <button onClick={() => navigate("/profile")} className="w-9 h-9 flex items-center justify-center rounded-full app-surface-muted" aria-label="返回">
+        <button onClick={() => navigate("/tools")} className="w-9 h-9 flex items-center justify-center rounded-full app-surface-muted" aria-label="返回">
           <ChevronLeft size={20} />
         </button>
         <h1 className="text-base font-bold app-text">RM 计算器</h1>
@@ -90,14 +129,14 @@ export default function RmCalculatorPage() {
                 <Metric label="修正次数" value={result.effectiveReps.toFixed(1)} />
                 <Metric label="均值" value={`${display.mean} ${unit}`} />
               </div>
-              <div className="app-divide divide-y">
+              <div>
                 {[
                   ["Epley", display.epley],
                   ["Brzycki", display.brzycki],
                   ["Lombardi", display.lombardi],
                   ["Wathen", display.wathen],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-2 text-sm">
+                ].map(([label, value], index) => (
+                  <div key={label} className={`flex justify-between py-2 text-sm ${index > 0 ? "border-t app-border" : ""}`}>
                     <span className="app-text-muted">{label}</span>
                     <span className="font-semibold app-text">{value} {unit}</span>
                   </div>
@@ -111,15 +150,33 @@ export default function RmCalculatorPage() {
           <h2 className="text-sm font-bold app-text mb-3">公式说明</h2>
           <div className="space-y-2 text-sm app-text-muted leading-relaxed">
             <p>力量训练 RPE 在这里按“还能做几次”解释：<br />RIR = 10 - RPE，修正次数 = 次数 + RIR。</p>
-            <p>四个公式都使用修正次数。没有 RPE、次数超过 12 或修正次数超过 12 时，不生成基于 RPE 修正 RM。</p>
-            <p>有氧训练 RPE 含义不同，不参与本 RM 估算。</p>
+            <p>四个公式都用同一个修正次数估算 1RM。低到中次数、动作标准稳定、接近力竭但没有明显变形时，估算通常更有参考价值。</p>
+            <p>次数越高、动作越不熟、RPE 判断越不准，误差越容易放大。结果适合做训练重量参考，不适合替代正式 1RM 测试。</p>
           </div>
-          <div className="mt-4 app-surface-muted rounded-xl border app-border p-3">
-            <div className="space-y-2 mb-4">
+        </section>
+
+        <section className="app-surface rounded-2xl border shadow-sm p-4">
+          <h2 className="text-sm font-bold app-text mb-3">公式特点</h2>
+          <div className="space-y-3">
+            {FORMULA_NOTES.map((item) => (
+              <div key={item.label} className="app-surface-muted rounded-xl border app-border px-3 py-2.5">
+                <p className="text-sm font-semibold app-text">{item.label}</p>
+                <p className="text-sm app-text-muted leading-relaxed mt-1">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="app-surface rounded-2xl border shadow-sm p-4">
+          <h2 className="text-sm font-bold app-text mb-3">公式与倍率曲线</h2>
+          <div className="app-surface-muted rounded-xl border app-border p-3">
+            <div className="space-y-2">
               {FORMULA_ROWS.map((row) => (
                 <div key={row.key} className="text-xs leading-relaxed">
-                  <span className="font-semibold app-text">{row.label}</span>
-                  <span className="app-text-muted"> = {row.formula}</span>
+                  <p>
+                    <span className="font-semibold app-text">{row.label}</span>
+                    <span className="app-text-muted"> = {row.formula}</span>
+                  </p>
                 </div>
               ))}
             </div>
@@ -158,7 +215,7 @@ export default function RmCalculatorPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="-mt-2 text-center text-[11px] app-text-muted">effectiveReps</p>
+            <p className="-mt-2 text-center text-[11px] app-text-muted">修正次数</p>
             <div className="mt-4 flex items-center justify-between gap-1 text-[10px]">
               {FORMULA_ROWS.map((row) => (
                 <div key={row.key} className="flex items-center gap-1 min-w-0" style={{ color: row.stroke }}>

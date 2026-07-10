@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateWorkoutMetrics, convertWeight } from "./workoutMetrics";
+import { calculateWorkoutMetrics, convertWeight, formatOneDecimal, formatVolume } from "./workoutMetrics";
 
 describe("workout metrics", () => {
   it("converts mixed kg/lb strength volume into the requested display unit and includes warmups", () => {
@@ -21,5 +21,11 @@ describe("workout metrics", () => {
   it("uses the same conversion constant in both directions", () => {
     expect(convertWeight(100, "lb", "kg")).toBeCloseTo(45.359237);
     expect(convertWeight(45.359237, "kg", "lb")).toBeCloseTo(100);
+  });
+
+  it("formats strength volume with one decimal and kg/lb reps unit", () => {
+    expect(formatVolume(753.59237, "kg")).toBe("753.6 kg·次");
+    expect(formatVolume(1234, "lb")).toBe("1234.0 lb·次");
+    expect(formatOneDecimal(-0.01)).toBe("0.0");
   });
 });

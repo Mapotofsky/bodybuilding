@@ -287,6 +287,15 @@ allExercises.filter((exercise) => templateExerciseIds.has(exercise.id))
 
 训练容量、重量单位换算和展示单位必须使用 core/service 的单一权威实现；页面不得自行重复计算 `set.weight * set.reps` 或拼接固定单位。
 
+### F8. 产品文案必须面向用户而非开发者
+
+写入页面、弹窗、空状态、说明页、帮助页、Toast 或表单提示的文案时，必须从用户任务和当下场景出发，不得把设计文档、实现决策、内部模块名或给 AI/开发者看的约束暴露给用户。
+
+- 不得出现“依据 P7 设计”“按设计文档”“service/schema/payload”“不参与某计算路径”等内部实现或验收语言。
+- 不得用产品名替代自然说明，例如“力量训练里，IronLog 按...”应改为直接说明用户要理解的概念或操作。
+- 说明专业术语时，首次出现缩写必须先给全称和中文解释，例如“自觉用力程度（Rating of Perceived Exertion，RPE）”“剩余次数（Reps in Reserve，RIR，即‘还能做几次’）”。
+- 面向用户的说明应短、具体、可操作；资料来源和设计依据只用于实现判断或代码注释，不直接显示在产品界面。
+
 ---
 
 ## 验证规则
@@ -348,6 +357,10 @@ rg -n "axios|auth|token|access_token|refresh_token|/api|services/api|Bearer" src
 ### V7. 删除持久化字段必须零残留
 
 删除持久化字段后必须全文搜索零残留，并覆盖 core model、默认数据、mapper、service payload、页面兼容类型、测试 fixture 和文档。
+
+### V8. 产品文案交付前必须检查内部语境泄漏
+
+新增或修改用户可见文案后，必须按范围搜索是否误写入设计、实现或开发语境词。至少检查本次涉及文件中的 `P0|P1|P2|P3|P4|P5|P6|P7|概要设计|详细设计|设计文档|schema|payload|service|repository|DocumentStore|实现|开发` 等词，并人工判断是否属于用户需要看到的内容。
 
 ---
 

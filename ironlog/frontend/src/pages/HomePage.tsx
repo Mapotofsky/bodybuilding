@@ -73,7 +73,7 @@ export default function HomePage() {
 
   const volumeChartData = [...recentWorkouts]
     .reverse()
-    .map((w) => ({ date: w.date.slice(5), vol: Math.round(w.total_volume) }));
+    .map((w) => ({ date: w.date.slice(5), vol: w.total_volume }));
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";

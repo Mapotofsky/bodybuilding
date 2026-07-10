@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, CalendarDays, User, ClipboardList, Dumbbell } from "lucide-react";
 import { getSettings } from "@/services/settings";
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const mainRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     getSettings()
@@ -22,9 +23,14 @@ export default function Layout() {
       .catch(() => applyThemeId(null));
   }, []);
 
+  useLayoutEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
+
   return (
     <div className="app-screen flex flex-col min-h-screen min-h-dvh">
-      <main className="flex-1 pb-24 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 pb-24 overflow-y-auto">
         <Outlet />
       </main>
 

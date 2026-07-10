@@ -8,11 +8,13 @@ import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from
 import type { Exercise, ExerciseDetail, MuscleGroupId } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
+import { getSettings } from "@/services/settings";
 import { CATEGORY_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import MuscleHighlightMap from "@/components/MuscleHighlightMap";
+import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
   strength: "负重训练",
@@ -43,20 +45,22 @@ export default function ExerciseDetailPage() {
   const [primaryMuscles, setPrimaryMuscles] = useState<MuscleGroupId[]>([]);
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroupId[]>([]);
   const [replacement, setReplacement] = useState("");
+  const [displayUnit, setDisplayUnit] = useState<"kg" | "lb">("kg");
 
   useEffect(() => {
     if (!id) return;
     let alive = true;
     setLoading(true);
     setError(null);
-    Promise.all([getExerciseDetail(id), getExerciseHistory(id, 20), getExercises(), getExercisePerformanceRecords(id), getExercisePerformanceTrend(id)])
-      .then(([nextDetail, nextHistory, exercises, nextPerformance, nextTrend]) => {
+    Promise.all([getExerciseDetail(id), getExerciseHistory(id, 20), getExercises(), getExercisePerformanceRecords(id), getExercisePerformanceTrend(id), getSettings()])
+      .then(([nextDetail, nextHistory, exercises, nextPerformance, nextTrend, settings]) => {
         if (!alive) return;
         setDetail(nextDetail);
         setHistory(nextHistory);
         setAvailableExercises(exercises);
         setPerformance(nextPerformance);
         setTrend(nextTrend);
+        setDisplayUnit(settings.weight_unit);
         setEditorState(nextDetail);
       })
       .catch((err) => {
@@ -81,6 +85,11 @@ export default function ExerciseDetailPage() {
   }, [history]);
   const dates = Object.keys(groupedHistory).sort((a, b) => b.localeCompare(a));
   const currentBestPerformance = useMemo(() => currentBestByMetric(performance), [performance]);
+  const trendData = useMemo(
+    () => trend?.points.map((point) => ({ ...point, display_value: displayPerformanceScalarValue(point.value, point.unit, displayUnit) })) ?? [],
+    [trend, displayUnit]
+  );
+  const trendUnit = trend ? displayPerformanceUnit(trend.points[0]?.unit ?? "kg", displayUnit) : "";
 
   function setEditorState(nextDetail: ExerciseDetail) {
     setName(nextDetail.name);
@@ -229,7 +238,7 @@ export default function ExerciseDetailPage() {
                 <button key={record.id} onClick={() => navigate(`/workouts/${record.source_workout_id}`)} className="w-full text-left bg-slate-50 rounded-xl p-3">
                   <div className="flex justify-between gap-3">
                     <span className="text-sm font-semibold text-slate-800 truncate">{record.metric_label}</span>
-                    <span className="text-sm font-bold text-emerald-600">{formatPerformanceValue(record)}</span>
+                    <span className="text-sm font-bold text-emerald-600">{formatPerformanceValue(record, displayUnit)}</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">{record.kind === "rpe_adjusted_rm" ? "基于 RPE 修正" : "真实 PR"} · {record.achieved_at.slice(0, 10)}</p>
                 </button>
@@ -240,16 +249,16 @@ export default function ExerciseDetailPage() {
 
         <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           <h2 className="text-sm font-bold text-slate-700 mb-3">{trend ? `${trend.metric_label}趋势` : "趋势"}</h2>
-          {!trend || trend.points.length === 0 ? (
+          {!trend || trendData.length === 0 ? (
             <p className="text-sm text-slate-400">暂无趋势数据</p>
           ) : (
             <div className="h-40 bg-slate-50 rounded-xl border border-slate-100 p-2">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trend.points}>
+                <LineChart data={trendData}>
                   <XAxis dataKey="date" hide />
-                  <YAxis width={36} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
+                  <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+                  <Tooltip formatter={(value) => [`${formatOneDecimal(Number(value))}${trendUnit ? ` ${trendUnit}` : ""}`, trend.metric_label]} />
+                  <Line type="monotone" dataKey="display_value" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -431,8 +440,8 @@ function bestStatCards(detail: ExerciseDetail): Array<{ icon: ReactNode; label: 
       {
         icon: <Gauge size={14} />,
         label: "单次最大容量",
-        value: detail.stats.strength.best_volume > 0 ? round(detail.stats.strength.best_volume) : "暂无",
-        unit: detail.stats.strength.best_volume > 0 ? detail.stats.strength.display_unit : undefined,
+        value: detail.stats.strength.best_volume > 0 ? formatOneDecimal(detail.stats.strength.best_volume) : "暂无",
+        unit: detail.stats.strength.best_volume > 0 ? `${detail.stats.strength.display_unit}·次` : undefined,
       },
     ];
   }
@@ -517,16 +526,32 @@ function formatDuration(seconds: number): string {
   return remain === 0 ? `${minutes} 分钟` : `${minutes} 分 ${remain} 秒`;
 }
 
-function formatPerformanceValue(record: PerformanceRecord): string {
+function formatPerformanceValue(record: PerformanceRecord, displayUnit: "kg" | "lb"): string {
   if (record.metric_type === "strength.rpe_adjusted_rm_mean" && record.rm) {
-    return `${round(record.rm.meanKg)} ± ${round(record.rm.standardDeviationKg)} kg`;
+    const mean = convertWeight(record.rm.meanKg, "kg", displayUnit);
+    const standardDeviation = convertWeight(record.rm.standardDeviationKg, "kg", displayUnit);
+    return `${formatOneDecimal(mean)} ± ${formatOneDecimal(standardDeviation)} ${displayUnit}`;
   }
-  const value = Math.round(record.value * 10) / 10;
-  if (record.unit === "kg_reps") return `${value} kg·次`;
-  if (record.unit === "m_per_sec") return `${value} m/s`;
+  if (record.unit === "kg_reps") return formatVolume(displayPerformanceScalarValue(record.value, record.unit, displayUnit), displayUnit);
+  if (record.unit === "kg") return `${formatOneDecimal(displayPerformanceScalarValue(record.value, record.unit, displayUnit))} ${displayUnit}`;
+  if (record.unit === "m_per_sec") return `${formatOneDecimal(record.value)} m/s`;
   if (record.unit === "sec") return formatDuration(Math.round(record.value));
-  if (record.unit === "reps") return `${value} 次`;
-  return `${value} ${record.unit}`;
+  if (record.unit === "reps") return `${formatOneDecimal(record.value)} 次`;
+  return `${formatOneDecimal(record.value)} ${record.unit}`;
+}
+
+function displayPerformanceScalarValue(value: number, unit: PerformanceRecord["unit"], displayUnit: "kg" | "lb"): number {
+  if (unit === "kg" || unit === "kg_reps") return convertWeight(value, "kg", displayUnit);
+  return value;
+}
+
+function displayPerformanceUnit(unit: PerformanceRecord["unit"], displayUnit: "kg" | "lb"): string {
+  if (unit === "kg_reps") return `${displayUnit}·次`;
+  if (unit === "kg") return displayUnit;
+  if (unit === "m_per_sec") return "m/s";
+  if (unit === "sec") return "s";
+  if (unit === "reps") return "次";
+  return unit;
 }
 
 function currentBestByMetric(records: PerformanceRecord[]): PerformanceRecord[] {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Pencil, Plus, Save, Trash2, X } from "lucide-react";
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { BODY_MEASUREMENT_KEYS } from "@/core/migrations";
 import type { BodyMeasurementKey } from "@/core/models";
 import {
@@ -27,12 +27,19 @@ import { useToastStore } from "@/components/Toast";
 type TrendSelection = BodyMetricKey | `pair:${PairedMeasurementKey}`;
 
 const BASE_KEYS: BodyMetricKey[] = ["heightCm", "weightKg", "bodyFatPercent"];
+const PAIRED_MEASUREMENT_MEMBER_KEYS = new Set<BodyMeasurementKey>(Object.values(PAIRED_MEASUREMENTS).flatMap((pair) => [pair.left, pair.right]));
+const TREND_SINGLE_KEYS: BodyMetricKey[] = [
+  ...BASE_KEYS,
+  ...BODY_MEASUREMENT_KEYS.filter((key) => !PAIRED_MEASUREMENT_MEMBER_KEYS.has(key)),
+];
 const TREND_RANGES: Array<{ value: BodyTrendRange; label: string }> = [
   { value: "30d", label: "30天" },
   { value: "90d", label: "90天" },
   { value: "1y", label: "1年" },
   { value: "all", label: "全部" },
 ];
+const LEFT_TREND_COLOR = "var(--color-chart-1)";
+const RIGHT_TREND_COLOR = "var(--color-chart-2)";
 
 export default function BodyMetricsPage() {
   const navigate = useNavigate();
@@ -74,7 +81,7 @@ export default function BodyMetricsPage() {
   }
 
   async function remove(record: BodyMetric) {
-    const ok = await confirm("删除身体记录", "删除后会写入 tombstone，当前值和趋势会从剩余记录重新派生。");
+    const ok = await confirm("删除身体记录", "删除后，当前值和趋势会从剩余记录重新派生。");
     if (!ok) return;
     await deleteBodyMetric(record.id);
     toast("身体记录已删除", "success");
@@ -120,9 +127,9 @@ export default function BodyMetricsPage() {
               <MetricTile key={key} label={BODY_METRIC_LABELS[key]} metric={current?.measurements_cm[key]} />
             ))}
           </div>
-          <div className="app-divide mt-3 divide-y">
+          <div className="mt-3 space-y-3">
             {pairedCurrent.map((item) => (
-              <div key={item.key} className="py-2.5">
+              <div key={item.key}>
                 <div className="flex justify-between gap-3">
                   <span className="text-sm font-semibold app-text">{item.label}</span>
                   <span className="text-xs app-text-muted">{item.diff == null ? "差值 —" : `差值 ${item.diff.toFixed(1)} cm`}</span>
@@ -139,7 +146,7 @@ export default function BodyMetricsPage() {
         <section className="app-surface rounded-2xl border shadow-sm p-4">
           <div className="flex flex-wrap gap-2 mb-3">
             <select value={trendSelection} onChange={(event) => setTrendSelection(event.target.value as TrendSelection)} className="app-input flex-1 min-w-0 px-3 py-2 border rounded-xl text-sm">
-              {[...BASE_KEYS, ...BODY_MEASUREMENT_KEYS].map((key) => <option key={key} value={key}>{BODY_METRIC_LABELS[key]}</option>)}
+              {TREND_SINGLE_KEYS.map((key) => <option key={key} value={key}>{BODY_METRIC_LABELS[key]}</option>)}
               {Object.entries(PAIRED_MEASUREMENTS).map(([key, pair]) => <option key={key} value={`pair:${key}`}>{pair.label}（左右）</option>)}
             </select>
             <select value={trendRange} onChange={(event) => setTrendRange(event.target.value as BodyTrendRange)} className="app-input px-3 py-2 border rounded-xl text-sm">
@@ -155,8 +162,9 @@ export default function BodyMetricsPage() {
                   <XAxis dataKey="date" hide />
                   <YAxis width={36} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="left" stroke="var(--color-chart-1)" strokeWidth={2} dot={false} connectNulls={false} />
-                  <Line type="monotone" dataKey="right" stroke="var(--color-chart-2)" strokeWidth={2} dot={false} connectNulls={false} />
+                  <Legend verticalAlign="top" height={26} iconType="plainline" wrapperStyle={{ color: "var(--color-text-secondary)", fontSize: 12 }} />
+                  <Line type="monotone" name="左侧" dataKey="left" stroke={LEFT_TREND_COLOR} strokeWidth={2} dot={renderLeftTrendDot} activeDot={renderLeftTrendDot} connectNulls={false} />
+                  <Line type="monotone" name="右侧" dataKey="right" stroke={RIGHT_TREND_COLOR} strokeWidth={2} dot={renderRightTrendDot} activeDot={renderRightTrendDot} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -309,6 +317,26 @@ function MetricTile({ label, metric, compact = false }: { label: string; metric?
       <p className="text-xs app-text-muted mt-0.5 truncate">{label}</p>
     </div>
   );
+}
+
+function renderLeftTrendDot(props: unknown) {
+  const point = trendDotPoint(props);
+  if (!point) return <g />;
+  return <circle cx={point.cx} cy={point.cy} r={3.5} fill={LEFT_TREND_COLOR} stroke="var(--color-surface)" strokeWidth={1.5} />;
+}
+
+function renderRightTrendDot(props: unknown) {
+  const point = trendDotPoint(props);
+  if (!point) return <g />;
+  return <rect x={point.cx - 3.5} y={point.cy - 3.5} width={7} height={7} rx={1.5} fill={RIGHT_TREND_COLOR} stroke="var(--color-surface)" strokeWidth={1.5} />;
+}
+
+function trendDotPoint(props: unknown): { cx: number; cy: number } | null {
+  if (!props || typeof props !== "object") return null;
+  const candidate = props as { cx?: unknown; cy?: unknown };
+  if (typeof candidate.cx !== "number" || typeof candidate.cy !== "number") return null;
+  if (!Number.isFinite(candidate.cx) || !Number.isFinite(candidate.cy)) return null;
+  return { cx: candidate.cx, cy: candidate.cy };
 }
 
 function parseOptional(value: string): number | null {

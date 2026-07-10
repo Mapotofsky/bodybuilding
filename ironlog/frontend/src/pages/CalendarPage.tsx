@@ -4,7 +4,7 @@ import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay,
 import { zhCN } from "date-fns/locale";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChevronLeft, ChevronRight, Dumbbell, List, Plus } from "lucide-react";
-import { formatVolume } from "@/core/workoutMetrics";
+import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 import { getCalendarOverview, getCalendarStats, type CalendarDayNote, type CalendarDayOverview, type CalendarStats, type StatsPeriod } from "@/services/calendarStats";
 import { categoryKeyStyle } from "@/theme/categoryColors";
 
@@ -176,7 +176,7 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
         <div className="grid grid-cols-2 gap-2">
           <Kpi label="训练次数" value={stats.kpis.workout_count} delta={stats.deltas.workout_count} unit="次" />
           <Kpi label="总组数" value={stats.kpis.total_sets} delta={stats.deltas.total_sets} unit="组" />
-          <Kpi label="总容量" value={formatVolume(stats.kpis.total_volume, stats.kpis.total_volume_unit)} delta={stats.deltas.total_volume} unit="" />
+          <Kpi label="总容量" value={formatVolume(stats.kpis.total_volume, stats.kpis.total_volume_unit)} deltaText={formatSignedVolume(stats.deltas.total_volume, stats.kpis.total_volume_unit)} unit="" />
           <Kpi label="训练时长" value={stats.kpis.duration_minutes} unit="分钟" />
         </div>
       </section>
@@ -187,8 +187,8 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={stats.volume_points}>
               <XAxis dataKey="label" tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-              <YAxis width={36} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
-              <Tooltip />
+              <YAxis width={48} tickFormatter={(value) => formatOneDecimal(Number(value))} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+              <Tooltip formatter={(value) => [formatVolume(Number(value), stats.kpis.total_volume_unit), "容量"]} />
               <Line type="monotone" dataKey="volume" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -196,12 +196,14 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
       </section>
 
       <section className="app-surface rounded-2xl border shadow-sm p-4">
-        <h2 className="text-sm font-bold app-text mb-3">打卡强度</h2>
+        <h2 className="text-sm font-bold app-text mb-1">打卡强度</h2>
+        <p className="text-xs app-text-muted leading-relaxed mb-3">按每天完成训练次数分档，次数越多颜色越深。</p>
         <CheckinGrid period={period} points={stats.checkins} />
       </section>
 
       <section className="app-surface rounded-2xl border shadow-sm p-4">
-        <h2 className="text-sm font-bold app-text mb-3">肌群分布</h2>
+        <h2 className="text-sm font-bold app-text mb-1">肌群分布</h2>
+        <p className="text-xs app-text-muted leading-relaxed mb-3">按非热身训练组统计肌群占比，主目标计 1，次要目标计 0.5。</p>
         {stats.muscle_distribution.length === 0 ? <p className="text-sm app-text-muted">暂无工作组肌群数据</p> : (
           <div className="space-y-2">
             {stats.muscle_distribution.map((item) => (
@@ -222,21 +224,12 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
       <section className="app-surface rounded-2xl border shadow-sm p-4">
         <h2 className="text-sm font-bold app-text mb-3">身体指标</h2>
         {stats.body_summaries.length === 0 ? <p className="text-sm app-text-muted">本周期暂无身体记录</p> : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {groupBodySummaries(stats.body_summaries).map((row) => (
               row.type === "pair" ? (
-                <div key={row.key} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 text-sm">
-                  <span className="app-text-muted">{row.label}</span>
-                  <span className="grid grid-cols-2 gap-2 min-w-0">
-                    <BodySummaryValue side="左" item={row.left} />
-                    <BodySummaryValue side="右" item={row.right} />
-                  </span>
-                </div>
+                <BodySummaryRow key={row.key} label={row.label} left={row.left} right={row.right} />
               ) : (
-                <div key={row.item.key} className="flex justify-between gap-3 text-sm">
-                  <span className="app-text-muted">{row.item.label}</span>
-                  <span className="font-semibold app-text">{formatBodySummary(row.item)}</span>
-                </div>
+                <BodySummaryRow key={row.item.key} label={row.item.label} right={row.item} />
               )
             ))}
           </div>
@@ -259,18 +252,18 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
                     <p className="text-sm font-semibold app-text truncate">{item.record.exercise_name || "动作"} · {item.record.metric_label}</p>
                     <span className="text-xs font-bold app-primary-soft px-2 py-0.5 rounded-full shrink-0">+{Math.round(item.improvement_ratio * 100)}%</span>
                   </div>
-                  <p className="text-xs app-text-muted">{Math.round(item.previous_value * 10) / 10} → {Math.round(item.record.value * 10) / 10} {item.record.unit}</p>
+                  <p className="text-xs app-text-muted">{formatPerformanceComparison(item.previous_value, item.record, stats.kpis.total_volume_unit)}</p>
                 </button>
               ))}
             </div>
           </div>
         )}
         {stats.performance.recent_records.length === 0 ? <p className="text-sm app-text-muted">本周期暂无刷新记录</p> : (
-          <div className="app-divide divide-y">
-            {stats.performance.recent_records.map((record) => (
-              <button key={record.id} className="w-full text-left py-2" onClick={() => onOpenWorkout(record.source_workout_id)}>
+          <div>
+            {stats.performance.recent_records.map((record, index) => (
+              <button key={record.id} className={`w-full text-left py-2 ${index > 0 ? "border-t app-border" : ""}`} onClick={() => onOpenWorkout(record.source_workout_id)}>
                 <p className="text-sm font-semibold app-text truncate">{record.exercise_name || "动作"} · {record.metric_label}</p>
-                <p className="text-xs app-text-muted">{Math.round(record.value * 10) / 10} {record.unit} · {record.achieved_at.slice(0, 10)}</p>
+                <p className="text-xs app-text-muted">{formatPerformanceValue(record, stats.kpis.total_volume_unit)} · {record.achieved_at.slice(0, 10)}</p>
               </button>
             ))}
           </div>
@@ -393,11 +386,21 @@ function groupBodySummaries(items: BodySummary[]) {
   return rows;
 }
 
-function BodySummaryValue({ side, item }: { side: "左" | "右"; item: BodySummary | null }) {
+function BodySummaryRow({ label, left, right }: { label: string; left?: BodySummary | null; right: BodySummary | null }) {
   return (
-    <span className="min-w-0 flex items-center text-xs">
-      <span className="app-text-muted shrink-0">{side}</span>
-      <span className="font-semibold app-text ml-1 truncate">{item ? formatBodySummary(item) : "—"}</span>
+    <div className="grid grid-cols-3 items-center gap-x-1 py-1 text-sm leading-6">
+      <span className="min-w-0 truncate app-text-muted">{label}</span>
+      {left === undefined ? <span aria-hidden="true" /> : <BodySummaryValue side="左" item={left} align="center" />}
+      <BodySummaryValue side={left === undefined ? null : "右"} item={right} align="right" />
+    </div>
+  );
+}
+
+function BodySummaryValue({ side, item, align }: { side: "左" | "右" | null; item: BodySummary | null; align: "center" | "right" }) {
+  return (
+    <span className={`min-w-0 flex items-baseline gap-1 ${align === "right" ? "justify-end text-right" : "justify-center text-center"}`}>
+      {side && <span className="app-text-muted shrink-0">{side}</span>}
+      <span className="min-w-0 truncate font-semibold app-text">{item ? formatBodySummary(item) : "—"}</span>
     </span>
   );
 }
@@ -407,11 +410,40 @@ function formatBodySummary(item: CalendarStats["body_summaries"][number]): strin
   return `${item.previous_value} → ${item.last_value} ${item.unit}`;
 }
 
-function Kpi({ label, value, delta, unit }: { label: string; value: string | number; delta?: number; unit: string }) {
+function formatSignedVolume(value: number, unit: CalendarStats["kpis"]["total_volume_unit"]): string {
+  return `${value >= 0 ? "+" : ""}${formatVolume(value, unit)}`;
+}
+
+type PerformanceRecordForDisplay = CalendarStats["performance"]["recent_records"][number];
+
+function formatPerformanceComparison(previousValue: number, record: PerformanceRecordForDisplay, displayUnit: CalendarStats["kpis"]["total_volume_unit"]): string {
+  return `${formatPerformanceScalar(previousValue, record.unit, displayUnit)} → ${formatPerformanceValue(record, displayUnit)}`;
+}
+
+function formatPerformanceValue(record: PerformanceRecordForDisplay, displayUnit: CalendarStats["kpis"]["total_volume_unit"]): string {
+  if (record.metric_type === "strength.rpe_adjusted_rm_mean" && record.rm) {
+    const mean = convertWeight(record.rm.meanKg, "kg", displayUnit);
+    const standardDeviation = convertWeight(record.rm.standardDeviationKg, "kg", displayUnit);
+    return `${formatOneDecimal(mean)} ± ${formatOneDecimal(standardDeviation)} ${displayUnit}`;
+  }
+  return formatPerformanceScalar(record.value, record.unit, displayUnit);
+}
+
+function formatPerformanceScalar(value: number, unit: PerformanceRecordForDisplay["unit"], displayUnit: CalendarStats["kpis"]["total_volume_unit"]): string {
+  if (unit === "kg_reps") return formatVolume(convertWeight(value, "kg", displayUnit), displayUnit);
+  if (unit === "kg") return `${formatOneDecimal(convertWeight(value, "kg", displayUnit))} ${displayUnit}`;
+  if (unit === "m_per_sec") return `${formatOneDecimal(value)} m/s`;
+  if (unit === "sec") return `${formatOneDecimal(value)} s`;
+  if (unit === "reps") return `${formatOneDecimal(value)} 次`;
+  return `${formatOneDecimal(value)} ${unit}`;
+}
+
+function Kpi({ label, value, delta, deltaText, unit }: { label: string; value: string | number; delta?: number; deltaText?: string; unit: string }) {
+  const renderedDelta = deltaText ?? (delta == null ? null : `${delta >= 0 ? "+" : ""}${Math.round(delta)}`);
   return (
     <div className="app-surface-muted rounded-xl border app-border p-3 min-w-0">
       <p className="text-lg font-bold app-text truncate">{value}{unit && <span className="text-xs font-normal app-text-muted ml-0.5">{unit}</span>}</p>
-      <p className="text-xs app-text-muted mt-0.5">{label}{delta != null && <span className="ml-1">({delta >= 0 ? "+" : ""}{Math.round(delta)})</span>}</p>
+      <p className="text-xs app-text-muted mt-0.5">{label}{renderedDelta && <span className="ml-1">({renderedDelta})</span>}</p>
     </div>
   );
 }

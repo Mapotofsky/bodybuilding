@@ -70,6 +70,18 @@ export async function rebuildAllPerformanceRecords(): Promise<void> {
   await localRepository.replaceExercisePerformanceRecords({ all: true }, records);
 }
 
+export async function recordPerformanceForCompletedWorkout(workoutId: string): Promise<void> {
+  const snapshot = await localRepository.getSnapshot();
+  const workout = snapshot.workouts.find((item) => item.id === workoutId);
+  if (!workout || workout.deletedAt || workout.endTime == null) return;
+
+  const records = buildPerformanceRefreshRecordsForWorkout(workout, snapshot.exercises, snapshot.exercisePerformanceRecords);
+  const hasExistingRecordsForWorkout = snapshot.exercisePerformanceRecords.some((record) => !record.deletedAt && record.sourceWorkoutId === workout.id);
+  if (records.length === 0 && !hasExistingRecordsForWorkout) return;
+
+  await localRepository.replaceExercisePerformanceRecords({ sourceWorkoutIds: [workout.id] }, records);
+}
+
 export async function rebuildPerformanceForWorkout(_workoutId: string): Promise<void> {
   await rebuildAllPerformanceRecords();
 }
@@ -192,6 +204,41 @@ export function buildPerformanceRecords(workouts: WorkoutDoc[], exercises: Exerc
   return records;
 }
 
+export function buildPerformanceRefreshRecordsForWorkout(
+  workout: WorkoutDoc,
+  exercises: ExerciseDoc[],
+  existingRecords: ExercisePerformanceRecordDoc[]
+): ExercisePerformanceRecordDoc[] {
+  if (workout.deletedAt || workout.endTime == null) return [];
+
+  const previousBest = bestCandidatesByKey(
+    existingRecords
+      .filter((record) => !record.deletedAt && record.sourceWorkoutId !== workout.id)
+      .map(candidateFromRecord)
+  );
+  const workoutBest = bestCandidatesByKey(candidatesForWorkout(workout, exercises));
+  const records: ExercisePerformanceRecordDoc[] = [];
+
+  for (const [key, candidate] of workoutBest) {
+    const previous = previousBest.get(key);
+    if (!previous || compareCandidate(candidate, previous) > 0) {
+      records.push(stripCandidate(candidate));
+    }
+  }
+
+  return records.sort((left, right) => left.achievedAt.localeCompare(right.achievedAt) || left.id.localeCompare(right.id));
+}
+
+function bestCandidatesByKey(candidates: PerformanceCandidate[]): Map<string, PerformanceCandidate> {
+  const best = new Map<string, PerformanceCandidate>();
+  for (const candidate of candidates) {
+    const key = performanceKey(candidate);
+    const previous = best.get(key);
+    if (!previous || compareCandidate(candidate, previous) > 0) best.set(key, candidate);
+  }
+  return best;
+}
+
 function candidatesForWorkout(workout: WorkoutDoc, exercises: ExerciseDoc[]): PerformanceCandidate[] {
   return workout.exercises.flatMap((exercise) => {
     const resolved = resolveExerciseId(exercise.exerciseId, exercises);
@@ -311,6 +358,24 @@ function inputSummary(values: Partial<ExercisePerformanceRecordDoc["input"]>): E
   };
 }
 
+function candidateFromRecord(record: ExercisePerformanceRecordDoc): PerformanceCandidate {
+  return {
+    ...record,
+    tieBreakers: tieBreakersFromRecord(record),
+  };
+}
+
+function tieBreakersFromRecord(record: ExercisePerformanceRecordDoc): number[] {
+  if (record.metricType === "strength.max_weight") return [record.input.reps ?? 0];
+  if (record.metricType === "strength.max_reps") return [record.input.weightKg ?? 0];
+  if (record.metricType === "strength.max_set_volume") return [record.input.weightKg ?? 0, record.input.reps ?? 0];
+  if (record.metricType === "strength.rpe_adjusted_rm_mean") return [record.input.weightKg ?? 0, record.input.reps ?? 0];
+  if (record.metricType === "cardio.max_distance") return [record.input.durationSec ?? 0];
+  if (record.metricType === "cardio.max_duration") return [record.input.distanceM ?? 0];
+  if (record.metricType === "cardio.best_average_speed") return [record.input.distanceM ?? 0];
+  return [];
+}
+
 function compareCandidate(left: PerformanceCandidate, right: PerformanceCandidate): number {
   const primary = left.value - right.value;
   if (Math.abs(primary) > 1e-9) return primary;
@@ -320,6 +385,10 @@ function compareCandidate(left: PerformanceCandidate, right: PerformanceCandidat
     if (Math.abs(diff) > 1e-9) return diff;
   }
   return 0;
+}
+
+function performanceKey(record: Pick<ExercisePerformanceRecordDoc, "exerciseId" | "metricType">): string {
+  return `${record.exerciseId}:${record.metricType}`;
 }
 
 function stripCandidate(candidate: PerformanceCandidate): ExercisePerformanceRecordDoc {

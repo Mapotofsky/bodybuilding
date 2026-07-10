@@ -3,7 +3,7 @@ import { buildShardList, makeEmptySnapshot } from "@/core/migrations";
 import type { DataSnapshot, SyncEndpointConfig } from "@/core/models";
 import type { DocumentStore } from "@/platform/documentStore";
 import { LocalJsonRepository } from "@/repositories/localJsonRepository";
-import { backupPathFor, mergeSnapshots, pushSnapshot, remoteParentDirsForPath, snapshotToFiles } from "./syncService";
+import { backupPathFor, hasPerformanceSourceChanges, mergeSnapshots, pushSnapshot, remoteParentDirsForPath, snapshotToFiles } from "./syncService";
 import type { WebDavClient, WebDavResponse } from "./webdavClient";
 
 const FIRST_SYNC_AT = "2026-06-20T10:00:00.000Z";
@@ -142,6 +142,45 @@ describe("settings WebDAV sync", () => {
     expect(files["body-metrics.json"]).toEqual(snapshot.bodyMetrics);
     expect(files["timeline-notes.json"]).toEqual(snapshot.timelineNotes);
     expect(files["exercise-performance/2026-06.json"]).toEqual(snapshot.exercisePerformanceRecords);
+  });
+
+  it("does not treat synced performance records as performance source changes", () => {
+    const local = makeEmptySnapshot("device-test");
+    const merged = clone(local);
+    merged.exercisePerformanceRecords = [{
+      id: "performance-1",
+      exerciseId: "ex-bench-press",
+      kind: "true_pr",
+      metricType: "strength.max_weight",
+      value: 100,
+      unit: "kg",
+      achievedAt: FIRST_SYNC_AT,
+      sourceWorkoutId: "workout-1",
+      sourceWorkoutExerciseId: "workout-exercise-1",
+      sourceSetId: "set-1",
+      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      rm: null,
+      createdAt: FIRST_SYNC_AT,
+      updatedAt: FIRST_SYNC_AT,
+      deletedAt: null,
+      schemaVersion: 2,
+    }];
+
+    expect(hasPerformanceSourceChanges(local, merged)).toBe(false);
+  });
+
+  it("treats workout and exercise changes as performance source changes", () => {
+    const local = makeEmptySnapshot("device-test");
+    const workoutChanged = clone(local);
+    workoutChanged.workouts = [{
+      id: "workout-1", date: "2026-06-22", startTime: null, endTime: FIRST_SYNC_AT, planTemplateId: null, note: null, mood: null,
+      exercises: [], createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 2,
+    }];
+    const exerciseChanged = clone(local);
+    exerciseChanged.exercises[0] = { ...exerciseChanged.exercises[0], updatedAt: SECOND_SYNC_AT };
+
+    expect(hasPerformanceSourceChanges(local, workoutChanged)).toBe(true);
+    expect(hasPerformanceSourceChanges(local, exerciseChanged)).toBe(true);
   });
 
   it("does not serialize local-only endpoint config into remote files", () => {

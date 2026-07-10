@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeEmptySnapshot } from "@/core/migrations";
 import type { WorkoutDoc } from "@/core/models";
 import { calculateRpeAdjustedRm } from "@/core/rm";
-import { buildExercisePerformanceTrend, buildPerformanceRecords } from "./performance";
+import { buildExercisePerformanceTrend, buildPerformanceRecords, buildPerformanceRefreshRecordsForWorkout } from "./performance";
 
 describe("exercise performance records", () => {
   it("emits only historical refresh events and skips warmups and missing RPE for RM", () => {
@@ -53,6 +53,31 @@ describe("exercise performance records", () => {
     expect(trend.points.map((point) => point.date)).toEqual(["2026-06-01", "2026-06-02"]);
     expect(trend.points[0].value).toBeCloseTo(calculateRpeAdjustedRm({ weightKg: 100, reps: 5, rpe: 8 })!.formulas.meanKg, 5);
     expect(trend.points[1].value).toBeCloseTo(calculateRpeAdjustedRm({ weightKg: 100, reps: 8, rpe: 8 })!.formulas.meanKg, 5);
+  });
+
+  it("emits incremental records only when a newly completed workout refreshes current bests", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const previousWorkout = workout("previous", "2026-06-01", [
+      set("previous-set", 1, 100, 5, 8, false),
+    ]);
+    const lowerWorkout = workout("lower", "2026-06-02", [
+      set("lower-set", 1, 90, 5, 8, false),
+    ]);
+    const betterWorkout = workout("better", "2026-06-03", [
+      set("better-set", 1, 105, 5, 8, false),
+    ]);
+    const existingRecords = buildPerformanceRecords([previousWorkout], snapshot.exercises);
+
+    expect(buildPerformanceRefreshRecordsForWorkout(lowerWorkout, snapshot.exercises, existingRecords)).toEqual([]);
+
+    const refreshed = buildPerformanceRefreshRecordsForWorkout(betterWorkout, snapshot.exercises, existingRecords);
+    expect(refreshed.map((record) => record.metricType)).toEqual(expect.arrayContaining([
+      "strength.max_weight",
+      "strength.max_set_volume",
+      "strength.max_workout_volume",
+      "strength.rpe_adjusted_rm_mean",
+    ]));
+    expect(refreshed.every((record) => record.sourceWorkoutId === "better")).toBe(true);
   });
 
   it("builds cardio trend from each workout's best average speed", () => {

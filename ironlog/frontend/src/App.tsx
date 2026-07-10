@@ -11,6 +11,7 @@ import BodyMetricsPage from "@/pages/BodyMetricsPage";
 import TimelineNotesPage from "@/pages/TimelineNotesPage";
 import ToolsPage from "@/pages/ToolsPage";
 import RmCalculatorPage from "@/pages/RmCalculatorPage";
+import { CardioRpeGuidePage, StrengthRpeGuidePage } from "@/pages/RpeGuidePage";
 import WorkoutEditPage from "@/pages/WorkoutEditPage";
 import PlansPage from "@/pages/PlansPage";
 import PlanCreatePage from "@/pages/PlanCreatePage";
@@ -38,6 +39,8 @@ export default function App() {
         <Route path="timeline-notes" element={<TimelineNotesPage />} />
         <Route path="tools" element={<ToolsPage />} />
         <Route path="tools/rm" element={<RmCalculatorPage />} />
+        <Route path="tools/rpe-strength" element={<StrengthRpeGuidePage />} />
+        <Route path="tools/rpe-cardio" element={<CardioRpeGuidePage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="plans/new" element={<PlanCreatePage />} />
         <Route path="plans/:id" element={<PlanDetailPage />} />

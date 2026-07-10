@@ -1,7 +1,7 @@
 # P7 详细设计文档：RM 计算与动作成绩记录
 
 > 对应概要设计：P4.1 RM 计算、动作成绩记录和动作详情增强
-> 状态：规划中；当前代码只有训练组 RPE 字段和动作详情实时统计，尚无持久化成绩事件
+> 状态：已部分落地；RM 计算器、RPE 说明页、ExercisePerformanceRecordDoc、performance service、PR/RM 统计消费和 exercise-performance 分片已接入
 > 前置依赖：P0 WorkoutDoc 聚合与训练完成/编辑/删除流程、P1 动作引用解析、P2 分片与 migration、P3 同步、P4.1 统计和分享图消费入口
 
 ---
@@ -19,7 +19,9 @@ P7 提供两个能力：
 - `WorkoutSetDoc.isWarmup` 已存在；P0 个人动作统计的表现指标排除热身组。
 - `WorkoutDoc` 是聚合文档，训练创建、编辑、复制、删除均通过 `services/workout.ts` 和 `LocalJsonRepository`。
 - `core/workoutMetrics.ts` 已提供重量单位换算和训练容量口径。
-- 动作详情当前只有实时派生统计与历史组记录，不保存 PR/RM 事件。
+- `core/rm.ts`、RM 计算器和力量/有氧 RPE 说明页已接入小工具。
+- `ExercisePerformanceRecordDoc` 已进入 core model、repository、DocumentStore、SyncService 和 `exercise-performance/YYYY-MM.json` 分片。
+- 动作详情、日历统计和训练详情 PNG 分享图已只读消费 PR/RM 刷新事件；动作趋势仍从 WorkoutDoc 派生。
 
 P7 不负责身体数据、时间段备注、统计页面布局、分享图模板或 AI。页面不得直接从训练页生成成绩事件；必须由训练 service 或维护工具统一调度。
 
@@ -67,7 +69,7 @@ Wathen:   100 * weight / (48.8 + 53.8 * exp(-0.075 * effectiveReps))
 
 ### 3.1 ExercisePerformanceRecordDoc
 
-定义位置规划为 `frontend/src/core/models.ts`。
+定义位置：`frontend/src/core/models.ts`。
 
 ```ts
 type PerformanceRecordKind = "true_pr" | "rpe_adjusted_rm";
@@ -193,15 +195,18 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 
 ### 5.2 触发时机
 
-训练 service 必须统一调度：
+训练 service 统一调度：
 
-- 已完成训练保存后：重算该 workout 影响的动作。
-- 已完成训练编辑保存后：重算该 workout 变更前后影响的动作。
-- 已完成训练 tombstone 删除后：删除或失效由该 workout 产生的成绩事件，并重算相关动作。
+- 新完成训练保存后：从该 workout 派生候选 PR/RM，与持久化成绩事件中同 `exerciseId + metricType` 的当前最佳比较；只有刷新时写入该 workout 的 `ExercisePerformanceRecordDoc`。
+- 已完成训练编辑保存后：当前使用 `rebuildAllPerformanceRecords()` 全量重算，确保当前最佳可回退到历史次优。
+- 已完成训练 tombstone 删除后：当前使用 `rebuildAllPerformanceRecords()` 全量重算，确保来源为已删除训练的最佳记录失效并回退。
+- WebDAV pull/merge 后：仅当合并结果实际改变本地训练记录或动作替代解析相关数据时，触发 `rebuildAllPerformanceRecords()` 维护本地派生成绩一致性；若只是把本地已有数据和成绩事件上传到云端，则不重算。同步拉下来的成绩事件自身按普通业务分片合并，不单独触发重算。
 - 未结束草稿：不生成成绩事件，也不触发重算。
 - 复制训练：复制出的未完成训练不生成事件；完成后按新训练生成。
 
 页面不得在 finish UI、动作详情页或统计页直接写成绩事件。
+
+当前全量 rebuild 是简单可靠的一致性修复策略，保留为动作详情重算、同步合并本地来源数据变化后的修复以及后续维护工具使用。后续可把已完成训练编辑/删除优化为局部 rebuild，但必须继续覆盖来源最佳回退和同步导入后的不一致修复。
 
 ### 5.3 手动重算
 
@@ -267,7 +272,7 @@ Top 提升动作的 `previousBestValue` 从当前刷新事件之前的同动作�
 
 ## 9. 本地存储、migration 与同步
 
-P2 需要新增：
+P2 已新增：
 
 - `DataSnapshot.exercisePerformanceRecords: ExercisePerformanceRecordDoc[]`
 - `isExercisePerformanceShardPath(path)`
@@ -301,7 +306,7 @@ P2 需要新增：
 
 ## 11. 验收与回归
 
-实现完成后至少验证：
+交付和后续回归至少验证：
 
 - 没有 RPE 的 strength 组不生成 RM 估算事件。
 - reps 或 effectiveReps 超出 `1..12` 不生成 RM 估算事件。

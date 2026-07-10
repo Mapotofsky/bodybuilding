@@ -61,8 +61,12 @@ export function calculateWorkoutMetrics(exercises: readonly MetricExercise[], di
   });
 }
 
+export function formatOneDecimal(value: number): string {
+  if (!Number.isFinite(value)) return "0.0";
+  const rounded = Math.round(value * 10) / 10;
+  return Object.is(rounded, -0) ? "0.0" : rounded.toFixed(1);
+}
+
 export function formatVolume(value: number, unit: WeightUnit): string {
-  if (unit === "kg" && value >= 1000) return `${(value / 1000).toFixed(1)}t`;
-  if (unit === "lb" && value >= 1000) return `${(value / 1000).toFixed(1)}k lb`;
-  return `${Math.round(value)} ${unit}`;
+  return `${formatOneDecimal(value)} ${unit}·次`;
 }
