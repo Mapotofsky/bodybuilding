@@ -285,9 +285,11 @@ export default function ExerciseDetailPage() {
                       <p className="text-xs font-semibold app-text-muted">{date.replace(/-/g, "/")}</p>
                       <span className="text-xs app-primary-text font-semibold text-right break-words">{TYPE_LABELS[dayType]}</span>
                     </div>
-                    <div className="app-divide divide-y">
+                    <div>
                       {records.map((record, index) => (
-                        <HistorySet key={`${date}-${index}`} record={record} maxWeight={maxWeight} />
+                        <div key={`${date}-${index}`} className={index > 0 ? "border-t app-border" : ""}>
+                          <HistorySet record={record} maxWeight={maxWeight} />
+                        </div>
                       ))}
                     </div>
                   </div>
