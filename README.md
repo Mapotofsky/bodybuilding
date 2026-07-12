@@ -66,7 +66,9 @@ cd frontend/android
 Capacitor 配置：
 
 - `appId`: `app.ironlog.local`
-- `appName`: `IronLog`
+- `appName`: `IronLog录铁`
+
+Android 内部测试版本由 [`frontend/release/version.json`](ironlog/frontend/release/version.json) 统一定义。修改构建序号后执行 `npm run release:sync` 和 `npm run release:check`；`npm run android:sync` 会自动同步并校验版本元数据。
 - `webDir`: `dist`
 - 已接入插件：Filesystem、Preferences，以及用于 WebDAV 非标准 HTTP 方法的原生 `WebDavHttp` 插件
 

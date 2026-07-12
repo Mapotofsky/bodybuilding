@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run release:check",
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "preview": "vite preview",
+    "release:check": "node scripts/release-version.mjs check",
+    "release:sync": "node scripts/release-version.mjs sync",
     "assets:android": "npx @capacitor/assets generate --android",
-    "android:sync": "npm run build && cap sync android",
+    "android:sync": "npm run release:sync && npm run build && cap sync android",
     "android:open": "cap open android"
   },
   "dependencies": {

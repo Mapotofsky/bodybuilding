@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+def releaseVersionProperties = new Properties()
+def releaseVersionPropertiesFile = rootProject.file('version.properties')
+if (!releaseVersionPropertiesFile.exists()) {
+    throw new GradleException('Missing android/version.properties. Run npm run release:sync from frontend.')
+}
+releaseVersionPropertiesFile.withInputStream { releaseVersionProperties.load(it) }
+def releaseVersionCode = releaseVersionProperties.getProperty('VERSION_CODE')
+def releaseVersionName = releaseVersionProperties.getProperty('VERSION_NAME')
+if (!(releaseVersionCode ==~ /[1-9]\d*/) || !releaseVersionName) {
+    throw new GradleException('Invalid android/version.properties. Run npm run release:sync from frontend.')
+}
+
 android {
     namespace = "app.ironlog.local"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +19,8 @@ android {
         applicationId "app.ironlog.local"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode releaseVersionCode.toInteger()
+        versionName releaseVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

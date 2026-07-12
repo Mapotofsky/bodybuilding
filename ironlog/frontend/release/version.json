@@ -1,0 +1,9 @@
+{
+  "baseVersion": "0.1.0",
+  "channel": "internal",
+  "buildNumber": 1,
+  "android": {
+    "versionCode": 1
+  },
+  "issuedVersionCodes": [1]
+}

@@ -59,6 +59,8 @@ npm run android:sync
 | `npm test` | 运行当前 Vitest 单元测试。 |
 | `npm run android:sync` | 先 build，再将 `dist/` 同步进 `android/` 工程。 |
 
+Android 内部测试版本以 `frontend/release/version.json` 为权威。修改发布构建序号后，运行 `npm run release:sync` 生成 Android 属性文件，再以 `npm run release:check` 确认一致性；`npm run android:sync` 会自动执行这两个步骤。不要手工修改 Gradle 中的版本号。
+
 `android:sync` 成功不等于 APK 已编译；它只验证 Capacitor 资源同步。
 
 ## 4. Android 调试与 APK
