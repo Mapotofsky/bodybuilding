@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "app.ironlog.local",
-  appName: "IronLog",
+  appName: "IronLog录铁",
   webDir: "dist",
   server: {
     androidScheme: "https",

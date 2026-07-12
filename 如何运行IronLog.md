@@ -119,8 +119,9 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 
 以下能力尚未实现；当前没有对应的页面、环境变量、命令、provider 或 API 配置：
 
-- 全页面语义色彩迁移完成；当前已有主题选择和基础 token，但部分页面仍保留 emerald/slate Tailwind 工具类。
 - AI provider、模型、API key、动作问答、训练分析、计划候选导入和联网资料检索。
+
+主题选择和语义色彩映射已经实现。源码中保留的 emerald/slate Tailwind 工具类通过全局兼容变量解析为当前主题角色；内部测试仍需在 Android 真机完成 5 套主题和 360px/412px 窄屏视觉验收。
 
 请不要将 API key 写入 settings.json、WebDAV、项目文件、日志或地址栏。未来 AI 未配置时，离线训练、模板、动作库/动作详情与 WebDAV 必须保持可用。
 

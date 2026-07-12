@@ -1,7 +1,7 @@
 # P4 详细设计文档：主题系统与 UI 导航
 
 > 对应概要设计：M5 主题与 UI 导航，以及 M2 动作库 Tab
-> 状态：实现中；已存在动作库路由和五项底部导航，主题选择与基础 token 已落地，全页面语义色彩迁移继续推进
+> 状态：已实现；动作库路由、五项底部导航、主题选择、完整 token 与 Tailwind 兼容语义映射已落地，Android 真机视觉验收待执行
 > 依赖：P2 Settings/migration，P1 动作库，P3 Android，P0 训练页面回归
 
 ---
@@ -10,13 +10,13 @@
 
 本模块定义完整主题、主题选择持久化、UI 语义 token、底部导航和动作库 Tab。它不改变训练、计划、模板、动作或 WebDAV 的业务语义；不新增账号、云端主题库或服务端配置。
 
-当前事实：index.css 有固定 emerald/slate 变量，页面大量直接使用 Tailwind emerald/slate 工具类；Layout 的底部导航已包含首页、动作库、计划、日历、我的五项，`/exercises` 与 `/exercises/:id` 路由已实现。下列完整主题、语义 token 迁移和主题选择仍需按阶段推进。
+当前事实：`index.css` 已定义 5 套完整语义 token，并通过 Tailwind 兼容变量将页面保留的 emerald/slate 工具类映射到当前主题角色；这些类名不再代表固定颜色。Layout 的底部导航已包含首页、动作库、计划、日历、我的五项，`/exercises` 与 `/exercises/:id` 路由已实现。主题数据链路与语义映射已完成，剩余门禁是真机视觉与窄屏验收。
 
 ---
 
 ## 2. 主题数据与完整主题定义
 
-P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；除 emerald-slate 外其余主题在首轮以语义 CSS token 形式实现，SettingsPage 可选择主题，应用根节点与底部导航已消费 token；页面硬编码 Tailwind 色彩后续逐步迁移。
+P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；5 套主题均以语义 CSS token 实现，SettingsPage 可选择主题，应用根节点、底部导航和页面 Tailwind 兼容色彩均消费当前主题 token。
 
 | ID | 名称 | 背景/表面 | 主色/焦点 | 正文/次要文字 | 边框 | 成功/警告/危险 |
 |---|---|---|---|---|---|---|
@@ -53,7 +53,7 @@ P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；�
 
 ## 4. UI 与导航规则
 
-1. 将页面中的视觉角色逐步迁移为语义 token 或共享组件，不能依赖“替换所有 emerald/slate 字符串”实现主题。
+1. 页面视觉角色由语义 token、共享组件或 `index.css` 中的 Tailwind 兼容变量统一解析；不得以 emerald/slate 类名搜索结果单独判断迁移状态。
 2. @layer base 内的全局 margin/padding reset 必须保留；不得以未分层全局样式覆盖 Tailwind 的间距工具类。
 3. 默认主题继续是 emerald/slate，并作为未知值和迁移失败的视觉回退。
 4. 动作库已新增 /exercises 路由与底部“动作库”Tab。列表使用 P1 的 getExercises，进入现有 /exercises/:id。
@@ -75,4 +75,4 @@ P2 权威定义 themeId 的模型、migration、未知值持久化与本地提�
 
 人工验收：5 套主题逐一检查首页、训练创建/详情、计划、日历、动作库、资料和同步页；360px、412px Android WebView 无溢出/裁切；文字、边框、焦点、危险按钮、禁用状态均可辨识；切换主题后刷新、重启、WebDAV 同步到另一设备仍符合 unknown fallback 语义。
 
-当前主题选择、基础 token 与解析测试已实现；README 与运行指南不得把全页面语义色彩迁移或完整人工视觉验收写成已完成。
+当前主题选择、完整 token、Tailwind 兼容语义映射与解析测试已实现；README 与运行指南可以描述语义映射已完成，但在实际完成前不得把 Android 真机和 360px/412px 人工视觉验收写成已完成。
