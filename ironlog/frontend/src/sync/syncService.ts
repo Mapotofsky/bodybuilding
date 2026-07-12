@@ -166,8 +166,7 @@ function sanitizeBackupBody(path: string, body: string): string {
   if (path !== "settings.json") return body;
   try {
     const parsed = JSON.parse(body) as Record<string, unknown>;
-    const { webdav: _webdav, passwordRef: _passwordRef, password: _password, username: _username, url: _url, ...rest } = parsed;
-    return JSON.stringify(rest, null, 2);
+    return JSON.stringify(stripLocalSecretFields(parsed), null, 2);
   } catch {
     return "{}";
   }
@@ -236,8 +235,25 @@ export function snapshotToFiles(snapshot: DataSnapshot): Record<string, unknown>
 }
 
 function remoteSettingsFile(settings: SettingsDoc): SettingsDoc {
-  const { webdav: _webdav, passwordRef: _passwordRef, password: _password, username: _username, url: _url, ...rest } = settings as SettingsDoc & Record<string, unknown>;
+  const rest = stripLocalSecretFields(settings as SettingsDoc & Record<string, unknown>);
   return { ...rest, lastSyncAt: null } as SettingsDoc;
+}
+
+function stripLocalSecretFields(value: Record<string, unknown>): Record<string, unknown> {
+  const {
+    webdav: _webdav,
+    passwordRef: _passwordRef,
+    password_ref: _password_ref,
+    password: _password,
+    username: _username,
+    url: _url,
+    ciphertext: _ciphertext,
+    iv: _iv,
+    keystoreAlias: _keystoreAlias,
+    secretFormatVersion: _secretFormatVersion,
+    ...rest
+  } = value;
+  return rest;
 }
 
 function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> {

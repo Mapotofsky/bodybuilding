@@ -70,7 +70,7 @@ Capacitor 配置：
 
 Android 内部测试版本由 [`frontend/release/version.json`](ironlog/frontend/release/version.json) 统一定义。修改构建序号后执行 `npm run release:sync` 和 `npm run release:check`；`npm run android:sync` 会自动同步并校验版本元数据。
 - `webDir`: `dist`
-- 已接入插件：Filesystem、Preferences，以及用于 WebDAV 非标准 HTTP 方法的原生 `WebDavHttp` 插件
+- 已接入插件：Filesystem、Preferences，以及原生 `WebDavHttp` 和 `SecretStore` 插件；Preferences 只保存本机端点配置及待迁移旧密码，不再承载新写入的 Android 密码正文
 
 ## 本地数据格式
 
@@ -101,7 +101,7 @@ ironlog-data/
 3. 点击测试连接。
 4. 点击手动同步。
 
-WebDAV 只作为远端文件同步/备份，不是数据库；当前采用手动同步和 last-write-wins，并保留远端备份。密码不会进入 JSON 或远端 WebDAV；当前秘密存储不是硬件级安全库。同步协议、冲突限制和 Android 传输细节见 P3。
+WebDAV 只作为远端文件同步/备份，不是数据库；当前采用手动同步和 last-write-wins，并保留远端备份。Android 密码由 Keystore 中不可导出的应用密钥使用 AES-GCM 加密，密文保存在应用私有存储；旧 Preferences 密码在首次读取时完成“写新、读回确认、删旧”迁移。浏览器开发环境仍把 secret 放在 IndexedDB 独立键下，安全等级低于 Android。密码、密文和解密材料不会进入 JSON 或远端 WebDAV。同步协议、冲突限制和 Android 传输细节见 P3。
 
 WebDAV 未配置时，应用仍可完全离线本地使用。
 
@@ -114,7 +114,7 @@ ironlog/
     src/
       core/                 # 领域模型、schema migration、测试
       repositories/         # 本地 JSON 仓储
-      platform/             # IndexedDB / Capacitor Filesystem / Preferences 适配
+      platform/             # IndexedDB / Capacitor Filesystem / Android Keystore secret 适配
       services/             # 页面稳定调用面，内部转到本地仓储
       sync/                 # WebDAV client 和同步服务
   legacy/

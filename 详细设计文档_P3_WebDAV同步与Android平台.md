@@ -30,17 +30,23 @@ interface SyncEndpointConfig {
 
 SyncPage 输入 URL、用户名、密码。保存密码时：
 
-1. 页面生成或复用 `passwordRef`。
-2. 调用 `localRepository.writeSecret(passwordRef, password)`。
-3. 调用本地配置接口保存 `url`、`username`、`passwordRef`。
+1. `services/syncSettings` 生成或复用 `passwordRef`。
+2. 通过 repository 调用平台 `SecretStore.writeSecret(passwordRef, password)`。
+3. 安全存储写入并读回确认成功后，本地配置接口才保存 `url`、`username`、`passwordRef`；密码留空时复用原引用且不改写 secret。
 
 WebDAV `url`、`username`、`passwordRef` 和 password 都是本机-only 端点配置，不属于可同步 SettingsDoc。它们不得进入远端 `settings.json`、manifest、JSON 分片或 backup；另一设备必须自行配置端点和密码。SyncPage 的“清除同步配置”只删除本机端点配置和对应 secret，不删除训练、动作、模板、资料或头像资源。
 
 ### 2.2 当前安全状态
 
-Android secret 当前由 Capacitor Preferences 保存。它隔离于 JSON 分片，满足“密码不进 WebDAV 文件”的最低要求；但不是本项目实现的 Keystore/硬件级加密安全存储。对外发布不得把它描述为端到端加密或系统凭据库。
+platform 层定义 `readSecret(ref)`、`writeSecret(ref, value)`、`removeSecret(ref)`。Android 原生 `SecretStore` 插件在 Android Keystore 中创建或读取不可导出的 AES-256 密钥，使用 `AES/GCM/NoPadding` 认证加密；每次写入生成新 IV。密文记录包含独立 `version=1`、IV 和 ciphertext，保存在应用私有 SharedPreferences 文件中；ref 先经 SHA-256 映射为存储键，不参与文件路径拼接。插件错误不返回密钥、alias、IV、密文或密码正文。
 
-WebDAV 请求使用 Basic Authorization，必须优先要求 HTTPS。建议用户创建专用目录和低权限专用账户。
+Web 开发环境继续把 secret 放在 IndexedDB 的独立键前缀下，只用于本地开发兼容，不具备 Android Keystore 的安全等级。
+
+Android 首次读取按以下顺序迁移旧 Capacitor Preferences 密码：先读新存储；不存在时读旧值；旧值存在则写新存储并读回逐字确认；只有确认成功后才删除旧值。写入或校验失败会保留旧值、`passwordRef`、端点和业务数据。新值已确认但旧值删除失败时仍返回新值，后续读取优先使用新值并再次尝试清理。密文损坏或 Keystore 密钥不可用会返回 `SECRET_REENTRY_REQUIRED` 对应的用户可恢复错误，不会伪装成“WebDAV 未配置”；重新输入密码会覆盖损坏记录。
+
+清除同步配置先幂等删除新安全存储项和旧 Preferences 项，再清除本机端点；任一凭据删除失败都提示重试且不误报成功，不删除训练、动作、模板、资料或头像。卸载、清除应用数据、换机或系统凭据变化后不承诺恢复，也不宣称硬件安全模块保护或端到端加密。
+
+WebDAV 请求使用 Basic Authorization。当前 URL 校验没有强制拒绝 HTTP；内部测试要求使用 HTTPS，用户应强烈优先使用 HTTPS，并使用专用目录和低权限专用账户。
 
 ---
 
@@ -219,8 +225,11 @@ cd android
 |---|---|
 | 未配置同步 | SyncPage 显示未配置，训练功能照常工作。 |
 | 保存同步配置 | 本机-only 配置保存 url、username、passwordRef；password 只进 secret。 |
-| 清除同步配置 | 删除 passwordRef 对应 secret，清空本机-only url、username、passwordRef，不删除业务数据。 |
-| 远端脱敏 | 远端 settings、manifest、JSON 分片和 backup 均不包含 url、username、password、passwordRef。 |
+| Android 新安装 | Keystore 加密存储可写入、读取、覆盖和幂等删除；相同明文重复写入产生不同密文记录。 |
+| 旧值迁移 | 新存储缺失时按“读旧、写新、读回确认、删旧”迁移；失败保留旧值，旧值删除失败可重试。 |
+| 凭据失效 | 密文损坏或 Keystore 密钥不可用时要求重新输入；新密码可覆盖损坏记录。 |
+| 清除同步配置 | 同时删除新 secret 和旧 Preferences 值，再清空本机-only url、username、passwordRef，不删除业务数据；失败不误报成功。 |
+| 远端脱敏 | 远端 settings、manifest、JSON 分片、backup 和日志均不包含 url、username、password、passwordRef、密文、IV 或 Keystore 内部材料。 |
 | 首次同步 | 无 manifest 时创建目录和全部分片。 |
 | 常规同步 | 先 pull/merge，再 tmp/MOVE 发布，lastSyncAt 更新。 |
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
@@ -230,4 +239,4 @@ cd android
 | 头像资源 | `profile.avatarUrl` 引用资源路径；头像资源随 manifest、backup、tmp/MOVE 往返；清除后远端过期头像资源被删除。 |
 | 主题与 AI 规划字段 | themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
-当前自动测试位于 `src/sync/syncService.test.ts`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。
+迁移状态机、service 调用顺序与远端脱敏自动测试位于 `src/platform/secretStore.test.ts`、`src/services/syncSettings.test.ts` 和 `src/sync/syncService.test.ts`。Android 加密适配器的 instrumentation test 位于 `android/app/src/androidTest/java/app/ironlog/local/SecureSecretStoreInstrumentedTest.java`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。

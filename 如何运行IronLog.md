@@ -109,6 +109,10 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 
 配置页面需要 URL、用户名和密码。应用会在所填 URL 下使用 `ironlog-data/` 目录，请为 IronLog 使用独立目录或独立 WebDAV 账户。
 
+Android 新密码由 Keystore 中不可导出的 AES 密钥使用 AES-GCM 加密，密文保存在应用私有存储。升级用户的旧 Preferences 密码会在首次使用时先写入新存储、读回确认，再删除旧值；迁移失败不会清空同步端点或训练数据。若提示安全凭据无法读取，请在同步页重新输入密码，新值会覆盖损坏记录。清除同步配置会同时清理新旧凭据。
+
+浏览器开发环境把密码保存在 IndexedDB 的独立 secret 键中，只适合本地开发，不具备 Android Keystore 的安全等级。当前应用不会技术上拒绝 HTTP URL；内部测试应使用 HTTPS，日常使用强烈建议 HTTPS 和低权限专用账户。
+
 当前同步协议需要服务端支持：
 
 - `GET`、`PUT`、`DELETE`

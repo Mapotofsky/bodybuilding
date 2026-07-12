@@ -49,6 +49,17 @@ export default function SyncPage() {
     useToastStore.getState().add("同步设置已保存", "success");
   }
 
+  async function handleSaveSettings() {
+    setBusy(true);
+    try {
+      await saveSettings();
+    } catch (err) {
+      useToastStore.getState().add(err instanceof Error ? err.message : "保存失败，请重试", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleClear() {
     const ok = await confirm("清除同步配置", "只会清除本机 WebDAV URL、用户名和密码引用，不会删除训练、动作、模板、资料或头像。");
     if (!ok) return;
@@ -134,7 +145,7 @@ export default function SyncPage() {
             <input value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} type="password" autoComplete="current-password" placeholder={passwordRef ? "已保存，留空则不修改" : ""} />
             <p className="text-xs text-slate-400 mt-1">密码不会写入 JSON 数据文件。</p>
           </div>
-          <button onClick={saveSettings} disabled={busy} className="w-full py-3 bg-emerald-500 text-white rounded-2xl font-semibold disabled:opacity-50">
+          <button onClick={handleSaveSettings} disabled={busy} className="w-full py-3 bg-emerald-500 text-white rounded-2xl font-semibold disabled:opacity-50">
             保存设置
           </button>
           <button onClick={handleClear} disabled={busy || (!url && !username && !passwordRef)} className="w-full py-3 bg-white border border-red-100 text-red-600 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2">

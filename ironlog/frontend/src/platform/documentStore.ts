@@ -9,8 +9,9 @@ import {
 } from "@/core/migrations";
 import type { DataSnapshot, ExercisePerformanceRecordDoc, IronLogManifest, SyncEndpointConfig, WorkoutDoc } from "@/core/models";
 import { makeId } from "@/core/id";
+import { createAndroidSecretStore, type SecretStore, WebSecretStore } from "./secretStore";
 
-export interface DocumentStore {
+export interface DocumentStore extends SecretStore {
   load(): Promise<Partial<DataSnapshot> | null>;
   save(snapshot: DataSnapshot): Promise<void>;
   readSecret(key: string): Promise<string | null>;
@@ -29,6 +30,16 @@ const MANIFEST_PATH = "manifest.json";
 const SYNC_ENDPOINT_KEY = "local:sync-endpoint";
 
 class IndexedDbDocumentStore implements DocumentStore {
+  private readonly secretStore: SecretStore = new WebSecretStore({
+    read: (key) => this.tx("readonly", (store) => request(store.get(`secret:${key}`))),
+    write: async (key, value) => {
+      await this.tx("readwrite", (store) => request(store.put(value, `secret:${key}`)));
+    },
+    remove: async (key) => {
+      await this.tx("readwrite", (store) => request(store.delete(`secret:${key}`)));
+    },
+  });
+
   async load(): Promise<Partial<DataSnapshot> | null> {
     const manifest = await this.readDocument<IronLogManifest>(MANIFEST_PATH);
     if (!manifest) return null;
@@ -54,15 +65,15 @@ class IndexedDbDocumentStore implements DocumentStore {
   }
 
   async readSecret(key: string): Promise<string | null> {
-    return this.tx("readonly", (store) => request(store.get(`secret:${key}`)));
+    return this.secretStore.readSecret(key);
   }
 
   async writeSecret(key: string, value: string): Promise<void> {
-    await this.tx("readwrite", (store) => request(store.put(value, `secret:${key}`)));
+    await this.secretStore.writeSecret(key, value);
   }
 
   async removeSecret(key: string): Promise<void> {
-    await this.tx("readwrite", (store) => request(store.delete(`secret:${key}`)));
+    await this.secretStore.removeSecret(key);
   }
 
   async readSyncEndpoint(): Promise<SyncEndpointConfig> {
@@ -120,6 +131,7 @@ class IndexedDbDocumentStore implements DocumentStore {
 
 class CapacitorDocumentStore implements DocumentStore {
   private baseDir = "ironlog-data";
+  private readonly secretStore = createAndroidSecretStore();
 
   async load(): Promise<Partial<DataSnapshot> | null> {
     const manifest = await this.readJson(MANIFEST_PATH) as IronLogManifest | null;
@@ -152,19 +164,15 @@ class CapacitorDocumentStore implements DocumentStore {
   }
 
   async readSecret(key: string): Promise<string | null> {
-    const { Preferences } = await import("@capacitor/preferences");
-    const result = await Preferences.get({ key: `ironlog.secret.${key}` });
-    return result.value;
+    return this.secretStore.readSecret(key);
   }
 
   async writeSecret(key: string, value: string): Promise<void> {
-    const { Preferences } = await import("@capacitor/preferences");
-    await Preferences.set({ key: `ironlog.secret.${key}`, value });
+    await this.secretStore.writeSecret(key, value);
   }
 
   async removeSecret(key: string): Promise<void> {
-    const { Preferences } = await import("@capacitor/preferences");
-    await Preferences.remove({ key: `ironlog.secret.${key}` });
+    await this.secretStore.removeSecret(key);
   }
 
   async readSyncEndpoint(): Promise<SyncEndpointConfig> {

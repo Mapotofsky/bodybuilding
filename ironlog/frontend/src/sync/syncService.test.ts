@@ -184,11 +184,15 @@ describe("settings WebDAV sync", () => {
   });
 
   it("does not serialize local-only endpoint config into remote files", () => {
-    const snapshot = makeEmptySnapshot("device-test") as DataSnapshot & { settings: DataSnapshot["settings"] & { webdav?: unknown; passwordRef?: string; username?: string; url?: string } };
+    const snapshot = makeEmptySnapshot("device-test") as DataSnapshot & { settings: DataSnapshot["settings"] & { webdav?: unknown; passwordRef?: string; username?: string; url?: string; ciphertext?: string; iv?: string; keystoreAlias?: string; secretFormatVersion?: number } };
     snapshot.settings.webdav = { url: "https://dav.example.test", username: "athlete", passwordRef: "secret-1" };
     snapshot.settings.passwordRef = "secret-1";
     snapshot.settings.username = "athlete";
     snapshot.settings.url = "https://dav.example.test";
+    snapshot.settings.ciphertext = "encrypted-material";
+    snapshot.settings.iv = "encryption-iv";
+    snapshot.settings.keystoreAlias = "internal-alias";
+    snapshot.settings.secretFormatVersion = 1;
     snapshot.resources["assets/avatar/profile-local.txt"] = "data:image/png;base64,AAA";
     snapshot.profile.avatarUrl = "assets/avatar/profile-local.txt";
     snapshot.manifest.shards = buildShardList(snapshot);
@@ -200,6 +204,10 @@ describe("settings WebDAV sync", () => {
     expect(settingsFile).not.toHaveProperty("passwordRef");
     expect(settingsFile).not.toHaveProperty("username");
     expect(settingsFile).not.toHaveProperty("url");
+    expect(settingsFile).not.toHaveProperty("ciphertext");
+    expect(settingsFile).not.toHaveProperty("iv");
+    expect(settingsFile).not.toHaveProperty("keystoreAlias");
+    expect(settingsFile).not.toHaveProperty("secretFormatVersion");
     expect(settingsFile.themeId).toBe("emerald-slate");
     expect(files["assets/avatar/profile-local.txt"]).toBe("data:image/png;base64,AAA");
     expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("assets/avatar/profile-local.txt");
@@ -280,6 +288,10 @@ describe("settings WebDAV sync", () => {
         username: "athlete",
         passwordRef: "secret-1",
         password: "plain",
+        ciphertext: "encrypted-material",
+        iv: "encryption-iv",
+        keystoreAlias: "internal-alias",
+        secretFormatVersion: 1,
       },
     });
 
@@ -292,6 +304,9 @@ describe("settings WebDAV sync", () => {
     expect(backupBody).not.toContain("webdav");
     expect(backupBody).not.toContain("passwordRef");
     expect(backupBody).not.toContain("plain");
+    expect(backupBody).not.toContain("encrypted-material");
+    expect(backupBody).not.toContain("encryption-iv");
+    expect(backupBody).not.toContain("internal-alias");
     expect(client.putBodies["settings.json.tmp-"]).toBeUndefined();
   });
 
