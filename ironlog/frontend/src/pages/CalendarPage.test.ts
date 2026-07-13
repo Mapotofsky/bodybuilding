@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarStats } from "@/services/calendarStats";
-import { buildYearVolumeChartData, getVolumeTooltipContent } from "./CalendarPage";
+import { buildYearVolumeChartData, formatDurationHours, formatSignedDurationHours, getVolumeTooltipContent } from "./CalendarPage";
 
 describe("calendar year volume chart interaction", () => {
+  it("shows training duration and its period delta in hours with one decimal", () => {
+    expect(formatDurationHours(90)).toBe("1.5");
+    expect(formatSignedDurationHours(30)).toBe("+0.5 小时");
+    expect(formatSignedDurationHours(-30)).toBe("-0.5 小时");
+  });
+
   it("formats tooltip dates by period", () => {
     expect(getVolumeTooltipContent(true, { date: "2025-01-02", volume: 12 }, "week", "kg")).toMatchObject({
       date: "2025-01-02",
@@ -43,7 +49,7 @@ function yearStats(): CalendarStats {
     current: { from: "2025-01-01", to: "2025-06-15", label: "2025年", is_current_incomplete: true },
     previous: { from: "2024-01-01", to: "2024-12-31", label: "2024年", is_current_incomplete: false },
     kpis: { workout_count: 1, total_sets: 1, total_volume: 3100, total_volume_unit: "kg", duration_minutes: 60 },
-    deltas: { workout_count: 1, total_sets: 1, total_volume: 3100 },
+    deltas: { workout_count: 1, total_sets: 1, total_volume: 3100, duration_minutes: 30 },
     volume_points: Array.from({ length: 12 }, (_, index) => ({
       date: `2025-${String(index + 1).padStart(2, "0")}-01`,
       label: `${index + 1}月`,

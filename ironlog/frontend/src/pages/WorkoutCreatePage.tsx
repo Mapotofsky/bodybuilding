@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getExercises,
@@ -8,7 +8,9 @@ import {
 import { completeWorkoutDraft, createWorkout, getLatestWorkoutDraft, updateWorkout } from "@/services/workout";
 import { appendExerciseToTemplate, getTemplate, getPlans, getPlan } from "@/services/plan";
 import { getSettings } from "@/services/settings";
-import { calculateStrengthVolume, calculateWorkoutMetrics, convertWeight, formatVolume } from "@/core/workoutMetrics";
+import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
+import { completionTimestamp, formatExerciseCompletion, formatWorkoutPrimaryMetric } from "@/utils/workoutPresentation";
+import { scrollAppToTop } from "@/utils/scroll";
 import type { Exercise, Workout, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
@@ -105,6 +107,7 @@ export default function WorkoutCreatePage() {
   const [totalSeconds, setTotalSeconds] = useState(0);
   const totalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef("");
+  const finishTimeRef = useRef("");
 
   const [restSeconds, setRestSeconds] = useState(0);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -117,6 +120,10 @@ export default function WorkoutCreatePage() {
     getPlans().then((plans) => setActivePlans(plans.filter((p) => p.is_active)));
     getLatestWorkoutDraft().then(setDraft).catch(() => useToastStore.getState().add("无法读取上次训练草稿", "error")).finally(() => setDraftChecking(false));
   }, []);
+
+  useLayoutEffect(() => {
+    if (phase === "training") scrollAppToTop();
+  }, [phase, currentExercise?.id]);
 
   useEffect(() => {
     if (!templateIdParam) return;
@@ -221,6 +228,11 @@ export default function WorkoutCreatePage() {
       clearInterval(restTimerRef.current);
       restTimerRef.current = null;
     }
+  }, []);
+
+  const resumeRestTimer = useCallback(() => {
+    if (restTimerRef.current) return;
+    restTimerRef.current = setInterval(() => setRestSeconds((seconds) => seconds + 1), 1000);
   }, []);
 
   /* ---- enter training for an exercise ---- */
@@ -450,6 +462,11 @@ export default function WorkoutCreatePage() {
   const handleEndTraining = async () => {
     stopRestTimer();
     if (!currentExercise) return;
+    finishTimeRef.current = completionTimestamp(startTimeRef.current, totalSeconds, new Date().toISOString());
+    if (totalTimerRef.current) {
+      clearInterval(totalTimerRef.current);
+      totalTimerRef.current = null;
+    }
     const updated = applyRestSeconds(
       sessionExercises,
       currentExercise.id,
@@ -467,6 +484,13 @@ export default function WorkoutCreatePage() {
     setPhase("finish");
   };
 
+  const handleResumeTraining = () => {
+    finishTimeRef.current = "";
+    ensureTotalTimer();
+    resumeRestTimer();
+    setPhase("rest");
+  };
+
   const handleSave = async () => {
     setSaving(true);
     if (totalTimerRef.current) {
@@ -477,7 +501,7 @@ export default function WorkoutCreatePage() {
       const saved = await persistWorkout(sessionExercises, {
         mood,
         note: note || undefined,
-        end_time: new Date().toISOString(),
+        end_time: finishTimeRef.current || completionTimestamp(startTimeRef.current, totalSeconds, new Date().toISOString()),
       });
       setSessionExercises(mergePersistedIds(sessionExercises, saved));
       useToastStore.getState().add("训练已保存", "success");
@@ -904,7 +928,7 @@ export default function WorkoutCreatePage() {
     const isOvertime = restSeconds >= DEFAULT_REST;
 
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="workout-rest-screen bg-slate-50 flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
           <div className="w-9" />
@@ -916,7 +940,7 @@ export default function WorkoutCreatePage() {
         </div>
 
         {/* Completed set summary */}
-        <div className="mx-5 mt-4 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <div className="workout-rest-summary mx-5 mt-3 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 shrink-0">
           <div className="flex items-center gap-1 mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <p className="text-xs font-semibold text-emerald-600">已完成</p>
@@ -928,9 +952,9 @@ export default function WorkoutCreatePage() {
         </div>
 
         {/* SVG Ring Timer */}
-        <div className="flex-1 flex flex-col items-center justify-center px-5">
-          <div className="relative">
-            <svg width={136} height={136} className="-rotate-90">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-5 py-2">
+          <div className="workout-rest-ring relative shrink-0">
+            <svg viewBox="0 0 136 136" className="w-full h-full -rotate-90">
               <circle
                 cx={68} cy={68} r={56}
                 fill="none"
@@ -966,25 +990,25 @@ export default function WorkoutCreatePage() {
         </div>
 
         {/* Actions */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10">
+        <div className="shrink-0 px-4 pb-3">
           <div className="grid grid-cols-3 gap-2.5">
             <button
               onClick={handleNextSet}
-              className="flex flex-col items-center gap-1.5 py-4 bg-emerald-500 rounded-2xl shadow-sm shadow-emerald-200 active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-1 py-3 bg-emerald-500 rounded-2xl shadow-sm shadow-emerald-200 active:scale-95 transition-transform"
             >
               <Play size={24} className="text-white" fill="white" />
               <span className="text-xs font-bold text-white">下一组</span>
             </button>
             <button
               onClick={handleChangeExercise}
-              className="flex flex-col items-center gap-1.5 py-4 bg-white border border-slate-200 rounded-2xl active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-1 py-3 bg-white border border-slate-200 rounded-2xl active:scale-95 transition-transform"
             >
               <SkipForward size={24} className="text-slate-600" />
               <span className="text-xs font-semibold text-slate-600">换动作</span>
             </button>
             <button
               onClick={handleEndTraining}
-              className="flex flex-col items-center gap-1.5 py-4 bg-white border border-slate-200 rounded-2xl active:scale-95 transition-transform"
+              className="flex flex-col items-center gap-1 py-3 bg-white border border-slate-200 rounded-2xl active:scale-95 transition-transform"
             >
               <Square size={24} className="text-red-400" />
               <span className="text-xs font-semibold text-red-500">结束</span>
@@ -1010,13 +1034,14 @@ export default function WorkoutCreatePage() {
         distanceM: set.distance_m,
       })),
     })), weightUnit);
+    const primaryMetric = formatWorkoutPrimaryMetric(sessionExercises.map((item) => item.exercise.type), metrics);
 
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
           <button
-            onClick={() => setPhase("rest")}
+            onClick={handleResumeTraining}
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
           >
             <ChevronLeft size={20} className="text-slate-700" />
@@ -1044,9 +1069,9 @@ export default function WorkoutCreatePage() {
               <div className="w-px bg-white/20" />
               <div className="text-center">
                 <p className="text-2xl font-bold text-white">
-                  {formatVolume(metrics.totalVolume, metrics.totalVolumeUnit)}
+                  {primaryMetric.value}
                 </p>
-                <p className="text-emerald-200 text-xs mt-0.5">训练容量</p>
+                <p className="text-emerald-200 text-xs mt-0.5">{primaryMetric.label}</p>
               </div>
             </div>
           </div>
@@ -1058,20 +1083,14 @@ export default function WorkoutCreatePage() {
             </div>
             <div className="divide-y divide-slate-50">
               {sessionExercises.map((se) => {
-                const strengthSets = se.sets.map((set) => ({
-                  weight: set.weight,
-                  reps: set.reps,
-                  unit: set.unit,
-                }));
-                const maxW = Math.max(...strengthSets.map((set) => set.weight == null ? 0 : convertWeight(set.weight, set.unit, weightUnit)));
-                const vol = calculateStrengthVolume(strengthSets, weightUnit);
+                const summary = formatExerciseCompletion(se.exercise.type, se.sets, weightUnit);
                 return (
                   <div key={se.exercise.id} className="flex items-center justify-between px-4 py-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-sm text-slate-900">{se.exercise.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{se.sets.length} 组 · 最大 {Math.round(maxW)} {weightUnit}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{summary.detail}</p>
                     </div>
-                    <span className="text-sm font-semibold text-slate-600">{formatVolume(vol, weightUnit)}</span>
+                    <span className="text-sm font-semibold text-slate-600 text-right ml-3 shrink-0">{summary.value}</span>
                   </div>
                 );
               })}

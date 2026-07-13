@@ -184,7 +184,7 @@ settings 特殊处理：只合并可同步偏好并强制保留本地 `lastSyncA
 ```ts
 {
   appId: "app.ironlog.local",
-  appName: "IronLog",
+  appName: "IronLog录铁",
   webDir: "dist",
   server: { androidScheme: "https" }
 }
@@ -201,7 +201,7 @@ npm run android:sync
 
 ### 6.2 权限与文件
 
-AndroidManifest 当前需要 `android.permission.INTERNET`。应用数据保存在私有目录，用户不应依赖文件管理器直接编辑 JSON。FileProvider 仅为未来受控文件分享预留；当前没有用户导出 UI。
+AndroidManifest 需要 `android.permission.INTERNET`；Android 9 及以下保存分享图还声明受 `maxSdkVersion=28` 限制的旧版写存储权限，Android 10 及以上使用 MediaStore，不申请广泛存储权限。应用数据保存在私有目录，用户不应依赖文件管理器直接编辑 JSON。分享图保存只写 `Pictures/IronLog`，不读取或修改业务 JSON、Keystore 和 WebDAV 配置。
 
 ### 6.3 构建验收
 

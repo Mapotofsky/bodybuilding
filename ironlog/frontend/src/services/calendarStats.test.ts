@@ -53,6 +53,24 @@ describe("calendar year volume series", () => {
   });
 });
 
+describe("calendar period comparison", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("includes the missing training-duration difference beside the other KPI differences", async () => {
+    mockSnapshot([
+      strengthWorkout("previous-month", "2025-05-15", 100, 60),
+      strengthWorkout("current-month", "2025-06-15", 100, 90),
+    ]);
+
+    const stats = await getCalendarStats("month", new Date("2025-06-20T12:00:00"));
+
+    expect(stats.kpis.duration_minutes).toBe(90);
+    expect(stats.deltas.duration_minutes).toBe(30);
+  });
+});
+
 function mockSnapshot(workouts: WorkoutDoc[]): void {
   const snapshot: DataSnapshot = makeEmptySnapshot("calendar-stats-test");
   snapshot.workouts = workouts;
@@ -61,13 +79,13 @@ function mockSnapshot(workouts: WorkoutDoc[]): void {
   vi.spyOn(localRepository, "getSettings").mockResolvedValue(snapshot.settings);
 }
 
-function strengthWorkout(id: string, date: string, volume: number): WorkoutDoc {
+function strengthWorkout(id: string, date: string, volume: number, durationMinutes = 60): WorkoutDoc {
   const timestamp = `${date}T08:00:00.000Z`;
   return {
     id,
     date,
     startTime: timestamp,
-    endTime: `${date}T09:00:00.000Z`,
+    endTime: new Date(new Date(timestamp).getTime() + durationMinutes * 60_000).toISOString(),
     planTemplateId: null,
     note: null,
     mood: null,

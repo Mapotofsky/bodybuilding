@@ -94,6 +94,20 @@ frontend/android/app/build/outputs/apk/debug/app-debug.apk
 
 Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data/` JSON 文件。该目录是应用私有目录；卸载应用或清除应用数据会删除本地训练数据。启用 WebDAV 后先完成一次成功同步，再执行清除数据、换机或升级等破坏性操作。
 
+### 4.4 Android 测试分级与分享图
+
+Web/本机自动测试可覆盖统计差值、动作类型展示、训练结束计时冻结、360px/412px 布局和浏览器 PNG 下载。Android 原生插件构建使用：
+
+```powershell
+cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend\android
+.\gradlew.bat :app:assembleDebugAndroidTest
+.\gradlew.bat :app:connectedDebugAndroidTest
+```
+
+只运行 `:app:` 任务，避免项目级 `assembleDebugAndroidTest` 触发 Capacitor Cordova 插件模块的 Kotlin 重复类问题。没有连接设备时只能完成 test APK 构建，不能写成真机通过。
+
+分享图真机测试会在系统相册的 `Pictures/IronLog` 新增一张 PNG，不会写入训练 JSON、WebDAV、Keystore 或同步配置。测试后可只删除该图片；不要清除应用数据、正式密钥或 WebDAV 目录。Android 9 及以下首次保存会请求旧版存储权限，Android 10 及以上通过 MediaStore 保存。
+
 ## 5. 使用流程
 
 1. 打开首页，选择“开始训练”或从计划/日历发起训练；日历入口是选中日期后创建训练，不表示 CalendarPage 会渲染计划条目。若上次训练未结束，先选择继续草稿或结束草稿后新建。

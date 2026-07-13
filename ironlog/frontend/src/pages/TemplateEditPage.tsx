@@ -9,6 +9,7 @@ import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import StepInput from "@/components/ui/StepInput";
 import ExercisePicker from "@/components/ExercisePicker";
+import TemplateColorPicker from "@/components/TemplateColorPicker";
 
 interface LocalTemplateExercise {
   id?: string;
@@ -19,11 +20,6 @@ interface LocalTemplateExercise {
   note: string;
 }
 
-const PRESET_COLORS = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
-  "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16",
-];
-
 const DAYS_OF_WEEK = [1, 2, 3, 4, 5, 6, 7];
 
 export default function TemplateEditPage() {
@@ -33,7 +29,7 @@ export default function TemplateEditPage() {
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [template, setTemplate] = useState<PlanTemplate | null>(null);
   const [name, setName] = useState("");
-  const [color, setColor] = useState<string | null>(null);
+  const [color, setColor] = useState("#10B981");
   const [scheduleRule, setScheduleRule] = useState<Record<string, unknown> | null>(null);
   const [cycleDay, setCycleDay] = useState("1");
   const [exercises, setExercises] = useState<LocalTemplateExercise[]>([]);
@@ -51,7 +47,7 @@ export default function TemplateEditPage() {
       if (tmpl) {
         setTemplate(tmpl);
         setName(tmpl.name);
-        setColor(tmpl.color);
+        setColor(tmpl.color || p.color);
         setScheduleRule(tmpl.schedule_rule);
         const storedCycleDay = tmpl.schedule_rule?.day_in_cycle;
         setCycleDay(typeof storedCycleDay === "number" ? String(storedCycleDay) : "1");
@@ -190,29 +186,8 @@ export default function TemplateEditPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">颜色（可选）</label>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setColor(null)}
-                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs ${
-                  !color ? "border-slate-400 bg-slate-100" : "border-slate-200 bg-slate-50"
-                }`}
-              >
-                无
-              </button>
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={`w-8 h-8 rounded-full transition-transform ${
-                    color === c ? "scale-110 ring-2 ring-offset-2 ring-slate-400" : ""
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">颜色</label>
+            <TemplateColorPicker value={color} onChange={setColor} />
           </div>
         </div>
 

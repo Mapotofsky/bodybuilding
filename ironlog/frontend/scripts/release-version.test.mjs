@@ -7,8 +7,8 @@ const current = JSON.parse(await readFile(new URL("../release/version.json", imp
 describe("release version metadata", () => {
   it("generates the current internal Android version", () => {
     validateVersion(current);
-    expect(versionName(current)).toBe("0.1.0-internal.1");
-    expect(propertiesFor(current)).toContain("VERSION_CODE=1\nVERSION_NAME=0.1.0-internal.1");
+    expect(versionName(current)).toBe("0.1.0-internal.2");
+    expect(propertiesFor(current)).toContain("VERSION_CODE=2\nVERSION_NAME=0.1.0-internal.2");
   });
 
   it("requires a positive integer versionCode", () => {

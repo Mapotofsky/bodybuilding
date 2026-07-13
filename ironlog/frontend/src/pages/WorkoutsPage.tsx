@@ -8,6 +8,7 @@ import { format, addMonths, subMonths } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { formatVolume } from "@/core/workoutMetrics";
+import { formatDistance, formatDuration } from "@/utils/workoutPresentation";
 
 export default function WorkoutsPage() {
   const navigate = useNavigate();
@@ -24,8 +25,8 @@ export default function WorkoutsPage() {
       .finally(() => setLoading(false));
   }, [monthStr]);
 
-  const totalVolume = workouts.reduce((s, w) => s + w.total_volume, 0);
   const totalSets = workouts.reduce((s, w) => s + w.total_sets, 0);
+  const monthlyMetric = monthlySummaryMetric(workouts);
 
   return (
     <div className="px-5 pt-4 pb-6">
@@ -60,9 +61,9 @@ export default function WorkoutsPage() {
         </div>
         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3 text-center">
           <p className="text-xl font-bold text-emerald-700">
-            {formatVolume(totalVolume, workouts[0]?.total_volume_unit || "kg")}
+            {monthlyMetric.value}
           </p>
-          <p className="text-xs text-emerald-600/80 mt-0.5">总容量</p>
+          <p className="text-xs text-emerald-600/80 mt-0.5">{monthlyMetric.label}</p>
         </div>
       </div>
 
@@ -128,4 +129,16 @@ function summaryMetric(workout: WorkoutSummary): string {
   if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
   if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
   return `${workout.total_reps} 次`;
+}
+
+export function monthlySummaryMetric(workouts: WorkoutSummary[]): { label: string; value: string } {
+  const volume = workouts.reduce((sum, workout) => sum + workout.total_volume, 0);
+  const unit = workouts[0]?.total_volume_unit || "kg";
+  if (volume > 0 || workouts.length === 0) return { label: "总容量", value: formatVolume(volume, unit) };
+  const distance = workouts.reduce((sum, workout) => sum + workout.total_distance_m, 0);
+  if (distance > 0) return { label: "总距离", value: formatDistance(distance) };
+  const duration = workouts.reduce((sum, workout) => sum + workout.total_duration_sec, 0);
+  if (duration > 0) return { label: "动作时长", value: formatDuration(duration) };
+  const reps = workouts.reduce((sum, workout) => sum + workout.total_reps, 0);
+  return { label: "完成次数", value: `${reps} 次` };
 }

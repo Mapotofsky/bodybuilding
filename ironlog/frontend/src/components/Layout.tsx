@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, CalendarDays, User, ClipboardList, Dumbbell } from "lucide-react";
 import { getSettings } from "@/services/settings";
 import { applyThemeId } from "@/theme/applyTheme";
+import { scrollTargetsToTop } from "@/utils/scroll";
 
 const NAV_ITEMS = [
   { path: "/", icon: Home, label: "首页" },
@@ -24,8 +25,7 @@ export default function Layout() {
   }, []);
 
   useLayoutEffect(() => {
-    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    scrollTargetsToTop(mainRef.current, window);
   }, [location.pathname]);
 
   return (

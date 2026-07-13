@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getWorkout, deleteWorkout, copyWorkout } from "@/services/workout";
 import { getSettings } from "@/services/settings";
-import { dataUrlToFile, prepareWorkoutShareImage, type WorkoutShareImage } from "@/services/shareImage";
+import { dataUrlToFile, prepareWorkoutShareImage, saveWorkoutShareImage, type WorkoutShareImage } from "@/services/shareImage";
 import type { Workout } from "@/types";
 import { CATEGORY_LABELS, MOOD_LABELS } from "@/types";
 import {
@@ -68,11 +68,13 @@ export default function WorkoutDetailPage() {
     }
   };
 
-  const saveShareImage = (image: WorkoutShareImage) => {
-    const link = document.createElement("a");
-    link.href = image.data_url;
-    link.download = image.file_name;
-    link.click();
+  const saveShareImage = async (image: WorkoutShareImage) => {
+    try {
+      const destination = await saveWorkoutShareImage(image);
+      useToastStore.getState().add(destination === "gallery" ? "图片已保存到相册的 IronLog 文件夹" : "图片已下载", "success");
+    } catch (error) {
+      useToastStore.getState().add(error instanceof Error ? error.message : "保存图片失败，请重试", "error");
+    }
   };
 
   const doShareImage = async (image: WorkoutShareImage) => {

@@ -4,7 +4,7 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 
 ## 当前状态与路线图
 
-当前已实现离线训练、计划/模板、训练记录月历、动作库/动作详情、本地头像资料、5 套主题及语义色彩映射和 WebDAV 手动同步。HomePage 可展示今日计划和补训建议；CalendarPage 当前仅显示实际训练记录，不渲染计划条目。
+当前已实现离线训练、计划/模板、训练记录月历与统计、动作库/动作详情、训练详情 PNG 分享图、本地头像资料、5 套主题及语义色彩映射和 WebDAV 手动同步。Android 保存分享图时写入系统相册的 `Pictures/IronLog`，浏览器开发模式继续使用下载。HomePage 可展示今日计划和补训建议；CalendarPage 当前仅显示实际训练记录，不渲染计划条目。
 
 以下 AI 能力均为规划中，不能按当前功能描述：AI provider/API key 配置、AI 问答/训练分析、联网 agent 和 AI 计划候选导入。主题语义映射已完成；内部测试版仍需在 Android 真机完成 5 套主题和 360px/412px 窄屏视觉验收。
 
@@ -70,7 +70,7 @@ Capacitor 配置：
 
 Android 内部测试版本由 [`frontend/release/version.json`](ironlog/frontend/release/version.json) 统一定义。修改构建序号后执行 `npm run release:sync` 和 `npm run release:check`；`npm run android:sync` 会自动同步并校验版本元数据。
 - `webDir`: `dist`
-- 已接入插件：Filesystem、Preferences，以及原生 `WebDavHttp` 和 `SecretStore` 插件；Preferences 只保存本机端点配置及待迁移旧密码，不再承载新写入的 Android 密码正文
+- 已接入插件：Filesystem、Preferences，以及原生 `WebDavHttp`、`SecretStore` 和 `ImageSaver` 插件；Preferences 只保存本机端点配置及待迁移旧密码，不再承载新写入的 Android 密码正文
 
 ## 本地数据格式
 

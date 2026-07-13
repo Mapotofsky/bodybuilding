@@ -7,6 +7,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(android.os.Bundle savedInstanceState) {
         registerPlugin(WebDavHttpPlugin.class);
         registerPlugin(SecretStorePlugin.class);
+        registerPlugin(ImageSaverPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

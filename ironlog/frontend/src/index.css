@@ -355,6 +355,35 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
+.workout-rest-screen {
+  position: fixed;
+  top: 0;
+  bottom: calc(4rem + max(0.5rem, env(safe-area-inset-bottom)));
+  left: 50%;
+  width: 100%;
+  max-width: 480px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  z-index: 40;
+}
+
+.workout-rest-ring {
+  width: clamp(6rem, 24dvh, 8.5rem);
+  height: clamp(6rem, 24dvh, 8.5rem);
+}
+
+@media (min-width: 768px) {
+  .workout-rest-screen {
+    max-width: 768px;
+  }
+}
+
+@media (max-height: 420px) and (orientation: landscape) {
+  .workout-rest-summary {
+    display: none;
+  }
+}
+
 /* ===== Scrollbar hide ===== */
 .scrollbar-hide {
   -ms-overflow-style: none;

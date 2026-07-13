@@ -14,4 +14,11 @@ describe("ExercisePicker", () => {
     expect(renderToStaticMarkup(<ExercisePicker {...props} presentation="inline" />)).toContain("新建");
     expect(renderToStaticMarkup(<ExercisePicker {...props} presentation="sheet" open />)).toContain("新建");
   });
+
+  it("renders the shared sheet above the bottom tab bar with a dynamic viewport height", () => {
+    const markup = renderToStaticMarkup(<ExercisePicker exercises={[exercise]} onSelect={() => undefined} onCreated={() => undefined} presentation="sheet" open />);
+    expect(markup).toContain("z-[80]");
+    expect(markup).toContain("max-h-[88dvh]");
+    expect(markup).toContain("overscroll-contain");
+  });
 });

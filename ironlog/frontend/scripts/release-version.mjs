@@ -71,7 +71,11 @@ export async function checkReleaseVersion({ allowMissingAndroidProperties = fals
 }
 
 export async function syncReleaseVersion() {
-  const version = await checkReleaseVersion({ allowMissingAndroidProperties: true });
+  const [version, packageJson] = await Promise.all([readJson(versionPath), readJson(packagePath)]);
+  validateVersion(version);
+  if (packageJson.version !== version.baseVersion) {
+    throw new Error(`package.json version (${packageJson.version}) must match release baseVersion (${version.baseVersion}).`);
+  }
   await writeFile(androidPropertiesPath, propertiesFor(version), "utf8");
   return version;
 }

@@ -68,6 +68,7 @@ export interface CalendarStats {
     workout_count: number;
     total_sets: number;
     total_volume: number;
+    duration_minutes: number;
   };
   volume_points: Array<{ date: string; label: string; volume: number; workouts: number }>;
   volume_auxiliary_points: Array<{ date: string; moving_average: number }>;
@@ -147,6 +148,7 @@ export async function getCalendarStats(period: StatsPeriod, anchorDate: Date): P
       workout_count: kpis.workout_count - prevKpis.workout_count,
       total_sets: kpis.total_sets - prevKpis.total_sets,
       total_volume: kpis.total_volume - prevKpis.total_volume,
+      duration_minutes: kpis.duration_minutes - prevKpis.duration_minutes,
     },
     volume_points: volumePoints(period, current, currentWorkouts, settings.weightUnit),
     volume_auxiliary_points: volumeAuxiliaryPoints(period, current, auxiliaryWorkouts, settings.weightUnit),

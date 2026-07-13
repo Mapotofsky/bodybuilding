@@ -60,6 +60,7 @@ P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；5 
 5. 五项底部导航必须重新评估最小触控区域、活动状态、文字截断、safe area 与 360px/412px 宽度。固定按钮与可增长内容使用 Grid 的固定列加 minmax(0, 1fr)，或同时限制 min-w-0/shrink-0。
 6. 主题色不得降低文本、边框、错误、禁用、焦点状态与图标的可辨识性。Android-first 不要求系统深色模式跟随；是否跟随系统主题是待决策项。
 7. 全局确认继续使用 ConfirmDialog，通知使用 Toast。主题改造不得引入 window.confirm、window.alert 或 window.prompt。
+8. bottom sheet 必须高于固定导航并消费底部 safe area；可滚动内容使用 `dvh` 和独立滚动容器，不能让导航遮住最后一项。
 
 ---
 

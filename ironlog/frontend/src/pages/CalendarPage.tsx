@@ -178,7 +178,7 @@ function StatsView({ period, onPeriod, stats, onOpenWorkouts, onOpenWorkout }: {
           <Kpi label="训练次数" value={stats.kpis.workout_count} delta={stats.deltas.workout_count} unit="次" />
           <Kpi label="总组数" value={stats.kpis.total_sets} delta={stats.deltas.total_sets} unit="组" />
           <Kpi label="总容量" value={formatVolume(stats.kpis.total_volume, stats.kpis.total_volume_unit)} deltaText={formatSignedVolume(stats.deltas.total_volume, stats.kpis.total_volume_unit)} unit="" />
-          <Kpi label="训练时长" value={stats.kpis.duration_minutes} unit="分钟" />
+          <Kpi label="训练时长" value={formatDurationHours(stats.kpis.duration_minutes)} deltaText={formatSignedDurationHours(stats.deltas.duration_minutes)} unit="小时" />
         </div>
       </section>
 
@@ -513,6 +513,16 @@ function formatBodySummary(item: CalendarStats["body_summaries"][number]): strin
 
 function formatSignedVolume(value: number, unit: CalendarStats["kpis"]["total_volume_unit"]): string {
   return `${value >= 0 ? "+" : ""}${formatVolume(value, unit)}`;
+}
+
+export function formatDurationHours(minutes: number): string {
+  return (minutes / 60).toFixed(1);
+}
+
+export function formatSignedDurationHours(minutes: number): string {
+  const hours = Number(formatDurationHours(minutes));
+  if (hours === 0) return "0.0 小时";
+  return `${hours > 0 ? "+" : ""}${hours.toFixed(1)} 小时`;
 }
 
 type PerformanceRecordForDisplay = CalendarStats["performance"]["recent_records"][number];
