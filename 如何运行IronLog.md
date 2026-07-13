@@ -119,6 +119,10 @@ cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend\android
 
 只运行 `:app:` 任务，避免项目级 `assembleDebugAndroidTest` 触发 Capacitor Cordova 插件模块的 Kotlin 重复类问题。没有连接设备时只能完成 test APK 构建，不能写成真机通过。
 
+当前 `0.1.0-internal.2` 候选已在 Android 16（API 36）AVD 运行 `:app:connectedDebugAndroidTest`，4 项 instrumentation 全部通过。测试覆盖 Android Context 包名以及 Keystore 新凭据、旧凭据迁移、损坏后重新输入和清除配置路径；测试使用隔离的测试键并定向清理，不会清除应用业务数据或 WebDAV 目录。
+
+该候选同时已在目标真机使用 HTTPS 测试专用 WebDAV 完成设置保存、数据读取、应用重启后同步和远端脱敏检查；远端 JSON、manifest、backup 与日志未发现密码、密文、端点、用户名或 `passwordRef`。后续版本仍应使用隔离目录重复该检查，不能沿用本次结果代替新构建验收。
+
 分享图真机测试会在系统相册的 `Pictures/IronLog` 新增一张 PNG，不会写入训练 JSON、WebDAV、Keystore 或同步配置。测试后可只删除该图片；不要清除应用数据、正式密钥或 WebDAV 目录。Android 9 及以下首次保存会请求旧版存储权限，Android 10 及以上通过 MediaStore 保存。
 
 ## 5. 使用流程
@@ -154,7 +158,7 @@ Android 新密码由 Keystore 中不可导出的 AES 密钥使用 AES-GCM 加密
 
 - AI provider、模型、API key、动作问答、训练分析、计划候选导入和联网资料检索。
 
-主题选择和语义色彩映射已经实现。源码中保留的 emerald/slate Tailwind 工具类通过全局兼容变量解析为当前主题角色；内部测试仍需在 Android 真机完成 5 套主题和 360px/412px 窄屏视觉验收。
+主题选择和语义色彩映射已经实现。源码中保留的 emerald/slate Tailwind 工具类通过全局兼容变量解析为当前主题角色。当前候选已通过 360px、412px 与横屏自动布局测试，并在 Android 16（API 36）AVD 的 411px WebView 逐套核对 5 套主题、主内容滚动区、底部 Tab、动作按钮起始拖动和分享预览；软键盘及厂商系统差异仍按上文人工步骤在目标设备确认。
 
 请不要将 API key 写入 settings.json、WebDAV、项目文件、日志或地址栏。未来 AI 未配置时，离线训练、模板、动作库/动作详情与 WebDAV 必须保持可用。
 

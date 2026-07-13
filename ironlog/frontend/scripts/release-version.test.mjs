@@ -23,4 +23,8 @@ describe("release version metadata", () => {
   it("rejects generated Android metadata that no longer matches the source", () => {
     expect(() => validateAndroidProperties(current, "VERSION_CODE=1\nVERSION_NAME=1.0\n")).toThrow("out of sync");
   });
+
+  it("accepts generated Android metadata after a Windows CRLF checkout", () => {
+    expect(() => validateAndroidProperties(current, propertiesFor(current).replaceAll("\n", "\r\n"))).not.toThrow();
+  });
 });

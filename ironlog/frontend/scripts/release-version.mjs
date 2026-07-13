@@ -44,7 +44,8 @@ export function propertiesFor(version) {
 }
 
 export function validateAndroidProperties(version, properties) {
-  if (properties !== propertiesFor(version)) {
+  const normalizedProperties = properties.replace(/\r\n?/g, "\n");
+  if (normalizedProperties !== propertiesFor(version)) {
     throw new Error("android/version.properties is out of sync. Run npm run release:sync.");
   }
 }
