@@ -26,6 +26,7 @@ export default function ExercisePicker({
   presentation = "sheet",
   selectedId = null,
 }: ExercisePickerProps) {
+  const isSheet = presentation === "sheet";
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -55,24 +56,24 @@ export default function ExercisePicker({
     onClose?.();
   }
 
-  if (presentation === "sheet" && !open) return null;
+  if (isSheet && !open) return null;
 
   const picker = (
-    <div className={presentation === "sheet" ? "bg-white w-full max-w-[480px] rounded-t-3xl max-h-[88dvh] pb-safe flex flex-col" : "flex-1 min-h-0 flex flex-col"}>
+    <div className={isSheet ? "bg-white w-full max-w-[480px] rounded-t-3xl max-h-[88dvh] pb-safe flex flex-col" : ""}>
       <div className="px-4 pt-4 pb-3 border-b border-slate-100 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-semibold text-lg text-slate-900">选择动作</h2>
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setShowCreate(true)} className="shrink-0 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100"><Plus size={14} className="inline mr-1" />新建</button>
-            {presentation === "sheet" && <button type="button" onClick={onClose} className="p-1 text-slate-500"><X size={22} /></button>}
+            {isSheet && <button type="button" onClick={onClose} className="p-1 text-slate-500"><X size={22} /></button>}
           </div>
         </div>
         <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索动作..." className="w-full pl-9 pr-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400" /></div>
         <div className="flex gap-2 overflow-x-auto pb-1"><button type="button" onClick={() => setCategory("")} className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium ${!category ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}>全部</button>{Object.entries(CATEGORY_LABELS).map(([key, label]) => <button type="button" key={key} onClick={() => setCategory(key)} className={`px-3 py-1 rounded-full text-xs whitespace-nowrap font-medium ${category === key ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600"}`}>{label}</button>)}</div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2">{filtered.map((exercise) => <button type="button" key={exercise.id} onClick={() => select(exercise)} className={`w-full text-left px-3 py-3 rounded-xl flex items-center gap-3 ${selectedId === exercise.id ? "bg-emerald-50 border border-emerald-200" : "hover:bg-slate-50"}`}><div className="w-8 h-8 shrink-0 bg-emerald-50 rounded-lg flex items-center justify-center"><Dumbbell size={16} className="text-emerald-500" /></div><div className="min-w-0"><p className="font-medium text-sm text-slate-900 truncate">{exercise.name}{exercise.is_custom && <span className="ml-1.5 text-[10px] text-amber-700">自定义</span>}</p><p className="text-xs text-slate-400">{CATEGORY_LABELS[exercise.category] || exercise.category}</p></div></button>)}{filtered.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">没有匹配的动作</p>}</div>
+      <div className={isSheet ? "flex-1 min-h-0 overflow-y-auto overscroll-contain p-2" : "p-2"}>{filtered.map((exercise) => <button type="button" key={exercise.id} onClick={() => select(exercise)} className={`w-full text-left px-3 py-3 rounded-xl flex items-center gap-3 ${selectedId === exercise.id ? "bg-emerald-50 border border-emerald-200" : "hover:bg-slate-50"}`}><div className="w-8 h-8 shrink-0 bg-emerald-50 rounded-lg flex items-center justify-center"><Dumbbell size={16} className="text-emerald-500" /></div><div className="min-w-0"><p className="font-medium text-sm text-slate-900 truncate">{exercise.name}{exercise.is_custom && <span className="ml-1.5 text-[10px] text-amber-700">自定义</span>}</p><p className="text-xs text-slate-400">{CATEGORY_LABELS[exercise.category] || exercise.category}</p></div></button>)}{filtered.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">没有匹配的动作</p>}</div>
     </div>
   );
 
-  return <>{presentation === "sheet" ? <div className="fixed inset-0 z-[80] bg-black/40 flex items-end justify-center">{picker}</div> : picker}{showCreate && <div className="fixed inset-0 z-[90] bg-black/50 flex items-end"><div className="w-full max-w-[480px] max-h-[88dvh] overflow-y-auto overscroll-contain mx-auto bg-white rounded-t-3xl p-5 pb-safe space-y-4"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900">新建自定义动作</h3><button type="button" onClick={() => setShowCreate(false)} className="text-slate-500"><X size={20} /></button></div><CustomExerciseForm value={createForm} onChange={setCreateForm} onSubmit={handleCreate} onCancel={() => setShowCreate(false)} submitLabel="创建并使用" compact /></div></div>}</>;
+  return <>{isSheet ? <div className="fixed inset-0 z-[80] bg-black/40 flex items-end justify-center">{picker}</div> : picker}{showCreate && <div className="fixed inset-0 z-[90] bg-black/50 flex items-end"><div className="w-full max-w-[480px] max-h-[88dvh] overflow-y-auto overscroll-contain mx-auto bg-white rounded-t-3xl p-5 pb-safe space-y-4"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900">新建自定义动作</h3><button type="button" onClick={() => setShowCreate(false)} className="text-slate-500"><X size={20} /></button></div><CustomExerciseForm value={createForm} onChange={setCreateForm} onSubmit={handleCreate} onCancel={() => setShowCreate(false)} submitLabel="创建并使用" compact /></div></div>}</>;
 }

@@ -57,7 +57,7 @@ P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；5 
 2. @layer base 内的全局 margin/padding reset 必须保留；不得以未分层全局样式覆盖 Tailwind 的间距工具类。
 3. 默认主题继续是 emerald/slate，并作为未知值和迁移失败的视觉回退。
 4. 动作库已新增 /exercises 路由与底部“动作库”Tab。列表使用 P1 的 getExercises，进入现有 /exercises/:id。
-5. 根布局必须是唯一滚动容器：`html`、`body`、`#root` 不参与页面滚动；`app-shell` 使用 `100dvh`（`100vh` 回退）并裁切溢出，`app-main` 使用 `flex: 1`、`min-block-size: 0` 和 `overflow-y: auto`。每个路由页面根使用 `app-page` 的 `min-block-size: 100%`，短内容铺满主区，长内容只由 `app-main` 滚动。
+5. 根布局必须是唯一滚动容器：`html`、`body`、`#root` 不参与页面滚动；`app-shell` 使用 `100dvh`（`100vh` 回退）并裁切溢出，`app-main` 使用 `flex: 1`、`min-block-size: 0` 和 `overflow-y: auto`。每个路由页面根使用 `app-page` 的 `min-block-size: 100%`，短内容铺满主区，长内容只由 `app-main` 滚动。路由页中的内联选择器、列表和表单不得另建 `overflow-y` 滚动区；仅模态层可依第 10 条独立滚动。
 6. 五项底部导航是 `app-shell` 的流内非滚动 sibling，不使用 fixed 覆盖内容；其高度统一由 `--app-tabbar-height` 表示，包含底部 safe area。页面不得再用 `pb-24`、`bottom-20` 或 `bottom-24` 猜测 Tab 高度；FAB 和训练固定操作通过同一 token 定位，且为自身覆盖范围保留明确内容末端空间。
 7. 五项底部导航必须重新评估最小触控区域、活动状态、文字截断、safe area 与 360px/412px 宽度。固定按钮与可增长内容使用 Grid 的固定列加 minmax(0, 1fr)，或同时限制 min-w-0/shrink-0。
 8. 主题色不得降低文本、边框、错误、禁用、焦点状态与图标的可辨识性。Android-first 不要求系统深色模式跟随；是否跟随系统主题是待决策项。
@@ -74,7 +74,7 @@ P2 权威定义 themeId 的模型、migration、未知值持久化与本地提�
 
 ## 6. 测试与验收
 
-自动测试：主题解析、默认/未知值视觉回退和主题 token 基本完整性；`npm run test:layout` 用 Chrome 在 360px、412px 和横屏验证短页的根视口尺寸、长页仅主区滚动及底部导航位置。migration、设置 LWW 与远端秘密清空测试由 P2/P3 权威维护。
+自动测试：主题解析、默认/未知值视觉回退和主题 token 基本完整性；`npm run test:layout` 用 Chrome 在 360px、412px 和横屏验证短页的根视口尺寸、长页仅主区滚动及底部导航位置；同时从 WorkoutCreatePage 具体动作按钮发出模拟触摸上滑，验证只有 `app-main` 位移且 Tab 位置不变。migration、设置 LWW 与远端秘密清空测试由 P2/P3 权威维护。
 
 人工验收：5 套主题逐一检查首页、训练创建/详情、计划、日历、动作库、资料和同步页；360px、412px 和横屏 Android WebView 无溢出/裁切，短页没有 document 滚动，长页只滚动主内容区，Tab 不遮挡最后内容；聚焦底部输入框后软键盘不遮挡焦点、Tab 或提交操作；文字、边框、焦点、危险按钮、禁用状态均可辨识；切换主题后刷新、重启、WebDAV 同步到另一设备仍符合 unknown fallback 语义。
 

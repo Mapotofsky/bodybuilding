@@ -39,7 +39,7 @@ npm test
 npm run test:layout
 ```
 
-`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试；`npm run test:layout` 使用本机 Chrome 验证 360px、412px 和横屏下的动态视口、主内容滚动区与底部导航几何关系。它不能替代 Android WebView、软键盘和系统安全区域的验收。
+`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试；`npm run test:layout` 使用本机 Chrome 验证 360px、412px 和横屏下的动态视口、主内容滚动区与底部导航几何关系，并从准备训练的具体动作按钮模拟触摸上滑。它不能替代 Android WebView、软键盘和系统安全区域的验收。
 
 ## Android
 

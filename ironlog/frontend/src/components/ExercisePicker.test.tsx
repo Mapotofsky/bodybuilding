@@ -15,6 +15,13 @@ describe("ExercisePicker", () => {
     expect(renderToStaticMarkup(<ExercisePicker {...props} presentation="sheet" open />)).toContain("新建");
   });
 
+  it("准备训练页的内联动作按钮不创建嵌套纵向滚动区", () => {
+    const markup = renderToStaticMarkup(<ExercisePicker exercises={[exercise]} onSelect={() => undefined} onCreated={() => undefined} presentation="inline" />);
+
+    expect(markup).not.toContain("overflow-y-auto");
+    expect(markup).not.toContain("overscroll-contain");
+  });
+
   it("renders the shared sheet above the bottom tab bar with a dynamic viewport height", () => {
     const markup = renderToStaticMarkup(<ExercisePicker exercises={[exercise]} onSelect={() => undefined} onCreated={() => undefined} presentation="sheet" open />);
     expect(markup).toContain("z-[80]");

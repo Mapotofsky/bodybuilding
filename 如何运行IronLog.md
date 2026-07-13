@@ -58,7 +58,7 @@ npm run android:sync
 |---|---|
 | `npm run build` | TypeScript 构建和 Vite 生产产物。 |
 | `npm test` | 运行当前 Vitest 单元测试。 |
-| `npm run test:layout` | 用临时 Chrome 配置验证 360px、412px 和横屏的动态视口、唯一主滚动区与底部 Tab 几何关系；不读写 Android 数据、Keystore 或 WebDAV。 |
+| `npm run test:layout` | 用临时 Chrome 配置验证 360px、412px 和横屏的动态视口、唯一主滚动区与底部 Tab 几何关系；包含从准备训练的具体动作按钮发起的模拟触摸上滑。不读写 Android 数据、Keystore 或 WebDAV。 |
 | `npm run android:sync` | 先 build，再将 `dist/` 同步进 `android/` 工程。 |
 
 Android 内部测试版本以 `frontend/release/version.json` 为权威。修改发布构建序号后，运行 `npm run release:sync` 生成 Android 属性文件，再以 `npm run release:check` 确认一致性；`npm run android:sync` 会自动执行这两个步骤。不要手工修改 Gradle 中的版本号。
@@ -98,7 +98,7 @@ Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data
 
 ### 4.4 Android 测试分级、动态视口与分享图
 
-Web/本机自动测试可覆盖统计差值、动作类型展示、训练结束计时冻结、浏览器 PNG 下载，以及 360px/412px/横屏下根布局的动态视口、主滚动区与底部 Tab 几何关系：
+Web/本机自动测试可覆盖统计差值、动作类型展示、训练结束计时冻结、浏览器 PNG 下载，以及 360px/412px/横屏下根布局的动态视口、主滚动区与底部 Tab 几何关系，并从准备训练的具体动作按钮模拟触摸上滑：
 
 ```powershell
 cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
@@ -107,7 +107,7 @@ npm run test:layout
 
 该测试会启动本地 Vite 和临时 Chrome 配置；不会写入 Android 应用数据、Keystore、WebDAV 或系统相册。它不能证明 Android WebView 的软键盘、手势导航或安全区域行为。
 
-AVD 或真机应在 360px、412px、横屏分别检查：短页没有页面级滚动，长页只滚动主内容区，底部 Tab 始终可见且不遮住最后内容；在计划创建或个人资料页聚焦底部输入框后，确认软键盘弹出时焦点、Tab 和主内容区仍可见、可滚动、可提交。此走查只使用本地测试数据；除非另行执行同步测试，不要配置或清除 WebDAV、Keystore 或应用数据。
+AVD 或真机应在 360px、412px、横屏分别检查：短页没有页面级滚动，长页只滚动主内容区，底部 Tab 始终可见且不遮住最后内容；在准备训练页从部位筛选下方的具体动作按钮开始上滑，确认主内容区能立即滚动；在计划创建或个人资料页聚焦底部输入框后，确认软键盘弹出时焦点、Tab 和主内容区仍可见、可滚动、可提交。此走查只使用本地测试数据；除非另行执行同步测试，不要配置或清除 WebDAV、Keystore 或应用数据。
 
 Android 原生插件构建使用：
 

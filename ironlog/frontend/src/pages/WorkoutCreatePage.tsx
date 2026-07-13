@@ -607,7 +607,7 @@ export default function WorkoutCreatePage() {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col px-5 pt-4 pb-6">
+        <div className="px-5 pt-4 pb-6">
           {/* Plan / Template picker — first select only */}
           {isFirstSelect && activePlans.length > 0 && (
             <div className="mb-4">
