@@ -143,7 +143,7 @@ export default function TemplateEditPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-400">
+      <div className="app-page flex items-center justify-center text-slate-400">
         加载中...
       </div>
     );
@@ -151,14 +151,14 @@ export default function TemplateEditPage() {
 
   if (!plan || !template) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-400">
+      <div className="app-page flex items-center justify-center text-slate-400">
         模版不存在
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-page bg-slate-50">
       <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 z-10">
         <button onClick={() => navigate(`/plans/${plan.id}`)} className="text-slate-500">
           <ChevronLeft size={24} />
@@ -173,7 +173,7 @@ export default function TemplateEditPage() {
         </button>
       </div>
 
-      <div className="px-5 pt-4 space-y-4 pb-24">
+      <div className="px-5 pt-4 space-y-4 pb-8">
         {/* Basic Info */}
         <div className="bg-white rounded-2xl p-4 space-y-4">
           <div>

@@ -200,14 +200,14 @@ export default function WorkoutEditPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen text-slate-400">
+      <div className="app-page flex items-center justify-center text-slate-400">
         加载中...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="app-page bg-white">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="p-1">
@@ -223,7 +223,7 @@ export default function WorkoutEditPage() {
         </button>
       </div>
 
-      <div className="px-5 pt-4 space-y-4 pb-24">
+      <div className="px-5 pt-4 space-y-4 pb-8">
         {/* Date, time & meta */}
         <div className="flex gap-3">
           <input

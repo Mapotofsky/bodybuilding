@@ -87,7 +87,7 @@ function RpeGuide({
   const navigate = useNavigate();
 
   return (
-    <div className="app-screen min-h-screen pb-24">
+    <div className="app-page app-screen">
       <div className="sticky top-0 z-10 app-surface border-b app-border px-4 h-14 flex items-center gap-3">
         <button onClick={() => navigate("/tools")} className="w-9 h-9 flex items-center justify-center rounded-full app-surface-muted" aria-label="返回">
           <ChevronLeft size={20} />

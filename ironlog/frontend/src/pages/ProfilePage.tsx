@@ -30,11 +30,11 @@ export default function ProfilePage() {
   }, []);
 
   if (!profile) {
-    return <div className="app-screen min-h-screen flex items-center justify-center app-text-muted">加载中...</div>;
+    return <div className="app-page app-screen flex items-center justify-center app-text-muted">加载中...</div>;
   }
 
   return (
-    <div className="app-screen min-h-screen pb-8">
+    <div className="app-page app-screen pb-8">
       <div className="app-profile-hero px-6 pt-8 pb-10 flex flex-col items-center">
         <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg ring-2 ring-white/30 overflow-hidden">
           {avatarDataUrl ? <img src={avatarDataUrl} alt="头像" className="w-full h-full object-cover" /> : <UserIcon size={36} className="text-white" />}

@@ -118,7 +118,7 @@ export default function SyncPage() {
   const inputCls = "w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-slate-50 focus:bg-white transition-all";
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-page bg-slate-50">
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100">
           <ArrowLeft size={20} className="text-slate-700" />

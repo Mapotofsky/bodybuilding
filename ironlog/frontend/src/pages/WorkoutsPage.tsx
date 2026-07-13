@@ -29,7 +29,7 @@ export default function WorkoutsPage() {
   const monthlyMetric = monthlySummaryMetric(workouts);
 
   return (
-    <div className="px-5 pt-4 pb-6">
+    <div className="app-page app-page-with-fab px-5 pt-4 pb-6">
       {/* Month Selector */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -116,7 +116,7 @@ export default function WorkoutsPage() {
       {/* FAB */}
       <button
         onClick={() => navigate("/workouts/new")}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all md:right-[calc(50%-384px+16px)]"
+        className="app-fixed-above-tab fixed right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all md:right-[calc(50%-384px+16px)]"
       >
         <Plus size={24} />
       </button>

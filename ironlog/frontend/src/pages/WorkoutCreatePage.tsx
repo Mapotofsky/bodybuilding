@@ -585,7 +585,7 @@ export default function WorkoutCreatePage() {
   /* ================================================================ */
   if (phase === "select") {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className={`app-page bg-slate-50 flex flex-col ${selectedExercise ? "app-page-with-fixed-action" : ""}`}>
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
           <button
@@ -607,7 +607,7 @@ export default function WorkoutCreatePage() {
           )}
         </div>
 
-        <div className="flex-1 flex flex-col px-5 pt-4 pb-36">
+        <div className="flex-1 flex flex-col px-5 pt-4 pb-6">
           {/* Plan / Template picker — first select only */}
           {isFirstSelect && activePlans.length > 0 && (
             <div className="mb-4">
@@ -730,7 +730,7 @@ export default function WorkoutCreatePage() {
 
         {/* Start Training button */}
         {selectedExercise && (
-          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10 animate-slide-up">
+          <div className="app-fixed-above-tab fixed left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10 animate-slide-up">
             <button
               onClick={handleStartTraining}
               className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-transform"
@@ -749,7 +749,7 @@ export default function WorkoutCreatePage() {
   /* ================================================================ */
   if (phase === "training" && currentExercise) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="app-page app-page-with-fixed-action bg-slate-50 flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
           <button
@@ -768,7 +768,7 @@ export default function WorkoutCreatePage() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col px-5 pt-4 pb-36">
+        <div className="flex-1 flex flex-col px-5 pt-4 pb-6">
           {/* Exercise header card */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-5">
             <div className="flex items-start justify-between">
@@ -905,7 +905,7 @@ export default function WorkoutCreatePage() {
         </div>
 
         {/* Complete set button */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10">
+        <div className="app-fixed-above-tab fixed left-1/2 -translate-x-1/2 w-full max-w-[480px] md:max-w-[768px] px-4 z-10">
           <button
             onClick={handleCompleteSet}
             className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-base shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-transform"
@@ -928,7 +928,7 @@ export default function WorkoutCreatePage() {
     const isOvertime = restSeconds >= DEFAULT_REST;
 
     return (
-      <div className="workout-rest-screen bg-slate-50 flex flex-col">
+      <div className="workout-rest-screen app-page bg-slate-50 flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
           <div className="w-9" />
@@ -1037,7 +1037,7 @@ export default function WorkoutCreatePage() {
     const primaryMetric = formatWorkoutPrimaryMetric(sessionExercises.map((item) => item.exercise.type), metrics);
 
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="app-page bg-slate-50 flex flex-col">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
           <button
@@ -1159,7 +1159,7 @@ function mergePersistedIds(draft: SessionExercise[], saved: Workout): SessionExe
 
 function DraftRecoveryDialog({ draft, onContinue, onStartFresh }: { draft: Workout; onContinue: () => void; onStartFresh: () => void }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-5">
+    <div className="app-page bg-slate-50 flex items-center justify-center p-5">
       <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-xl p-5 space-y-4">
         <div className="w-10 h-1 bg-emerald-400 rounded-full" />
         <div>

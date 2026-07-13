@@ -2,6 +2,8 @@
 
 :root,
 [data-theme="emerald-slate"] {
+  --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --app-tabbar-height: calc(4rem + max(0.5rem, var(--app-safe-area-bottom)));
   --color-bg: #f1f5f9;
   --color-surface: #ffffff;
   --color-surface-2: #f8fafc;
@@ -204,6 +206,13 @@
   }
 }
 
+html,
+body {
+  block-size: 100%;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -217,8 +226,9 @@ body {
 #root {
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
+  block-size: 100vh;
+  block-size: 100dvh;
+  min-block-size: 0;
   background-color: var(--color-surface);
   position: relative;
 }
@@ -233,6 +243,47 @@ body {
 .app-screen {
   background-color: var(--color-bg);
   color: var(--color-text);
+}
+
+.app-shell {
+  block-size: 100%;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.app-page {
+  flex: 0 0 auto;
+  min-block-size: 100%;
+}
+
+.app-tabbar {
+  flex: none;
+  block-size: var(--app-tabbar-height);
+  position: relative;
+  z-index: 50;
+}
+
+.app-fixed-above-tab {
+  bottom: calc(var(--app-tabbar-height) + 1rem);
+}
+
+.app-page-with-fab {
+  padding-bottom: 5rem;
+}
+
+.app-page-with-fixed-action {
+  padding-bottom: 5.5rem;
 }
 
 .app-surface {
@@ -349,33 +400,21 @@ body {
 
 /* ===== Safe area helpers ===== */
 .pb-safe {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.5rem, var(--app-safe-area-bottom));
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
 
 .workout-rest-screen {
-  position: fixed;
-  top: 0;
-  bottom: calc(4rem + max(0.5rem, env(safe-area-inset-bottom)));
-  left: 50%;
-  width: 100%;
-  max-width: 480px;
-  transform: translateX(-50%);
+  block-size: 100%;
+  min-block-size: 100%;
   overflow: hidden;
-  z-index: 40;
 }
 
 .workout-rest-ring {
   width: clamp(6rem, 24dvh, 8.5rem);
   height: clamp(6rem, 24dvh, 8.5rem);
-}
-
-@media (min-width: 768px) {
-  .workout-rest-screen {
-    max-width: 768px;
-  }
 }
 
 @media (max-height: 420px) and (orientation: landscape) {

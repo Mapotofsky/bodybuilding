@@ -44,7 +44,7 @@ export default function CalendarPage() {
     .reduce((sum, day) => sum + day.workouts.length, 0);
 
   return (
-    <div className="app-screen min-h-screen pb-24">
+    <div className={`app-page app-screen ${selectedDate ? "app-page-with-fab" : ""}`}>
       <div className="sticky top-0 app-surface z-10 px-4 pt-4 pb-3 border-b app-border">
         <div className="flex items-center justify-between mb-3 gap-3">
           <div className="flex items-center gap-1 min-w-0">
@@ -139,7 +139,7 @@ export default function CalendarPage() {
             )}
           </div>
           {selectedDate && (
-            <button onClick={() => navigate(`/workouts/new?date=${selectedDateStr}`)} className="fixed bottom-24 right-4 w-14 h-14 app-primary-bg rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-40 md:right-[calc(50%-384px+16px)]" aria-label="新建训练">
+            <button onClick={() => navigate(`/workouts/new?date=${selectedDateStr}`)} className="app-fixed-above-tab fixed right-4 w-14 h-14 app-primary-bg rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-40 md:right-[calc(50%-384px+16px)]" aria-label="新建训练">
               <Plus size={24} />
             </button>
           )}

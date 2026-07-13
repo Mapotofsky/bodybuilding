@@ -69,6 +69,13 @@ export default function ExerciseLibraryPage() {
     };
   }, [q, category]);
 
+  useEffect(() => {
+    const main = document.querySelector<HTMLElement>("[data-app-main]");
+    const closeSwipe = () => setOpenSwipeId(null);
+    main?.addEventListener("scroll", closeSwipe, { passive: true });
+    return () => main?.removeEventListener("scroll", closeSwipe);
+  }, []);
+
   function updateFilter(next: { q?: string; category?: string }) {
     const params = new URLSearchParams(searchParams);
     const nextQ = next.q ?? q;
@@ -125,7 +132,7 @@ export default function ExerciseLibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-page bg-slate-50">
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-5 pt-4 pb-3 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -164,7 +171,7 @@ export default function ExerciseLibraryPage() {
         </div>
       </div>
 
-      <div className="px-5 pt-4 pb-8" onScroll={() => setOpenSwipeId(null)}>
+      <div className="px-5 pt-4 pb-8">
         {loading && <LoadingList />}
         {!loading && error && <StateMessage title="读取失败" message={error} />}
         {!loading && !error && allExercises.length === 0 && <StateMessage title="暂无动作" message="还没有可用动作" />}

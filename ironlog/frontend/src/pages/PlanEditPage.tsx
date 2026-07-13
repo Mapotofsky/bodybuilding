@@ -58,14 +58,14 @@ export default function PlanEditPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-400">
+      <div className="app-page flex items-center justify-center text-slate-400">
         加载中...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-page bg-slate-50">
       <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 z-10">
         <button onClick={() => navigate(-1)} className="text-slate-500">
           <ChevronLeft size={24} />
@@ -73,7 +73,7 @@ export default function PlanEditPage() {
         <h1 className="text-lg font-semibold">编辑计划</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-5 pt-4 space-y-5 pb-24">
+      <form onSubmit={handleSubmit} className="px-5 pt-4 space-y-5 pb-8">
         {error && (
           <div className="bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3">
             {error}

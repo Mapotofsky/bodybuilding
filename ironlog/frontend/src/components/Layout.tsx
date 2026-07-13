@@ -29,14 +29,14 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="app-screen flex flex-col min-h-screen min-h-dvh">
-      <main ref={mainRef} className="flex-1 pb-24 overflow-y-auto">
+    <div className="app-shell app-screen" data-testid="app-shell">
+      <main ref={mainRef} className="app-main" data-testid="app-main" data-app-main>
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 md:max-w-[768px]">
+      <nav className="app-tabbar" data-testid="app-tabbar">
         <div
-          className="backdrop-blur-md border-t pb-safe"
+          className="h-full backdrop-blur-md border-t pb-safe"
           style={{
             backgroundColor: "var(--color-surface)",
             borderColor: "var(--color-border)",

@@ -9,7 +9,7 @@
 
 | 场景 | 必需工具 | 建议版本 |
 |---|---|---|
-| Web 开发、构建和测试 | Node.js、npm | Node.js 20+、npm 10+ |
+| Web 开发、构建和测试 | Node.js、npm、本机 Chrome | Node.js 20+、npm 10+、当前稳定版 Chrome |
 | Android 同步/打开工程 | Android Studio、Android SDK、JDK | Android Studio 当前稳定版，JDK 17+ |
 | 命令行 APK 构建 | 上述工具和可下载的 Gradle 分发包 | 与 `frontend/android` wrapper 一致 |
 | WebDAV 同步 | 一个支持 Basic Authentication、PUT、MOVE、MKCOL、PROPFIND 的 WebDAV 服务 | 推荐 HTTPS |
@@ -48,6 +48,7 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
 npm run build
 npm test
+npm run test:layout
 npm run android:sync
 ```
 
@@ -57,6 +58,7 @@ npm run android:sync
 |---|---|
 | `npm run build` | TypeScript 构建和 Vite 生产产物。 |
 | `npm test` | 运行当前 Vitest 单元测试。 |
+| `npm run test:layout` | 用临时 Chrome 配置验证 360px、412px 和横屏的动态视口、唯一主滚动区与底部 Tab 几何关系；不读写 Android 数据、Keystore 或 WebDAV。 |
 | `npm run android:sync` | 先 build，再将 `dist/` 同步进 `android/` 工程。 |
 
 Android 内部测试版本以 `frontend/release/version.json` 为权威。修改发布构建序号后，运行 `npm run release:sync` 生成 Android 属性文件，再以 `npm run release:check` 确认一致性；`npm run android:sync` 会自动执行这两个步骤。不要手工修改 Gradle 中的版本号。
@@ -94,9 +96,20 @@ frontend/android/app/build/outputs/apk/debug/app-debug.apk
 
 Android 版通过 Capacitor Filesystem 的 `Directory.Data` 保存 `ironlog-data/` JSON 文件。该目录是应用私有目录；卸载应用或清除应用数据会删除本地训练数据。启用 WebDAV 后先完成一次成功同步，再执行清除数据、换机或升级等破坏性操作。
 
-### 4.4 Android 测试分级与分享图
+### 4.4 Android 测试分级、动态视口与分享图
 
-Web/本机自动测试可覆盖统计差值、动作类型展示、训练结束计时冻结、360px/412px 布局和浏览器 PNG 下载。Android 原生插件构建使用：
+Web/本机自动测试可覆盖统计差值、动作类型展示、训练结束计时冻结、浏览器 PNG 下载，以及 360px/412px/横屏下根布局的动态视口、主滚动区与底部 Tab 几何关系：
+
+```powershell
+cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
+npm run test:layout
+```
+
+该测试会启动本地 Vite 和临时 Chrome 配置；不会写入 Android 应用数据、Keystore、WebDAV 或系统相册。它不能证明 Android WebView 的软键盘、手势导航或安全区域行为。
+
+AVD 或真机应在 360px、412px、横屏分别检查：短页没有页面级滚动，长页只滚动主内容区，底部 Tab 始终可见且不遮住最后内容；在计划创建或个人资料页聚焦底部输入框后，确认软键盘弹出时焦点、Tab 和主内容区仍可见、可滚动、可提交。此走查只使用本地测试数据；除非另行执行同步测试，不要配置或清除 WebDAV、Keystore 或应用数据。
+
+Android 原生插件构建使用：
 
 ```powershell
 cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend\android

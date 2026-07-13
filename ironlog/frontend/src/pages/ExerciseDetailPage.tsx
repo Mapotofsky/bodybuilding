@@ -162,7 +162,7 @@ export default function ExerciseDetailPage() {
 
   if (error || !detail) {
     return (
-      <div className="app-screen min-h-screen flex flex-col items-center justify-center app-text-muted gap-3 px-5">
+      <div className="app-page app-screen flex flex-col items-center justify-center app-text-muted gap-3 px-5">
         <p>{error || "动作不存在"}</p>
         <button onClick={goBack} className="app-primary-text text-sm font-medium">返回动作库</button>
       </div>
@@ -170,7 +170,7 @@ export default function ExerciseDetailPage() {
   }
 
   return (
-    <div className="app-screen min-h-screen">
+    <div className="app-page app-screen">
       <div className="sticky top-0 app-surface border-b app-border px-4 h-14 flex items-center gap-2 z-10">
         <button onClick={goBack} className="app-surface-muted w-9 h-9 shrink-0 flex items-center justify-center rounded-full" aria-label="返回动作库">
           <ChevronLeft size={20} className="app-text" />
@@ -511,7 +511,7 @@ function HistorySet({ record, maxWeight }: { record: ExerciseHistoryRecord; maxW
 
 function LoadingDetail() {
   return (
-    <div className="app-screen min-h-screen px-5 pt-16 pb-4 space-y-3">
+    <div className="app-page app-screen px-5 pt-16 pb-4 space-y-3">
       {[1, 2, 3].map((item) => (
         <div key={item} className="app-surface rounded-2xl p-4 border app-border animate-pulse">
           <div className="app-surface-muted h-4 rounded-xl w-1/2 mb-2" />

@@ -35,7 +35,7 @@ export default function PlansPage() {
   }
 
   return (
-    <div className="px-5 pt-4 pb-6">
+    <div className="app-page app-page-with-fab px-5 pt-4 pb-6">
       <h1 className="text-2xl font-bold text-slate-900 mb-4">训练计划</h1>
 
       {loading ? (
@@ -121,7 +121,7 @@ export default function PlansPage() {
 
       <button
         onClick={() => navigate("/plans/new")}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all z-40 md:right-[calc(50%-384px+16px)]"
+        className="app-fixed-above-tab fixed right-4 w-14 h-14 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 flex items-center justify-center hover:bg-emerald-600 active:scale-95 transition-all z-40 md:right-[calc(50%-384px+16px)]"
       >
         <Plus size={24} />
       </button>

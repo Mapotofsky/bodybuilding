@@ -93,7 +93,7 @@ export default function WorkoutDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 px-5 pt-16 pb-4 space-y-3">
+      <div className="app-page bg-slate-50 px-5 pt-16 pb-4 space-y-3">
         {[1,2,3].map(i => (
           <div key={i} className="bg-white rounded-2xl p-4 space-y-2 animate-pulse border border-slate-100">
             <div className="h-4 bg-slate-200 rounded-xl w-1/2" />
@@ -127,7 +127,7 @@ export default function WorkoutDetailPage() {
       : null;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="app-page bg-slate-50">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 px-4 h-14 flex items-center justify-between">
         <button

@@ -101,7 +101,7 @@ export default function BodyMetricsPage() {
   const singleTrendUnit = trendSelection.startsWith("pair:") ? "" : String(trendData[0]?.unit ?? "");
 
   return (
-    <div className="app-screen min-h-screen pb-8">
+    <div className="app-page app-screen pb-8">
       <div className="sticky top-0 z-10 app-surface border-b app-border px-4 h-14 flex items-center gap-3">
         <button onClick={() => navigate("/profile")} className="w-9 h-9 flex items-center justify-center rounded-full app-surface-muted" aria-label="返回">
           <ChevronLeft size={20} />

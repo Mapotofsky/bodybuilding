@@ -80,7 +80,7 @@ export default function HomePage() {
   const greeting = hour < 12 ? "早上好" : hour < 18 ? "下午好" : "晚上好";
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-6">
+    <div className="app-page bg-slate-50 pb-6">
       {/* Hero banner */}
       <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-5 pt-12 pb-7 rounded-b-[28px]">
         <p className="text-emerald-100 text-sm mb-1">

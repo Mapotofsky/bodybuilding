@@ -75,13 +75,13 @@ export default function PersonalProfilePage() {
   }
 
   if (!profile) {
-    return <div className="app-screen min-h-screen flex items-center justify-center app-text-muted">加载中...</div>;
+    return <div className="app-page app-screen flex items-center justify-center app-text-muted">加载中...</div>;
   }
 
   const inputCls = "app-input w-full px-4 py-3 border rounded-xl text-sm transition-all";
 
   return (
-    <div className="app-screen min-h-screen pb-8">
+    <div className="app-page app-screen pb-8">
       <div className="sticky top-0 z-10 app-surface border-b app-border px-4 h-14 flex items-center gap-3">
         <button onClick={() => navigate("/profile")} className="w-9 h-9 flex items-center justify-center rounded-full app-surface-muted" aria-label="返回">
           <ChevronLeft size={20} />
