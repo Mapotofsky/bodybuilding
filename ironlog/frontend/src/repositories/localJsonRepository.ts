@@ -5,6 +5,8 @@ import {
   type DataSnapshot,
   type ExercisePerformanceRecordDoc,
   type ExerciseDoc,
+  type EquipmentId,
+  type ExerciseCategory,
   type ProfileDoc,
   type SettingsDoc,
   type SyncEndpointConfig,
@@ -41,11 +43,12 @@ export class LocalJsonRepository {
     return next;
   }
 
-  async list(params?: { category?: string; q?: string; includeDeleted?: boolean }): Promise<ExerciseDoc[]> {
+  async list(params?: { category?: ExerciseCategory; equipment?: EquipmentId | null; q?: string; includeDeleted?: boolean }): Promise<ExerciseDoc[]> {
     const snapshot = await this.getSnapshot();
     return snapshot.exercises
       .filter((e) => params?.includeDeleted || !e.deletedAt)
       .filter((e) => !params?.category || e.category === params.category)
+      .filter((e) => params?.equipment === undefined || e.equipment === params.equipment)
       .filter((e) => !params?.q || e.name.toLowerCase().includes(params.q.toLowerCase()))
       .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
   }
@@ -55,15 +58,16 @@ export class LocalJsonRepository {
     return snapshot.exercises.find((e) => e.id === id && !e.deletedAt) || null;
   }
 
-  async create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & Partial<Pick<ExerciseDoc, "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
+  async create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise: ExerciseDoc = withDoc({
         name: body.name,
         category: body.category,
-        type: body.type || "strength",
-        description: body.description || null,
-        primaryMuscleGroupIds: body.primaryMuscleGroupIds ?? [],
-        secondaryMuscleGroupIds: body.secondaryMuscleGroupIds ?? [],
+        type: body.type,
+        equipment: body.equipment,
+        description: body.description,
+        primaryMuscleGroupIds: body.primaryMuscleGroupIds,
+        secondaryMuscleGroupIds: body.secondaryMuscleGroupIds,
         isCustom: true,
         replacedByExerciseId: null,
       }, makeCustomExerciseId());
@@ -72,7 +76,7 @@ export class LocalJsonRepository {
     });
   }
 
-  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
+  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "type" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
       if (!exercise) throw new Error("动作不存在");
@@ -441,7 +445,7 @@ export class LocalJsonRepository {
     const store = await this.storePromise;
     const raw = await store.load();
     const deviceId = localDeviceId();
-    const snapshot = migrateSnapshot(raw || makeEmptySnapshot(deviceId), deviceId);
+    const snapshot = raw ? migrateSnapshot(raw, deviceId) : makeEmptySnapshot(deviceId);
     await store.save(snapshot);
     return snapshot;
   }

@@ -29,12 +29,12 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 首次启动会自动创建：
 
 - 本地 Profile 和 Settings。
-- 默认动作库。
-- schemaVersion 为 2 的 manifest。
+- 62 条精选默认动作库。
+- schemaVersion 为 3 的 manifest。
 
 ### 2.1 开发期数据重置
 
-当前项目尚未发布内部测试版，也没有真实用户数据。遇到已批准的数据模型或默认目录直接替换时，例如 P6 身体数据模型替换、精选默认动作目录导入以及动作 equipment/provenance 字段接入，不为旧测试数据、旧默认动作或废弃字段编写迁移、重定向或兼容读取逻辑。精选目录实施后，应用读到旧 schema 快照时应明确提示这是不兼容开发快照并停止加载，不迁移、不静默丢弃，也不会自动清理设备或远端数据。开发者确认目标仅为隔离测试环境后，按下列步骤人工清空并重新初始化；默认动作目录的具体步骤见《默认动作库引入实施方案》并以 `candidates.md` 为候选权威。
+当前项目尚未发布内部测试版，也没有真实用户数据。v3 已直接接入精选默认动作目录及 equipment/provenance 字段，不为旧测试数据、旧默认动作或废弃字段编写迁移、重定向或兼容读取逻辑。应用读到任何已有非 v3 快照时会明确提示不兼容并停止加载，不迁移、不静默丢弃，也不会自动清理设备或远端数据。开发者确认目标仅为隔离测试环境后，按下列步骤人工清空并重新初始化；默认动作目录的具体规则见《默认动作库引入实施方案》，`docs/data_import/candidates.md` 是候选权威。
 
 - Web 开发：在浏览器开发者工具中进入 `Application -> Storage`，对当前 `localhost` 站点执行 `Clear site data`，清除 IndexedDB 后刷新页面。
 - Android Studio 模拟器：卸载 IronLog，或在模拟器系统设置中进入 `Apps -> IronLog -> Storage -> Clear storage`。命令行清理前先用 `adb devices` 确认目标是模拟器，再显式执行 `adb -s emulator-<serial> shell pm clear app.ironlog.local`；不得对日常真机执行该命令。
@@ -46,6 +46,7 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 
 ```powershell
 cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
+npm run catalog:check
 npm run build
 npm test
 npm run test:layout
@@ -56,6 +57,8 @@ npm run android:sync
 
 | 命令 | 验证内容 |
 |---|---|
+| `npm run catalog:generate` | 联网读取固定上游 commit，核对 62 条原始字段并重建已提交目录产物。 |
+| `npm run catalog:check` | 完全离线按候选文档重建预期文本并检查已提交产物。 |
 | `npm run build` | TypeScript 构建和 Vite 生产产物。 |
 | `npm test` | 运行当前 Vitest 单元测试。 |
 | `npm run test:layout` | 用临时 Chrome 配置验证 360px、412px 和横屏的动态视口、唯一主滚动区与底部 Tab 几何关系；包含从准备训练的具体动作按钮发起的模拟触摸上滑。不读写 Android 数据、Keystore 或 WebDAV。 |

@@ -6,7 +6,6 @@ export const CATEGORY_COLOR_KEYS = [
   "arms",
   "core",
   "cardio",
-  "compound",
   "stretch",
   "other",
 ] as const;
@@ -21,7 +20,6 @@ const CATEGORY_TO_COLOR: Record<string, CategoryColorKey> = {
   arms: "arms",
   core: "core",
   cardio: "cardio",
-  compound: "compound",
   stretch: "stretch",
 };
 

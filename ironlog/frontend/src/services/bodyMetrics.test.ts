@@ -43,6 +43,6 @@ function metric(id: string, recordedAt: string, values: { weightKg?: number; wai
     createdAt: recordedAt,
     updatedAt: recordedAt,
     deletedAt: null,
-    schemaVersion: 2,
+    schemaVersion: 3,
   };
 }

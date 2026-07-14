@@ -120,7 +120,7 @@ function workout(id: string, date: string, sets: WorkoutDoc["exercises"][number]
     createdAt: `${date}T10:00:00.000Z`,
     updatedAt: `${date}T11:00:00.000Z`,
     deletedAt: null,
-    schemaVersion: 2,
+    schemaVersion: 3,
   };
 }
 
@@ -160,7 +160,7 @@ function cardioWorkout(id: string, date: string, sets: WorkoutDoc["exercises"][n
     createdAt: `${date}T10:00:00.000Z`,
     updatedAt: `${date}T11:00:00.000Z`,
     deletedAt: null,
-    schemaVersion: 2,
+    schemaVersion: 3,
   };
 }
 

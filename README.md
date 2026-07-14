@@ -4,7 +4,7 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 
 ## 当前状态与路线图
 
-当前已实现离线训练、计划/模板、训练记录月历与统计、动作库/动作详情、训练详情 PNG 分享图、本地头像资料、5 套主题及语义色彩映射和 WebDAV 手动同步。Android 保存分享图时写入系统相册的 `Pictures/IronLog`，浏览器开发模式继续使用下载。HomePage 可展示今日计划和补训建议；CalendarPage 当前仅显示实际训练记录，不渲染计划条目。
+当前已实现离线训练、计划/模板、训练记录月历与统计、62 条精选默认动作库/动作详情、自定义动作器械与分类组合筛选、训练详情 PNG 分享图、本地头像资料、5 套主题及语义色彩映射和 WebDAV 手动同步。Android 保存分享图时写入系统相册的 `Pictures/IronLog`，浏览器开发模式继续使用下载。HomePage 可展示今日计划和补训建议；CalendarPage 当前仅显示实际训练记录，不渲染计划条目。
 
 以下 AI 能力均为规划中，不能按当前功能描述：AI provider/API key 配置、AI 问答/训练分析、联网 agent 和 AI 计划候选导入。主题语义映射已完成；当前内部候选已通过 360px、412px 与横屏自动布局测试，并在 Android 16（API 36）AVD 的 411px WebView 逐套核对 5 套主题、主内容滚动、底部 Tab 和分享预览。目标真机已完成功能复测及 HTTPS WebDAV 保存、读取、重启后同步与远端脱敏检查。
 
@@ -17,7 +17,7 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 - [本地运行指南](docs/如何运行IronLog.md)：开发、测试、Android 调试与 WebDAV 配置。
 - [发布与交付指南](docs/部署指南.md)：APK、静态 Web、版本兼容与发布检查。
 - [精选动作候选](docs/data_import/candidates.md)：默认动作候选、上游追溯、策展映射和人工纠错的唯一权威。
-- [默认动作库引入实施方案](docs/data_import/默认动作库引入实施方案.md)：下一轮整体替换、字段链路、生成方式、测试和验收步骤。
+- [默认动作库引入实施方案](docs/data_import/默认动作库引入实施方案.md)：已实施目录的字段链路、确定性生成方式、测试和验收边界。
 - [P0 核心训练](docs/详细设计文档_P0_核心训练.md)、[P1 计划与日历](docs/详细设计文档_P1_计划与动作库.md)、[P2 本地文档存储](docs/详细设计文档_P2_本地文档存储与数据迁移.md)、[P3 WebDAV 与 Android](docs/详细设计文档_P3_WebDAV同步与Android平台.md)：实现级契约。
 - [P4 主题系统与 UI 导航](docs/详细设计文档_P4_主题系统与UI导航.md)：主题选择、语义 token/兼容色彩映射与五项底部导航已实现；当前候选的自动布局与 AVD 视觉验收结果见该文档。
 - [P5 AI 智能体与安全](docs/详细设计文档_P5_AI智能体与安全.md)：已批准路线图的详细设计；当前未实现。
@@ -25,7 +25,7 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 ## 本地运行
 
 ```bash
-cd frontend
+cd ironlog/frontend
 npm install
 npm run dev
 ```
@@ -35,34 +35,35 @@ npm run dev
 ## 构建 Web 资源
 
 ```bash
-cd frontend
+cd ironlog/frontend
+npm run catalog:check
 npm run build
 npm test
 npm run test:layout
 ```
 
-`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试；`npm run test:layout` 使用本机 Chrome 验证 360px、412px 和横屏下的动态视口、主内容滚动区与底部导航几何关系，并从准备训练的具体动作按钮模拟触摸上滑。它不能替代 Android WebView、软键盘和系统安全区域的验收。
+`npm run catalog:generate` 会联网核对固定上游 commit 并重建默认动作产物，`npm run catalog:check` 可离线检查候选文档与已提交产物是否一致。`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试；`npm run test:layout` 使用本机 Chrome 验证 360px、412px 和横屏下的动态视口、主内容滚动区与底部导航几何关系，并从准备训练的具体动作按钮模拟触摸上滑。它不能替代 Android WebView、软键盘和系统安全区域的验收。
 
 ## Android
 
 同步 Web 产物到 Android 工程：
 
 ```bash
-cd frontend
+cd ironlog/frontend
 npm run android:sync
 ```
 
 用 Android Studio 打开工程：
 
 ```bash
-cd frontend
+cd ironlog/frontend
 npm run android:open
 ```
 
 命令行构建 debug APK：
 
 ```powershell
-cd frontend/android
+cd ironlog/frontend/android
 .\gradlew.bat assembleDebug
 ```
 
@@ -127,7 +128,7 @@ ironlog/
 ## 验证命令
 
 ```bash
-cd frontend
+cd ironlog/frontend
 npm run build
 npm test
 npm run test:layout

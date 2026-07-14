@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Dumbbell, Plus, Search, Trash2, X } from "lucide-react";
 import { createExercise, deleteExercise, getExercises } from "@/services/exercise";
-import { CATEGORY_LABELS, EXERCISE_TYPE_LABELS, type Exercise } from "@/types";
+import { CATEGORY_LABELS, EQUIPMENT_LABELS, EXERCISE_TYPE_LABELS, type EquipmentId, type Exercise, type ExerciseCategory } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
@@ -30,6 +30,7 @@ export default function ExerciseLibraryPage() {
 
   const q = searchParams.get("q") || "";
   const category = searchParams.get("category") || "";
+  const equipment = (searchParams.get("equipment") || "") as EquipmentId | "";
 
   const categories = useMemo(
     () => [...new Set(allExercises.map((exercise) => exercise.category))].sort((a, b) => a.localeCompare(b)),
@@ -46,7 +47,7 @@ export default function ExerciseLibraryPage() {
     setError(null);
     Promise.all([
       getExercises(),
-      getExercises({ q: q || undefined, category: category || undefined }),
+      getExercises({ q: q || undefined, category: category ? category as ExerciseCategory : undefined, equipment: equipment || undefined }),
     ])
       .then(([all, filtered]) => {
         if (!alive) return;
@@ -63,7 +64,7 @@ export default function ExerciseLibraryPage() {
     return () => {
       alive = false;
     };
-  }, [q, category]);
+  }, [q, category, equipment]);
 
   useEffect(() => {
     const main = document.querySelector<HTMLElement>("[data-app-main]");
@@ -72,12 +73,14 @@ export default function ExerciseLibraryPage() {
     return () => main?.removeEventListener("scroll", closeSwipe);
   }, []);
 
-  function updateFilter(next: { q?: string; category?: string }) {
+  function updateFilter(next: { q?: string; category?: string; equipment?: string }) {
     const params = new URLSearchParams(searchParams);
     const nextQ = next.q ?? q;
     const nextCategory = next.category ?? category;
+    const nextEquipment = next.equipment ?? equipment;
     if (nextQ) params.set("q", nextQ); else params.delete("q");
     if (nextCategory) params.set("category", nextCategory); else params.delete("category");
+    if (nextEquipment) params.set("equipment", nextEquipment); else params.delete("equipment");
     setSearchParams(params, { replace: true });
   }
 
@@ -112,12 +115,14 @@ export default function ExerciseLibraryPage() {
     try {
       const created = await createExercise({
         ...createForm,
+        description: createForm.description.trim() || null,
       });
       setAllExercises((items) => [...items, created]);
       setExercises((items) => {
         const nameMatches = !q || created.name.toLowerCase().includes(q.toLowerCase());
         const categoryMatches = !category || created.category === category;
-        return nameMatches && categoryMatches ? [...items, created] : items;
+        const equipmentMatches = !equipment || created.equipment === equipment;
+        return nameMatches && categoryMatches && equipmentMatches ? [...items, created] : items;
       });
       setShowCreate(false);
       setCreateForm(EMPTY_CUSTOM_EXERCISE_FORM);
@@ -165,6 +170,15 @@ export default function ExerciseLibraryPage() {
             ))}
           </select>
         </div>
+        <select
+          value={equipment}
+          onChange={(event) => updateFilter({ equipment: event.target.value })}
+          className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+          aria-label="器械筛选"
+        >
+          <option value="">全部器械</option>
+          {Object.entries(EQUIPMENT_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
       </div>
 
       <div className="px-5 pt-4 pb-8">
@@ -172,7 +186,7 @@ export default function ExerciseLibraryPage() {
         {!loading && error && <StateMessage title="读取失败" message={error} />}
         {!loading && !error && allExercises.length === 0 && <StateMessage title="暂无动作" message="还没有可用动作" />}
         {!loading && !error && allExercises.length > 0 && exercises.length === 0 && (
-          <StateMessage title="没有匹配结果" message="调整搜索词或分类后再试" />
+          <StateMessage title="没有匹配结果" message="调整搜索词、分类或器械后再试" />
         )}
         {!loading && !error && exercises.length > 0 && (
           <div className="space-y-2">
@@ -321,6 +335,7 @@ function SwipeExerciseCard(props: {
             <span className="mt-1 flex flex-wrap gap-1.5">
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{CATEGORY_LABELS[props.exercise.category] || props.exercise.category}</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{EXERCISE_TYPE_LABELS[props.exercise.type]}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{props.exercise.equipment ? EQUIPMENT_LABELS[props.exercise.equipment] : "未设置器械"}</span>
               {props.exercise.is_custom && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">自定义</span>}
             </span>
           </span>

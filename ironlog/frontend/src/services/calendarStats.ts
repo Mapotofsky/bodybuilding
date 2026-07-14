@@ -206,7 +206,6 @@ const CATEGORY_SHORT_LABELS: Record<string, string> = {
   arms: "手臂",
   core: "核心",
   cardio: "有氧",
-  compound: "复合",
   stretch: "拉伸",
 };
 

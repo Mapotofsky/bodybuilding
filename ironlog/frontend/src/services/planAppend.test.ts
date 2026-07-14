@@ -12,7 +12,7 @@ const template: TemplateDoc = {
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   deletedAt: null,
-  schemaVersion: 1,
+  schemaVersion: 3,
 };
 
 const localRepository = vi.hoisted(() => ({

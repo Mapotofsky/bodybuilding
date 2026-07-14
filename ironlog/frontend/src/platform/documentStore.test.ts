@@ -37,7 +37,28 @@ describe("document file serialization", () => {
     expect(files["timeline-notes.json"]).toEqual([]);
     expect((files["exercises.json"] as typeof snapshot.exercises)[0]).toHaveProperty("primaryMuscleGroupIds");
     expect((files["exercises.json"] as typeof snapshot.exercises)[0]).toHaveProperty("secondaryMuscleGroupIds");
+    expect((files["exercises.json"] as typeof snapshot.exercises)[0]).toMatchObject({
+      equipment: "barbell",
+      provenance: { source: "hasaneyldrm/exercises-dataset", sourceId: "0025", sourceRevision: "118e4bd6b14da6df0e36605d7169b65db18389a4" },
+    });
     expect(files).not.toHaveProperty("workouts/index.json");
+  });
+
+  it("preserves equipment, provenance, and description paragraph breaks in exercises.json", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.exercises[0] = {
+      ...snapshot.exercises[0],
+      equipment: "cable",
+      description: "第一段\n\n第二段",
+      provenance: { source: "roundtrip", sourceId: "0025", sourceRevision: "fixed" },
+    };
+
+    const exercise = (snapshotToFiles(snapshot)["exercises.json"] as typeof snapshot.exercises)[0];
+    expect(exercise).toMatchObject({
+      equipment: "cable",
+      description: "第一段\n\n第二段",
+      provenance: { source: "roundtrip", sourceId: "0025", sourceRevision: "fixed" },
+    });
   });
 
   it("writes exercise performance records to achieved month files", () => {

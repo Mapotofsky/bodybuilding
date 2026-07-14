@@ -11,15 +11,16 @@ describe("exercise personal stats", () => {
       name: "旧动作",
       category: "core",
       type: "reps_only",
+      equipment: null,
       description: null,
       primaryMuscleGroupIds: [],
       secondaryMuscleGroupIds: [],
       isCustom: true,
-      replacedByExerciseId: "ex-plank",
+      replacedByExerciseId: "ex-dead-bug",
       createdAt: "2026-06-20T00:00:00.000Z",
       updatedAt: "2026-06-21T00:00:00.000Z",
       deletedAt: "2026-06-21T00:00:00.000Z",
-      schemaVersion: 1,
+      schemaVersion: 3,
     });
     snapshot.workouts = [
       workout("done", "2026-06-21", "2026-06-21T11:00:00.000Z", [
@@ -39,7 +40,7 @@ describe("exercise personal stats", () => {
     ];
 
     const stats = buildExercisePersonalStats({
-      exerciseId: "ex-plank",
+      exerciseId: "ex-dead-bug",
       exercises: snapshot.exercises,
       workouts: snapshot.workouts,
       weightUnit: "kg",
@@ -77,6 +78,6 @@ function workout(id: string, date: string, endTime: string | null, sets: Workout
     createdAt: `${date}T10:00:00.000Z`,
     updatedAt: `${date}T10:00:00.000Z`,
     deletedAt: null,
-    schemaVersion: 1,
+    schemaVersion: 3,
   };
 }

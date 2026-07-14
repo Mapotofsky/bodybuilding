@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export type DocId = string;
 export type ISODate = string;
@@ -7,6 +7,13 @@ export type WeightUnit = "kg" | "lb";
 export const DEFAULT_THEME_ID = "emerald-slate";
 export type PlanMode = "weekly" | "cyclic" | "flexible";
 export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+export type ExerciseCategory =
+  | "chest" | "back" | "legs" | "shoulders" | "arms"
+  | "core" | "cardio" | "stretch" | "other";
+export type EquipmentId =
+  | "body_weight" | "barbell" | "dumbbell" | "cable" | "machine"
+  | "band" | "kettlebell" | "ab_wheel" | "stationary_bike"
+  | "jump_rope" | "elliptical" | "stepmill" | "external_weight" | "other";
 export type MuscleGroupId =
   | "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms"
   | "core" | "glutes" | "quadriceps" | "hamstrings" | "calves"
@@ -41,14 +48,34 @@ export interface SyncEndpointConfig {
 
 export interface ExerciseDoc extends BaseDoc {
   name: string;
-  category: string;
+  category: ExerciseCategory;
   type: ExerciseType;
+  equipment: EquipmentId | null;
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
   secondaryMuscleGroupIds: MuscleGroupId[];
   isCustom: boolean;
   /** Directed replacement used to resolve historical references after a custom exercise is deleted. */
   replacedByExerciseId: DocId | null;
+  provenance?: ExerciseProvenance;
+}
+
+export interface ExerciseProvenance {
+  source: string;
+  sourceId: string;
+  sourceRevision: string;
+}
+
+export interface DefaultExerciseSeed {
+  id: string;
+  name: string;
+  category: ExerciseCategory;
+  type: ExerciseType;
+  equipment: EquipmentId | null;
+  description: string | null;
+  primaryMuscleGroupIds: MuscleGroupId[];
+  secondaryMuscleGroupIds: MuscleGroupId[];
+  provenance: ExerciseProvenance;
 }
 
 export interface TemplateExerciseDoc {

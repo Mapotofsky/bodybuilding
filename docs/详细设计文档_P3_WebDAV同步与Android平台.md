@@ -237,7 +237,7 @@ cd android
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
 | Android WebDAV | PROPFIND/MOVE/MKCOL 走原生插件，不被 WebView 限制。 |
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
-| 动作详情元数据 | 当前肌群与 description 随 `exercises.json` 同步；精选目录实施后还须验证 category、唯一 type、equipment、保留换行的 description、肌群与只读 provenance 完整往返。provenance 不进入页面 DTO；Media、媒体 URL、`media_id` 与非中文 instructions 不进入远端 JSON。个人统计不写入动作分片。 |
+| 动作详情元数据 | category、唯一 type、equipment、保留换行的 description、肌群与只读 provenance 均随 `exercises.json` 完整往返。provenance 不进入页面 DTO；Media、媒体 URL、`media_id` 与非中文 instructions 不进入远端 JSON。个人统计不写入动作分片。 |
 | 头像资源 | `profile.avatarUrl` 引用资源路径；头像资源随 manifest、backup、tmp/MOVE 往返；清除后远端过期头像资源被删除。 |
 | 主题与 AI 规划字段 | themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 

@@ -6,9 +6,7 @@ import {
   type DataSnapshot,
   type ExercisePerformanceRecordDoc,
   type ExerciseDoc,
-  type ExerciseType,
   type IronLogManifest,
-  type MuscleGroupId,
   type ProfileDoc,
   type SettingsDoc,
   type TemplateDoc,
@@ -112,6 +110,9 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
 }
 
 export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): DataSnapshot {
+  if (raw.manifest?.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+    throw new Error(`不兼容开发快照（schemaVersion=${raw.manifest?.schemaVersion ?? "未知"}）；请按运行指南人工清理隔离测试存储后重试`);
+  }
   const base = makeEmptySnapshot(deviceId);
   const snapshot: DataSnapshot = {
     manifest: {
@@ -122,7 +123,7 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
     },
     profile: normalizeProfile(raw.profile, base.profile),
     settings: normalizeSettings(raw.settings, base.settings),
-    exercises: normalizeExercises(raw.exercises, base.exercises),
+    exercises: normalizeArray<ExerciseDoc>(raw.exercises, []),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
     workouts: normalizeWorkouts(raw.workouts, []),
@@ -131,7 +132,6 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
     exercisePerformanceRecords: normalizePerformanceRecords(raw.exercisePerformanceRecords),
     resources: normalizeResources(raw.resources),
   };
-  snapshot.workouts = snapshot.workouts.map((workout) => migrateWorkoutExerciseTypes(workout, snapshot.exercises));
   snapshot.manifest.shards = buildShardList(snapshot);
   return snapshot;
 }
@@ -148,32 +148,6 @@ function normalizeProfile(value: ProfileDoc | undefined, fallback: ProfileDoc): 
     gender: profile.gender ?? null,
     birthDate: profile.birthDate ?? null,
   });
-}
-
-function normalizeExercises(value: ExerciseDoc[] | undefined, fallback: ExerciseDoc[]): ExerciseDoc[] {
-  const stored = normalizeArray<ExerciseDoc>(value, []);
-  const defaultsById = new Map(fallback.map((exercise) => [exercise.id, exercise]));
-  const merged = new Map<string, ExerciseDoc>();
-
-  for (const exercise of stored) {
-    const builtIn = defaultsById.get(exercise.id);
-    const legacyMetKey = "met" + "Value";
-    const cleanExercise = { ...(exercise as ExerciseDoc & Record<string, unknown>) };
-    delete cleanExercise[legacyMetKey];
-    // Built-in definitions are app contract. Preserve user data only for custom records.
-    merged.set(exercise.id, builtIn ? { ...cleanExercise, ...builtIn, createdAt: exercise.createdAt, deletedAt: exercise.deletedAt, updatedAt: exercise.updatedAt } : {
-      ...cleanExercise,
-      type: normalizeExerciseType(exercise.type),
-      primaryMuscleGroupIds: normalizeMuscleGroups(exercise.primaryMuscleGroupIds),
-      secondaryMuscleGroupIds: normalizeMuscleGroups(exercise.secondaryMuscleGroupIds),
-      isCustom: exercise.isCustom === true,
-      replacedByExerciseId: exercise.replacedByExerciseId ?? null,
-    });
-  }
-  for (const exercise of fallback) {
-    if (!merged.has(exercise.id)) merged.set(exercise.id, { ...exercise });
-  }
-  return [...merged.values()];
 }
 
 function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[]): WorkoutDoc[] {
@@ -288,54 +262,11 @@ function normalizeNullableNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function normalizeExerciseType(value: unknown): ExerciseType {
-  return value === "cardio" || value === "reps_only" || value === "static_hold" || value === "strength" ? value : "strength";
-}
-
-const MUSCLE_GROUP_IDS = new Set<MuscleGroupId>([
-  "chest", "back", "shoulders", "biceps", "triceps", "forearms",
-  "core", "glutes", "quadriceps", "hamstrings", "calves",
-  "adductors", "abductors", "full_body", "other",
-]);
-
-function normalizeMuscleGroups(value: unknown): MuscleGroupId[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is MuscleGroupId => MUSCLE_GROUP_IDS.has(item as MuscleGroupId))
-    : [];
-}
-
-/**
- * v1 files predate WorkoutExerciseDoc.exerciseType.  Preserve their recorded
- * data and infer a durable snapshot at the load boundary so later writes and
- * WebDAV sync no longer need a page-level guess.
- */
-function migrateWorkoutExerciseTypes(workout: WorkoutDoc, exercises: ExerciseDoc[]): WorkoutDoc {
-  const types = new Map(exercises.map((exercise) => [exercise.id, exercise.type]));
-  return {
-    ...workout,
-    exercises: workout.exercises.map((exercise) => ({
-      ...exercise,
-      exerciseType: normalizeWorkoutExerciseType(exercise, types.get(exercise.exerciseId)),
-    })),
-  };
-}
-
-function normalizeWorkoutExerciseType(
-  exercise: WorkoutDoc["exercises"][number],
-  linkedType: ExerciseType | undefined
-): ExerciseType {
-  if (exercise.exerciseType === "strength" || exercise.exerciseType === "cardio" || exercise.exerciseType === "reps_only" || exercise.exerciseType === "static_hold") {
-    return exercise.exerciseType;
-  }
-  if (linkedType) return linkedType;
-  return exercise.sets.some((set) => set.durationSec != null || set.distanceM != null) ? "cardio" : "strength";
-}
-
 function normalizeArray<T extends { id?: string; createdAt?: string; updatedAt?: string; deletedAt?: string | null; schemaVersion?: number }>(
   value: T[] | undefined,
   fallback: T[]
 ): T[] {
-  return (value && value.length > 0 ? value : fallback).map((item) => doc(item) as T);
+  return (value ?? fallback).map((item) => doc(item) as T);
 }
 
 export function buildShardList(snapshot: DataSnapshot) {

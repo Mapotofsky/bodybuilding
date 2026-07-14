@@ -79,11 +79,28 @@ describe("settings WebDAV sync", () => {
     snapshot.workouts = [{
       id: "run-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
       exercises: [{ id: "run-exercise", exerciseId: "ex-running", exerciseType: "cardio", sortOrder: 0, supersetGroup: null, sets: [{ id: "run-set", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 600, distanceM: 1500, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }] }],
-      createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 1,
+      createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 3,
     }];
 
     const files = snapshotToFiles(snapshot);
     expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseType: "cardio" });
+  });
+
+  it("serializes equipment, provenance, and description newlines into the WebDAV exercise shard", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.exercises[0] = {
+      ...snapshot.exercises[0],
+      equipment: "cable",
+      description: "第一段\n\n第二段",
+      provenance: { source: "roundtrip", sourceId: "0025", sourceRevision: "fixed" },
+    };
+
+    const exercise = (snapshotToFiles(snapshot)["exercises.json"] as DataSnapshot["exercises"])[0];
+    expect(exercise).toMatchObject({
+      equipment: "cable",
+      description: "第一段\n\n第二段",
+      provenance: { source: "roundtrip", sourceId: "0025", sourceRevision: "fixed" },
+    });
   });
 
   it("serializes new P6/P7 business shards for WebDAV", () => {
@@ -103,7 +120,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 2,
+      schemaVersion: 3,
     }];
     snapshot.timelineNotes = [{
       id: "note-1",
@@ -115,7 +132,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 2,
+      schemaVersion: 3,
     }];
     snapshot.exercisePerformanceRecords = [{
       id: "performance-1",
@@ -133,7 +150,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 2,
+      schemaVersion: 3,
     }];
     snapshot.manifest.shards = buildShardList(snapshot);
 
@@ -163,7 +180,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 2,
+      schemaVersion: 3,
     }];
 
     expect(hasPerformanceSourceChanges(local, merged)).toBe(false);
@@ -174,7 +191,7 @@ describe("settings WebDAV sync", () => {
     const workoutChanged = clone(local);
     workoutChanged.workouts = [{
       id: "workout-1", date: "2026-06-22", startTime: null, endTime: FIRST_SYNC_AT, planTemplateId: null, note: null, mood: null,
-      exercises: [], createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 2,
+      exercises: [], createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 3,
     }];
     const exerciseChanged = clone(local);
     exerciseChanged.exercises[0] = { ...exerciseChanged.exercises[0], updatedAt: SECOND_SYNC_AT };
@@ -245,7 +262,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 2,
+      schemaVersion: 3,
     }];
     snapshot.manifest.shards = buildShardList(snapshot);
     const client = new DirectoryCheckingWebDavClient();
@@ -276,7 +293,7 @@ describe("settings WebDAV sync", () => {
     const client = new DirectoryCheckingWebDavClient({
       "manifest.json": {
         app: "ironlog",
-        schemaVersion: 1,
+        schemaVersion: 3,
         deviceId: "remote-device",
         updatedAt: FIRST_SYNC_AT,
         shards: [{ path: "settings.json", updatedAt: FIRST_SYNC_AT }],
@@ -312,10 +329,10 @@ describe("settings WebDAV sync", () => {
 
   it("serializes deleted exercise redirects without changing workout historical IDs or type snapshots", () => {
     const snapshot = makeEmptySnapshot("device-test");
-    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", type: "reps_only", description: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: "ex-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: 1 });
-    snapshot.workouts = [{ id: "history-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [{ id: "history-exercise", exerciseId: "custom-ex-old", exerciseType: "reps_only", sortOrder: 0, supersetGroup: null, sets: [] }], createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: null, schemaVersion: 1 }];
+    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", type: "reps_only", equipment: null, description: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: "ex-side-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: 3 });
+    snapshot.workouts = [{ id: "history-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [{ id: "history-exercise", exerciseId: "custom-ex-old", exerciseType: "reps_only", sortOrder: 0, supersetGroup: null, sets: [] }], createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: null, schemaVersion: 3 }];
     const files = snapshotToFiles(snapshot);
-    expect((files["exercises.json"] as DataSnapshot["exercises"]).find((exercise) => exercise.id === "custom-ex-old")).toMatchObject({ deletedAt: SECOND_SYNC_AT, replacedByExerciseId: "ex-plank", primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [] });
+    expect((files["exercises.json"] as DataSnapshot["exercises"]).find((exercise) => exercise.id === "custom-ex-old")).toMatchObject({ deletedAt: SECOND_SYNC_AT, replacedByExerciseId: "ex-side-plank", equipment: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [] });
     expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseId: "custom-ex-old", exerciseType: "reps_only" });
   });
 });

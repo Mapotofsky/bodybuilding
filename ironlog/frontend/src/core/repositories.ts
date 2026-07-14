@@ -1,5 +1,7 @@
 import type {
   ExerciseDoc,
+  EquipmentId,
+  ExerciseCategory,
   ProfileDoc,
   SettingsDoc,
   TemplateDoc,
@@ -8,9 +10,9 @@ import type {
 } from "./models";
 
 export interface ExerciseRepository {
-  list(params?: { category?: string; q?: string; includeDeleted?: boolean }): Promise<ExerciseDoc[]>;
+  list(params?: { category?: ExerciseCategory; equipment?: EquipmentId | null; q?: string; includeDeleted?: boolean }): Promise<ExerciseDoc[]>;
   get(id: string): Promise<ExerciseDoc | null>;
-  create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "description"> & Partial<Pick<ExerciseDoc, "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc>;
+  create(body: Pick<ExerciseDoc, "name" | "category" | "type" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc>;
 }
 
 export interface PlanRepository {

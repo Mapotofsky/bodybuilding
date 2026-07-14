@@ -20,6 +20,7 @@ describe("exerciseForDraftResume", () => {
       name: "当前名称",
       category: "arms",
       type: "strength",
+      equipment: "barbell",
       description: "当前说明",
       primary_muscle_group_ids: ["biceps"],
       secondary_muscle_group_ids: [],

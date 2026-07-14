@@ -26,8 +26,9 @@ export type MuscleGroupId =
 export interface Exercise {
   id: string;
   name: string;
-  category: string;
+  category: ExerciseCategory;
   type: ExerciseType;
+  equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
   secondary_muscle_group_ids: MuscleGroupId[];
@@ -106,8 +107,25 @@ export const CATEGORY_LABELS: Record<string, string> = {
   arms: "手臂",
   core: "核心",
   cardio: "有氧",
-  compound: "复合",
   stretch: "拉伸",
+  other: "其他",
+};
+
+export const EQUIPMENT_LABELS: Record<EquipmentId, string> = {
+  body_weight: "自重",
+  barbell: "杠铃",
+  dumbbell: "哑铃",
+  cable: "绳索",
+  machine: "固定器械",
+  band: "弹力带",
+  kettlebell: "壶铃",
+  ab_wheel: "健腹轮",
+  stationary_bike: "固定自行车",
+  jump_rope: "跳绳",
+  elliptical: "椭圆机",
+  stepmill: "踏步机",
+  external_weight: "外部负重",
+  other: "其他",
 };
 
 export const MUSCLE_GROUP_LABELS: Record<MuscleGroupId, string> = {
@@ -224,8 +242,9 @@ export interface CalendarDay {
 export interface ExerciseDetail {
   id: string;
   name: string;
-  category: string;
-  type: string;
+  category: ExerciseCategory;
+  type: ExerciseType;
+  equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
   secondary_muscle_group_ids: MuscleGroupId[];
@@ -250,3 +269,6 @@ export interface ExercisePersonalStats {
   reps_only: { best_reps: number };
   static_hold: { best_duration_sec: number };
 }
+import type { EquipmentId, ExerciseCategory } from "@/core/models";
+
+export type { EquipmentId, ExerciseCategory } from "@/core/models";

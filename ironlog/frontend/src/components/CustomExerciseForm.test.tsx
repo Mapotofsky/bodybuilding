@@ -15,6 +15,7 @@ describe("CustomExerciseForm", () => {
 
     expect(markup).toContain("动作名称");
     expect(markup).toContain("动作要领");
+    expect(markup).toContain("器械");
     expect(markup).toContain("主目标肌群");
     expect(markup).toContain("次要目标肌群");
     expect(markup).toContain("负重 + 次数");

@@ -1,9 +1,10 @@
-import { CATEGORY_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS, type Exercise, type MuscleGroupId } from "@/types";
+import { CATEGORY_LABELS, EQUIPMENT_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS, type EquipmentId, type Exercise, type ExerciseCategory, type MuscleGroupId } from "@/types";
 
 export interface CustomExerciseFormValue {
   name: string;
-  category: string;
+  category: ExerciseCategory;
   type: Exercise["type"];
+  equipment: EquipmentId | null;
   description: string;
   primary_muscle_group_ids: MuscleGroupId[];
   secondary_muscle_group_ids: MuscleGroupId[];
@@ -24,6 +25,7 @@ export const EMPTY_CUSTOM_EXERCISE_FORM: CustomExerciseFormValue = {
   name: "",
   category: "core",
   type: "strength",
+  equipment: null,
   description: "",
   primary_muscle_group_ids: [],
   secondary_muscle_group_ids: [],
@@ -46,13 +48,17 @@ export default function CustomExerciseForm(props: CustomExerciseFormProps) {
         autoFocus
       />
       <div className="grid grid-cols-2 gap-3">
-        <select value={props.value.category} onChange={(event) => patch({ category: event.target.value })} className={inputCls} aria-label="动作分类">
+        <select value={props.value.category} onChange={(event) => patch({ category: event.target.value as ExerciseCategory })} className={inputCls} aria-label="动作分类">
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
         </select>
         <select value={props.value.type} onChange={(event) => patch({ type: event.target.value as Exercise["type"] })} className={inputCls} aria-label="记录类型">
           {Object.entries(EXERCISE_TYPE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
         </select>
       </div>
+      <select value={props.value.equipment ?? ""} onChange={(event) => patch({ equipment: (event.target.value || null) as EquipmentId | null })} className={inputCls} aria-label="器械">
+        <option value="">未设置器械</option>
+        {Object.entries(EQUIPMENT_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+      </select>
       <textarea
         value={props.value.description}
         onChange={(event) => patch({ description: event.target.value })}

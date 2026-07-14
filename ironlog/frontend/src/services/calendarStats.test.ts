@@ -112,6 +112,6 @@ function strengthWorkout(id: string, date: string, volume: number, durationMinut
     createdAt: timestamp,
     updatedAt: timestamp,
     deletedAt: null,
-    schemaVersion: 2,
+    schemaVersion: 3,
   };
 }

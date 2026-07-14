@@ -101,6 +101,6 @@ function workoutDoc(options: { planTemplateId: string | null; note: string | nul
     createdAt: "2026-06-22T10:00:00.000Z",
     updatedAt: "2026-06-22T10:30:00.000Z",
     deletedAt: null,
-    schemaVersion: 1,
+    schemaVersion: 3,
   };
 }

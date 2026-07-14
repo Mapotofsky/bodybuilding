@@ -7,6 +7,8 @@
     "dev": "vite",
     "prebuild": "npm run release:check",
     "build": "tsc -b && vite build",
+    "catalog:generate": "node scripts/exerciseCatalog.mjs generate",
+    "catalog:check": "node scripts/exerciseCatalog.mjs check",
     "test": "vitest run",
     "test:layout": "playwright test",
     "preview": "vite preview",

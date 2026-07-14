@@ -5,11 +5,11 @@ import { Check, ChevronLeft, Dumbbell, Gauge, ListChecks, NotebookText, Pencil, 
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
 import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
-import type { Exercise, ExerciseDetail, MuscleGroupId } from "@/types";
+import type { EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, MuscleGroupId } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
 import { getSettings } from "@/services/settings";
-import { CATEGORY_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
+import { CATEGORY_LABELS, EQUIPMENT_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
@@ -36,8 +36,9 @@ export default function ExerciseDetailPage() {
   useAndroidBackDismiss(showEditor, () => setShowEditor(false));
   useAndroidBackDismiss(showDelete, () => setShowDelete(false));
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState<ExerciseCategory>("core");
   const [type, setType] = useState<Exercise["type"]>("strength");
+  const [equipment, setEquipment] = useState<EquipmentId | null>(null);
   const [description, setDescription] = useState("");
   const [primaryMuscles, setPrimaryMuscles] = useState<MuscleGroupId[]>([]);
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroupId[]>([]);
@@ -92,6 +93,7 @@ export default function ExerciseDetailPage() {
     setName(nextDetail.name);
     setCategory(nextDetail.category);
     setType(nextDetail.type as Exercise["type"]);
+    setEquipment(nextDetail.equipment);
     setDescription(nextDetail.description || "");
     setPrimaryMuscles(nextDetail.primary_muscle_group_ids);
     setSecondaryMuscles(nextDetail.secondary_muscle_group_ids);
@@ -109,7 +111,8 @@ export default function ExerciseDetailPage() {
         name,
         category,
         type,
-        description,
+        equipment,
+        description: description.trim() || null,
         primary_muscle_group_ids: primaryMuscles,
         secondary_muscle_group_ids: secondaryMuscles,
       });
@@ -191,6 +194,7 @@ export default function ExerciseDetailPage() {
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <Badge>{CATEGORY_LABELS[detail.category] || detail.category}</Badge>
               <Badge>{EXERCISE_TYPE_LABELS[detail.type as Exercise["type"]] || detail.type}</Badge>
+              <Badge>{detail.equipment ? EQUIPMENT_LABELS[detail.equipment] : "未设置器械"}</Badge>
               {detail.is_custom && <Badge>自定义</Badge>}
             </div>
           </div>
@@ -306,12 +310,14 @@ export default function ExerciseDetailPage() {
           name={name}
           category={category}
           type={type}
+          equipment={equipment}
           description={description}
           primary={primaryMuscles}
           secondary={secondaryMuscles}
           onName={setName}
           onCategory={setCategory}
           onType={setType}
+          onEquipment={setEquipment}
           onDescription={setDescription}
           onPrimary={setPrimaryMuscles}
           onSecondary={setSecondaryMuscles}
@@ -355,14 +361,16 @@ export default function ExerciseDetailPage() {
 
 function ExerciseEditor(props: {
   name: string;
-  category: string;
+  category: ExerciseCategory;
   type: Exercise["type"];
+  equipment: EquipmentId | null;
   description: string;
   primary: MuscleGroupId[];
   secondary: MuscleGroupId[];
   onName: (value: string) => void;
-  onCategory: (value: string) => void;
+  onCategory: (value: ExerciseCategory) => void;
   onType: (value: Exercise["type"]) => void;
+  onEquipment: (value: EquipmentId | null) => void;
   onDescription: (value: string) => void;
   onPrimary: (value: MuscleGroupId[]) => void;
   onSecondary: (value: MuscleGroupId[]) => void;
@@ -373,6 +381,7 @@ function ExerciseEditor(props: {
     name: props.name,
     category: props.category,
     type: props.type,
+    equipment: props.equipment,
     description: props.description,
     primary_muscle_group_ids: props.primary,
     secondary_muscle_group_ids: props.secondary,
@@ -381,6 +390,7 @@ function ExerciseEditor(props: {
     props.onName(next.name);
     props.onCategory(next.category);
     props.onType(next.type);
+    props.onEquipment(next.equipment);
     props.onDescription(next.description);
     props.onPrimary(next.primary_muscle_group_ids);
     props.onSecondary(next.secondary_muscle_group_ids);
