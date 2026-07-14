@@ -5,6 +5,7 @@ import type { TimelineNoteRangeType } from "@/core/models";
 import { createTimelineNote, deleteTimelineNote, listTimelineNotes, updateTimelineNote, type TimelineNote } from "@/services/timelineNotes";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 const RANGE_LABELS: Record<TimelineNoteRangeType, string> = {
   single_day: "单日",
@@ -19,6 +20,7 @@ export default function TimelineNotesPage() {
   const [notes, setNotes] = useState<TimelineNote[]>([]);
   const [editing, setEditing] = useState<TimelineNote | null>(null);
   const [showForm, setShowForm] = useState(false);
+  useAndroidBackDismiss(showForm, () => setShowForm(false));
 
   useEffect(() => {
     reload();

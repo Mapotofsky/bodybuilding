@@ -71,7 +71,7 @@ Capacitor 配置：
 
 Android 内部测试版本由 [`frontend/release/version.json`](ironlog/frontend/release/version.json) 统一定义。修改构建序号后执行 `npm run release:sync` 和 `npm run release:check`；`npm run android:sync` 会自动同步并校验版本元数据。
 - `webDir`: `dist`
-- 已接入插件：Filesystem、Preferences，以及原生 `WebDavHttp`、`SecretStore` 和 `ImageSaver` 插件；Preferences 只保存本机端点配置及待迁移旧密码，不再承载新写入的 Android 密码正文
+- 已接入插件：App、Filesystem、Preferences，以及原生 `WebDavHttp`、`SecretStore` 和 `ImageSaver` 插件；App 将 Android 系统返回键和边缘返回手势接入应用内路由，Preferences 只保存本机端点配置及待迁移旧密码，不再承载新写入的 Android 密码正文
 
 ## 本地数据格式
 

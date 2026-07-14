@@ -16,6 +16,7 @@ import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/C
 import MuscleHighlightMap from "@/components/MuscleHighlightMap";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
   strength: "负重训练",
@@ -39,6 +40,8 @@ export default function ExerciseDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  useAndroidBackDismiss(showEditor, () => setShowEditor(false));
+  useAndroidBackDismiss(showDelete, () => setShowDelete(false));
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [type, setType] = useState<Exercise["type"]>("strength");

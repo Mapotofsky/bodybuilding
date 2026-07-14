@@ -24,6 +24,7 @@ import { getSettings } from "@/services/settings";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 type TrendSelection = BodyMetricKey | `pair:${PairedMeasurementKey}`;
 
@@ -54,6 +55,7 @@ export default function BodyMetricsPage() {
   const [trendData, setTrendData] = useState<Array<Record<string, string | number | null | undefined>>>([]);
   const [editing, setEditing] = useState<BodyMetric | null>(null);
   const [showForm, setShowForm] = useState(false);
+  useAndroidBackDismiss(showForm, () => setShowForm(false));
 
   useEffect(() => {
     reload();

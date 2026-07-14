@@ -109,6 +109,8 @@ npm run test:layout
 
 AVD 或真机应在 360px、412px、横屏分别检查：短页没有页面级滚动，长页只滚动主内容区，底部 Tab 始终可见且不遮住最后内容；在准备训练页从部位筛选下方的具体动作按钮开始上滑，确认主内容区能立即滚动；在计划创建或个人资料页聚焦底部输入框后，确认软键盘弹出时焦点、Tab 和主内容区仍可见、可滚动、可提交。此走查只使用本地测试数据；除非另行执行同步测试，不要配置或清除 WebDAV、Keystore 或应用数据。
 
+Android 系统返回必须同时核对导航栏返回键和左/右边缘返回手势：从动作库进入动作详情后返回，应回到原筛选条件下的动作库；训练编辑、计划编辑、模板编辑和工具详情应按路由层级返回父页面；确认弹窗打开时应先关闭弹窗；只有位于顶级 Tab 且没有应用内历史时才退出到系统桌面。该测试只改变当前路由和弹窗状态，不写训练数据、凭据、WebDAV 或相册；退出后重新启动应用即可恢复测试。
+
 Android 原生插件构建使用：
 
 ```powershell
@@ -120,6 +122,8 @@ cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend\android
 只运行 `:app:` 任务，避免项目级 `assembleDebugAndroidTest` 触发 Capacitor Cordova 插件模块的 Kotlin 重复类问题。没有连接设备时只能完成 test APK 构建，不能写成真机通过。
 
 当前 `0.1.0-internal.2` 候选已在 Android 16（API 36）AVD 运行 `:app:connectedDebugAndroidTest`，4 项 instrumentation 全部通过。测试覆盖 Android Context 包名以及 Keystore 新凭据、旧凭据迁移、损坏后重新输入和清除配置路径；测试使用隔离的测试键并定向清理，不会清除应用业务数据或 WebDAV 目录。
+
+该候选还在同一 AVD 通过实体返回事件和边缘滑动事件完成“动作库筛选 → 动作详情 → 返回动作库”验证，筛选条件得到保留；动作库处无应用内历史时再次返回会退出到系统桌面。
 
 该候选同时已在目标真机使用 HTTPS 测试专用 WebDAV 完成设置保存、数据读取、应用重启后同步和远端脱敏检查；远端 JSON、manifest、backup 与日志未发现密码、密文、端点、用户名或 `passwordRef`。后续版本仍应使用隔离目录重复该检查，不能沿用本次结果代替新构建验收。
 

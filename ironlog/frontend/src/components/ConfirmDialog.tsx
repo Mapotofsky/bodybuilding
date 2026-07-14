@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 interface ConfirmState {
   open: boolean;
@@ -27,6 +28,7 @@ export const useConfirmStore = create<ConfirmState>((set, get) => ({
 
 export default function ConfirmDialog() {
   const { open, title, message, close } = useConfirmStore();
+  useAndroidBackDismiss(open, () => close(false));
 
   if (!open) return null;
 

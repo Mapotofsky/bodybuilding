@@ -6,6 +6,7 @@ import { CATEGORY_LABELS, type Exercise } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 const TYPE_LABELS: Record<Exercise["type"], string> = {
   strength: "负重训练",
@@ -29,6 +30,8 @@ export default function ExerciseLibraryPage() {
   const [replacement, setReplacement] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CustomExerciseFormValue>(EMPTY_CUSTOM_EXERCISE_FORM);
+  useAndroidBackDismiss(deleteTarget !== null, () => setDeleteTarget(null));
+  useAndroidBackDismiss(showCreate, () => setShowCreate(false));
   const confirm = useConfirmStore((state) => state.show);
   const toast = useToastStore((state) => state.add);
 

@@ -63,6 +63,7 @@ P4 在 SettingsDoc 保存 themeId。稳定 ID、名称和完整角色如下；5 
 8. 主题色不得降低文本、边框、错误、禁用、焦点状态与图标的可辨识性。Android-first 不要求系统深色模式跟随；是否跟随系统主题是待决策项。
 9. 全局确认继续使用 ConfirmDialog，通知使用 Toast。主题改造不得引入 window.confirm、window.alert 或 window.prompt。
 10. bottom sheet、确认框、Toast 和其他模态层可以使用 fixed 并高于流内底部导航；sheet 消费底部 safe area，独立滚动内容使用 `dvh`，不能让导航遮住最后一项。组间休息页不再是 fixed 特例，而是填满 `app-main` 的不可滚动页面。
+11. Android 系统返回由根路由内唯一的 `AndroidBackHandler` 处理，页面不得各自注册原生返回监听。共享弹窗、选择器和页面内浮层打开时向返回层栈登记关闭动作，最后打开的浮层最先关闭；没有浮层且 BrowserRouter 的 `history.state.idx > 0` 时执行 `navigate(-1)`；无应用内历史的详情、编辑和工具路由按稳定层级返回父页面；只有首页、动作库、计划、日历和“我的”等顶级页面无历史时调用 `App.exitApp()`。原生事件的 `canGoBack` 包含 WebView 装载历史，不能作为应用内历史的权威判断。
 
 ---
 
@@ -74,8 +75,8 @@ P2 权威定义 themeId 的模型、migration、未知值持久化与本地提�
 
 ## 6. 测试与验收
 
-自动测试：主题解析、默认/未知值视觉回退和主题 token 基本完整性；`npm run test:layout` 用 Chrome 在 360px、412px 和横屏验证短页的根视口尺寸、长页仅主区滚动及底部导航位置；同时从 WorkoutCreatePage 具体动作按钮发出模拟触摸上滑，验证只有 `app-main` 位移且 Tab 位置不变。migration、设置 LWW 与远端秘密清空测试由 P2/P3 权威维护。
+自动测试：主题解析、默认/未知值视觉回退和主题 token 基本完整性；`npm run test:layout` 用 Chrome 在 360px、412px 和横屏验证短页的根视口尺寸、长页仅主区滚动及底部导航位置；同时从 WorkoutCreatePage 具体动作按钮发出模拟触摸上滑，验证只有 `app-main` 位移且 Tab 位置不变。`AndroidBackHandler.test.ts` 覆盖应用内历史、深层路由父级回退、顶级退出和浮层优先级，`androidBackLayers.test.ts` 覆盖多层浮层的后进先出关闭顺序。migration、设置 LWW 与远端秘密清空测试由 P2/P3 权威维护。
 
-人工验收：5 套主题逐一检查首页、训练创建/详情、计划、日历、动作库、资料和同步页；360px、412px 和横屏 Android WebView 无溢出/裁切，短页没有 document 滚动，长页只滚动主内容区，Tab 不遮挡最后内容；聚焦底部输入框后软键盘不遮挡焦点、Tab 或提交操作；文字、边框、焦点、危险按钮、禁用状态均可辨识；切换主题后刷新、重启、WebDAV 同步到另一设备仍符合 unknown fallback 语义。
+人工验收：5 套主题逐一检查首页、训练创建/详情、计划、日历、动作库、资料和同步页；360px、412px 和横屏 Android WebView 无溢出/裁切，短页没有 document 滚动，长页只滚动主内容区，Tab 不遮挡最后内容；聚焦底部输入框后软键盘不遮挡焦点、Tab 或提交操作；文字、边框、焦点、危险按钮、禁用状态均可辨识；切换主题后刷新、重启、WebDAV 同步到另一设备仍符合 unknown fallback 语义。另以 Android 导航栏返回键和边缘返回手势分别核对“动作库 → 动作详情 → 动作库”、编辑页 → 详情页、确认弹窗关闭以及顶级页面退出。
 
 当前主题选择、完整 token、Tailwind 兼容语义映射与解析测试已实现。`0.1.0-internal.2` 候选的自动测试覆盖 360px、412px 与横屏；Android 16（API 36）AVD 在 411px WebView 下逐套核对 5 套主题，未发现严重不可读、Tab 遮挡或横向溢出。软键盘、手势安全区和厂商 WebView 差异仍需按目标设备人工步骤确认，不得由 AVD 结果外推。

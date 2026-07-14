@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 interface InputModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ export default function InputModal({
 }: InputModalProps) {
   const [value, setValue] = useState(defaultValue);
   const inputRef = useRef<HTMLInputElement>(null);
+  useAndroidBackDismiss(open, onCancel);
 
   useEffect(() => {
     if (open) {

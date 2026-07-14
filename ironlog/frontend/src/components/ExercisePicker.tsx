@@ -5,6 +5,7 @@ import type { Exercise } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 export interface ExercisePickerProps {
   exercises: Exercise[];
@@ -31,6 +32,8 @@ export default function ExercisePicker({
   const [category, setCategory] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CustomExerciseFormValue>(EMPTY_CUSTOM_EXERCISE_FORM);
+  useAndroidBackDismiss(isSheet && open && Boolean(onClose) && !showCreate, () => onClose?.());
+  useAndroidBackDismiss(showCreate, () => setShowCreate(false));
 
   const filtered = useMemo(() => exercises.filter((exercise) => (
     (!query || exercise.name.toLowerCase().includes(query.toLowerCase()))

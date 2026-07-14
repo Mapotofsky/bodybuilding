@@ -19,6 +19,7 @@ import { zhCN } from "date-fns/locale";
 import { useToastStore } from "@/components/Toast";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { calculateStrengthVolume, calculateWorkoutMetrics, formatVolume } from "@/core/workoutMetrics";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 export default function WorkoutDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +33,9 @@ export default function WorkoutDetailPage() {
   const [shareImage, setShareImage] = useState<WorkoutShareImage | null>(null);
   const [shareDetails, setShareDetails] = useState(false);
   const [displayUnit, setDisplayUnit] = useState<"kg" | "lb">("kg");
+  useAndroidBackDismiss(showMenu, () => setShowMenu(false));
+  useAndroidBackDismiss(showCopyModal, () => setShowCopyModal(false));
+  useAndroidBackDismiss(showShareModal, () => setShowShareModal(false));
 
   useEffect(() => {
     if (!id) return;

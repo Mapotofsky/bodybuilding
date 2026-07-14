@@ -13,6 +13,7 @@ import type { TrainingPlan, PlanTemplate } from "@/types";
 import { PLAN_MODE_LABELS, DAY_OF_WEEK_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import InputModal from "@/components/ui/InputModal";
+import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 
 function scheduleRuleLabel(template: PlanTemplate, mode: string): string {
   const rule = template.schedule_rule;
@@ -35,6 +36,7 @@ export default function PlanDetailPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  useAndroidBackDismiss(menuOpen, () => setMenuOpen(false));
 
   useEffect(() => {
     if (!id) return;
