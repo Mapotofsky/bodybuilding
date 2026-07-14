@@ -1,5 +1,5 @@
 // 此文件由 scripts/exerciseCatalog.mjs 生成，禁止手改。
-// candidates sha256: 9b12cbd6074ab181c0df147bf239347c25288acf2a1f41447233b921c2ae30d1
+// candidates sha256: 0a712bbe9ee010b44854997b66673019cf759cc88486804185108b47eaf408e4
 // upstream revision: 118e4bd6b14da6df0e36605d7169b65db18389a4
 import type { DefaultExerciseSeed } from "./models";
 
@@ -795,9 +795,9 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "id": "ex-jump-rope",
     "name": "跳绳",
     "category": "cardio",
-    "type": "cardio",
+    "type": "reps_only",
     "equipment": "jump_rope",
-    "description": "双手握绳，膝盖微屈，以脚掌轻柔落地并保持稳定节奏；按计划持续时间完成。",
+    "description": "双手握绳，膝盖微屈，以脚掌轻柔落地并保持稳定节奏；按计划次数完成。",
     "primaryMuscleGroupIds": [
       "full_body"
     ],

@@ -48,6 +48,21 @@ describe("generated default exercise catalog", () => {
     }
   });
 
+  it("uses distance or duration only for the audited cardio actions", () => {
+    const cardioIds = DEFAULT_EXERCISES
+      .filter((exercise) => exercise.type === "cardio")
+      .map((exercise) => exercise.id)
+      .sort();
+
+    expect(cardioIds).toEqual([
+      "ex-elliptical-trainer",
+      "ex-running",
+      "ex-stationary-bike",
+      "ex-stepmill",
+    ]);
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-jump-rope")?.type).toBe("reps_only");
+  });
+
   it("does not include media, attribution, grades, or instruction arrays", () => {
     const serialized = JSON.stringify(DEFAULT_EXERCISES);
     for (const forbidden of ["media_id", "gif_url", "attribution", "instruction_steps", "instructions", "supportedTypes", "movementPattern", "\"grade\""]) {

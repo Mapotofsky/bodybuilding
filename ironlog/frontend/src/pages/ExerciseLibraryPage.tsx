@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Dumbbell, Plus, Search, Trash2, X } from "lucide-react";
 import { createExercise, deleteExercise, getExercises } from "@/services/exercise";
@@ -7,8 +7,10 @@ import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
+import { restoreRouteScrollPosition, saveRouteScrollPosition } from "@/utils/scroll";
 
 const FILTER_STORAGE_KEY = "ironlog.exerciseLibraryQuery";
+const SCROLL_STORAGE_KEY = "ironlog.exerciseLibraryScroll";
 
 export default function ExerciseLibraryPage() {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export default function ExerciseLibraryPage() {
   const [replacement, setReplacement] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CustomExerciseFormValue>(EMPTY_CUSTOM_EXERCISE_FORM);
+  const restoredScroll = useRef(false);
   useAndroidBackDismiss(deleteTarget !== null, () => setDeleteTarget(null));
   useAndroidBackDismiss(showCreate, () => setShowCreate(false));
   const confirm = useConfirmStore((state) => state.show);
@@ -66,6 +69,14 @@ export default function ExerciseLibraryPage() {
     };
   }, [q, category, equipment]);
 
+  useLayoutEffect(() => {
+    if (loading || restoredScroll.current || typeof sessionStorage === "undefined") return;
+    restoredScroll.current = true;
+    const route = `${location.pathname}${location.search}`;
+    const main = document.querySelector<HTMLElement>("[data-app-main]");
+    restoreRouteScrollPosition(sessionStorage, SCROLL_STORAGE_KEY, route, main);
+  }, [loading, location.pathname, location.search]);
+
   useEffect(() => {
     const main = document.querySelector<HTMLElement>("[data-app-main]");
     const closeSwipe = () => setOpenSwipeId(null);
@@ -86,6 +97,10 @@ export default function ExerciseLibraryPage() {
 
   function goDetail(exercise: Exercise) {
     const from = `${location.pathname}${location.search}`;
+    const main = document.querySelector<HTMLElement>("[data-app-main]");
+    if (typeof sessionStorage !== "undefined") {
+      saveRouteScrollPosition(sessionStorage, SCROLL_STORAGE_KEY, from, main?.scrollTop ?? 0);
+    }
     navigate(`/exercises/${exercise.id}?from=${encodeURIComponent(from)}`);
   }
 
