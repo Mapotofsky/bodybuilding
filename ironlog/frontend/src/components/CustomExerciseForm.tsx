@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, MUSCLE_GROUP_LABELS, type Exercise, type MuscleGroupId } from "@/types";
+import { CATEGORY_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS, type Exercise, type MuscleGroupId } from "@/types";
 
 export interface CustomExerciseFormValue {
   name: string;
@@ -17,13 +17,6 @@ interface CustomExerciseFormProps {
   submitLabel: string;
   compact?: boolean;
 }
-
-const TYPE_LABELS: Record<Exercise["type"], string> = {
-  strength: "负重训练",
-  cardio: "心肺训练",
-  reps_only: "自重训练",
-  static_hold: "静力训练",
-};
 
 const MUSCLE_GROUP_OPTIONS = Object.entries(MUSCLE_GROUP_LABELS) as Array<[MuscleGroupId, string]>;
 
@@ -57,7 +50,7 @@ export default function CustomExerciseForm(props: CustomExerciseFormProps) {
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
         </select>
         <select value={props.value.type} onChange={(event) => patch({ type: event.target.value as Exercise["type"] })} className={inputCls} aria-label="记录类型">
-          {Object.entries(TYPE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          {Object.entries(EXERCISE_TYPE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
         </select>
       </div>
       <textarea

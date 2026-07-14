@@ -11,6 +11,7 @@ import { getSettings } from "@/services/settings";
 import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 import { completionTimestamp, formatExerciseCompletion, formatWorkoutPrimaryMetric } from "@/utils/workoutPresentation";
 import { scrollAppToTop } from "@/utils/scroll";
+import { exerciseForDraftResume } from "@/utils/workoutDraft";
 import type { Exercise, Workout, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
@@ -521,7 +522,7 @@ export default function WorkoutCreatePage() {
       const linked = exerciseMap.get(item.exercise_id);
       return {
         id: item.id,
-        exercise: linked || { id: item.exercise_id, name: item.exercise_name || `动作#${item.exercise_id}`, category: item.exercise_category || "", type: item.exercise_type, description: null, primary_muscle_group_ids: [], secondary_muscle_group_ids: [], is_custom: false },
+        exercise: exerciseForDraftResume(item, linked),
         sets: item.sets,
       };
     });

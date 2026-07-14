@@ -2,18 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Dumbbell, Plus, Search, Trash2, X } from "lucide-react";
 import { createExercise, deleteExercise, getExercises } from "@/services/exercise";
-import { CATEGORY_LABELS, type Exercise } from "@/types";
+import { CATEGORY_LABELS, EXERCISE_TYPE_LABELS, type Exercise } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
-
-const TYPE_LABELS: Record<Exercise["type"], string> = {
-  strength: "负重训练",
-  cardio: "心肺训练",
-  reps_only: "自重训练",
-  static_hold: "静力训练",
-};
 
 const FILTER_STORAGE_KEY = "ironlog.exerciseLibraryQuery";
 
@@ -327,7 +320,7 @@ function SwipeExerciseCard(props: {
             <span className="block font-semibold text-slate-900 truncate">{props.exercise.name}</span>
             <span className="mt-1 flex flex-wrap gap-1.5">
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{CATEGORY_LABELS[props.exercise.category] || props.exercise.category}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{TYPE_LABELS[props.exercise.type]}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{EXERCISE_TYPE_LABELS[props.exercise.type]}</span>
               {props.exercise.is_custom && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">自定义</span>}
             </span>
           </span>

@@ -10,6 +10,14 @@ export interface User {
 }
 
 export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+
+export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
+  strength: "负重 + 次数",
+  cardio: "距离 / 时长",
+  reps_only: "仅次数",
+  static_hold: "保持时间",
+};
+
 export type MuscleGroupId =
   | "chest" | "back" | "shoulders" | "biceps" | "triceps" | "forearms"
   | "core" | "glutes" | "quadriceps" | "hamstrings" | "calves"

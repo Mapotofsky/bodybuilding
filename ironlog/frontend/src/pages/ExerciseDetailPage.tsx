@@ -9,7 +9,7 @@ import type { Exercise, ExerciseDetail, MuscleGroupId } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
 import { getSettings } from "@/services/settings";
-import { CATEGORY_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
+import { CATEGORY_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
@@ -17,13 +17,6 @@ import MuscleHighlightMap from "@/components/MuscleHighlightMap";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
-
-const TYPE_LABELS: Record<Exercise["type"], string> = {
-  strength: "负重训练",
-  cardio: "心肺训练",
-  reps_only: "自重训练",
-  static_hold: "静力训练",
-};
 
 export default function ExerciseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -197,7 +190,7 @@ export default function ExerciseDetailPage() {
             <p className="font-bold app-text break-words">{detail.name}</p>
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <Badge>{CATEGORY_LABELS[detail.category] || detail.category}</Badge>
-              <Badge>{TYPE_LABELS[detail.type as Exercise["type"]] || detail.type}</Badge>
+              <Badge>{EXERCISE_TYPE_LABELS[detail.type as Exercise["type"]] || detail.type}</Badge>
               {detail.is_custom && <Badge>自定义</Badge>}
             </div>
           </div>
@@ -286,7 +279,7 @@ export default function ExerciseDetailPage() {
                   <div key={date} className="app-surface rounded-2xl border app-border shadow-sm overflow-hidden">
                     <div className="app-surface-muted px-4 py-2.5 border-b app-border flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold app-text-muted">{date.replace(/-/g, "/")}</p>
-                      <span className="text-xs app-primary-text font-semibold text-right break-words">{TYPE_LABELS[dayType]}</span>
+                      <span className="text-xs app-primary-text font-semibold text-right break-words">{EXERCISE_TYPE_LABELS[dayType]}</span>
                     </div>
                     <div>
                       {records.map((record, index) => (
