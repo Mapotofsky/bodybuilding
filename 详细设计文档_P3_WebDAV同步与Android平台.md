@@ -164,6 +164,8 @@ backups/<ISO timestamp>-<path 中 / 替换为 ->
 
 settings 特殊处理：只合并可同步偏好并强制保留本地 `lastSyncAt`。WebDAV 端点配置不在 SettingsDoc 中，不能被远端覆盖。
 
+精选动作目录的开发期直接替换不使用旧远端数据做兼容输入。旧测试 WebDAV 中较新的 `exercises.json` 仍会参加当前 LWW，可能把已淘汰的测试动作重新拉回；因此目录导入验收必须使用全新或已定向清空的隔离测试目录，从无远端 manifest 的首次上传开始。不得用这一规则清空日常真机或正式远端目录。
+
 ### 5.2 当前不足
 
 - `updatedAt` 不同并不一定代表真实冲突；当前日志只是 LWW 选择记录。
@@ -235,7 +237,7 @@ cd android
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
 | Android WebDAV | PROPFIND/MOVE/MKCOL 走原生插件，不被 WebView 限制。 |
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
-| 动作详情元数据 | `primaryMuscleGroupIds`、`secondaryMuscleGroupIds` 与 `description` 随 `exercises.json` 同步；个人统计不写入远端 JSON。 |
+| 动作详情元数据 | 当前肌群与 description 随 `exercises.json` 同步；精选目录实施后还须验证 category、唯一 type、equipment、保留换行的 description、肌群与只读 provenance 完整往返。provenance 不进入页面 DTO；Media、媒体 URL、`media_id` 与非中文 instructions 不进入远端 JSON。个人统计不写入动作分片。 |
 | 头像资源 | `profile.avatarUrl` 引用资源路径；头像资源随 manifest、backup、tmp/MOVE 往返；清除后远端过期头像资源被删除。 |
 | 主题与 AI 规划字段 | themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
