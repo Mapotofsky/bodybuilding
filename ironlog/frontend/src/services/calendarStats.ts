@@ -99,7 +99,10 @@ export async function getCalendarOverview(params: { from: string; to: string }):
         ? [{ text: shortLabel(template.name), color_key: categoryColorKey(null) }]
         : categoryLabels;
       const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
-        exerciseType: exercise.exerciseType,
+        recordingMode: exercise.recordingMode,
+        loadBasis: exercise.loadBasis,
+        loadDirection: exercise.loadDirection,
+        rateMetric: exercise.rateMetric,
         sets: exercise.sets,
       })), settings.weightUnit);
       return {
@@ -227,7 +230,10 @@ function uniqueLabels(labels: CalendarDayLabel[]): CalendarDayLabel[] {
 
 function aggregateWorkoutKpis(workouts: WorkoutDoc[], weightUnit: "kg" | "lb") {
   const metrics = calculateWorkoutMetrics(workouts.flatMap((workout) => workout.exercises.map((exercise) => ({
-    exerciseType: exercise.exerciseType,
+    recordingMode: exercise.recordingMode,
+    loadBasis: exercise.loadBasis,
+    loadDirection: exercise.loadDirection,
+    rateMetric: exercise.rateMetric,
     sets: exercise.sets,
   }))), weightUnit);
   const durationMinutes = workouts.reduce((sum, workout) => {

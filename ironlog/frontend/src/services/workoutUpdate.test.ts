@@ -4,6 +4,7 @@ import type { WorkoutDoc } from "@/core/models";
 
 const repository = vi.hoisted(() => ({
   getWorkout: vi.fn(),
+  createWorkout: vi.fn(),
   updateWorkout: vi.fn(),
   get: vi.fn(),
   getTemplate: vi.fn(),
@@ -15,7 +16,7 @@ vi.mock("@/repositories/localJsonRepository", () => ({
   localRepository: repository,
 }));
 
-import { updateWorkout } from "./workout";
+import { copyWorkout, updateWorkout } from "./workout";
 
 describe("updateWorkout merge semantics", () => {
   beforeEach(() => {
@@ -67,6 +68,129 @@ describe("updateWorkout merge semantics", () => {
     const saved = repository.updateWorkout.mock.calls[0][1] as Partial<WorkoutDoc>;
     expect(saved.exercises?.[0].supersetGroup).toBe(7);
   });
+
+  it("merges partial aggregate edits by nested IDs and preserves snapshots and unseen fields", async () => {
+    const existing = workoutDoc({ planTemplateId: null, note: null, mood: null, supersetGroup: 7 });
+    Object.assign(existing.exercises[0], { importedMarker: "keep-exercise" });
+    Object.assign(existing.exercises[0].sets[0], { reservedValue: "keep-set" });
+    repository.getWorkout.mockResolvedValue(existing);
+    repository.updateWorkout.mockImplementation(async (_id: string, update: Partial<WorkoutDoc>) => ({
+      ...existing,
+      ...update,
+      updatedAt: "2026-06-22T11:00:00.000Z",
+    }));
+
+    await updateWorkout(existing.id, {
+      exercises: [{
+        id: "workout-exercise-1",
+        exercise_id: "ex-bench-press",
+        sort_order: 0,
+        sets: [{ id: "workout-set-1", set_number: 1, weight: 90 }],
+      }],
+    });
+
+    const saved = repository.updateWorkout.mock.calls[0][1] as Partial<WorkoutDoc>;
+    expect(saved.exercises?.[0]).toMatchObject({
+      id: "workout-exercise-1",
+      recordingMode: "weight_reps",
+      loadBasis: "total",
+      loadDirection: "higher_better",
+      rateMetric: "none",
+      supersetGroup: 7,
+      importedMarker: "keep-exercise",
+    });
+    expect(saved.exercises?.[0].sets[0]).toMatchObject({
+      id: "workout-set-1",
+      weight: 90,
+      reps: 5,
+      rpe: 8,
+      restSeconds: 120,
+      reservedValue: "keep-set",
+    });
+  });
+
+  it("rejects attempts to reinterpret an existing nested exercise snapshot", async () => {
+    const existing = workoutDoc({ planTemplateId: null, note: null, mood: null, supersetGroup: null });
+    repository.getWorkout.mockResolvedValue(existing);
+
+    await expect(updateWorkout(existing.id, {
+      exercises: [{
+        id: "workout-exercise-1",
+        exercise_id: "ex-bench-press",
+        recording_mode: "weight_reps",
+        load_basis: "per_hand",
+        load_direction: "higher_better",
+        rate_metric: "none",
+        sort_order: 0,
+        sets: [{ id: "workout-set-1", set_number: 1, weight: 80, reps: 5 }],
+      }],
+    })).rejects.toThrow("记录方式快照不可修改");
+    expect(repository.updateWorkout).not.toHaveBeenCalled();
+  });
+
+  it("copies recording snapshots and set metadata while assigning new nested IDs", async () => {
+    const existing = workoutDoc({ planTemplateId: "template-farmer", note: "保留备注", mood: 5, supersetGroup: 3 });
+    existing.exercises[0] = {
+      ...existing.exercises[0],
+      exerciseId: "ex-farmer-walk",
+      recordingMode: "weight_distance_duration",
+      loadBasis: "per_hand",
+      loadDirection: "higher_better",
+      rateMetric: "load_distance_per_time",
+      sets: [{
+        ...existing.exercises[0].sets[0],
+        weight: 32,
+        reps: null,
+        distanceM: 40,
+        durationSec: 28,
+        restSeconds: 90,
+      }],
+    };
+    repository.getWorkout.mockResolvedValue(existing);
+    repository.createWorkout.mockImplementation(async (input: Omit<WorkoutDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">) => ({
+      ...input,
+      id: "workout-copy",
+      exercises: input.exercises.map((exercise) => ({
+        ...exercise,
+        id: "workout-exercise-copy",
+        sets: exercise.sets.map((set) => ({ ...set, id: "workout-set-copy" })),
+      })),
+      createdAt: "2026-06-24T10:00:00.000Z",
+      updatedAt: "2026-06-24T10:00:00.000Z",
+      deletedAt: null,
+      schemaVersion: 4,
+    }));
+
+    const copied = await copyWorkout(existing.id, "2026-06-24");
+
+    expect(repository.createWorkout).toHaveBeenCalledWith(expect.objectContaining({
+      date: "2026-06-24",
+      startTime: null,
+      endTime: null,
+      planTemplateId: "template-farmer",
+      exercises: [expect.objectContaining({
+        id: "",
+        exerciseId: "ex-farmer-walk",
+        recordingMode: "weight_distance_duration",
+        loadBasis: "per_hand",
+        loadDirection: "higher_better",
+        rateMetric: "load_distance_per_time",
+        supersetGroup: 3,
+        sets: [expect.objectContaining({ id: "", weight: 32, distanceM: 40, durationSec: 28, restSeconds: 90 })],
+      })],
+    }));
+    expect(copied.exercises[0]).toMatchObject({
+      id: "workout-exercise-copy",
+      recording_mode: "weight_distance_duration",
+      load_basis: "per_hand",
+      load_direction: "higher_better",
+      rate_metric: "load_distance_per_time",
+      superset_group: 3,
+    });
+    expect(copied.exercises[0].sets[0]).toMatchObject({ id: "workout-set-copy", rest_seconds: 90 });
+    expect(existing.exercises[0].id).toBe("workout-exercise-1");
+    expect(existing.exercises[0].sets[0].id).toBe("workout-set-1");
+  });
 });
 
 function workoutDoc(options: { planTemplateId: string | null; note: string | null; mood: number | null; supersetGroup: number | null }): WorkoutDoc {
@@ -81,7 +205,10 @@ function workoutDoc(options: { planTemplateId: string | null; note: string | nul
     exercises: [{
       id: "workout-exercise-1",
       exerciseId: "ex-bench-press",
-      exerciseType: "strength",
+      recordingMode: "weight_reps",
+      loadBasis: "total",
+      loadDirection: "higher_better",
+      rateMetric: "none",
       sortOrder: 0,
       supersetGroup: options.supersetGroup,
       sets: [{
@@ -101,6 +228,6 @@ function workoutDoc(options: { planTemplateId: string | null; note: string | nul
     createdAt: "2026-06-22T10:00:00.000Z",
     updatedAt: "2026-06-22T10:30:00.000Z",
     deletedAt: null,
-    schemaVersion: 3,
+    schemaVersion: 4,
   };
 }

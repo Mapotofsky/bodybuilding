@@ -1,3 +1,12 @@
+import type {
+  EquipmentId,
+  ExerciseCategory,
+  LoadBasis,
+  LoadDirection,
+  RateMetric,
+  RecordingMode,
+} from "@/core/models";
+
 export interface User {
   id: string;
   email: string;
@@ -9,13 +18,29 @@ export interface User {
   created_at: string;
 }
 
-export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+export const RECORDING_MODE_LABELS: Record<RecordingMode, string> = {
+  weight_reps: "负重 + 次数",
+  reps: "仅次数",
+  duration: "保持时间",
+  distance_duration: "距离 / 时间",
+  weight_duration: "负重 + 时间",
+  weight_distance_duration: "负重 + 距离 / 时间",
+};
 
-export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
-  strength: "负重 + 次数",
-  cardio: "距离 / 时长",
-  reps_only: "仅次数",
-  static_hold: "保持时间",
+export const LOAD_BASIS_LABELS: Record<LoadBasis, string> = {
+  total: "总重量",
+  per_hand: "单手重量",
+};
+
+export const LOAD_DIRECTION_LABELS: Record<LoadDirection, string> = {
+  higher_better: "负重",
+  lower_better: "辅助配重",
+};
+
+export const RATE_METRIC_LABELS: Record<RateMetric, string> = {
+  none: "不计算竞速指标",
+  distance_per_time: "计算速度",
+  load_distance_per_time: "计算单位时间负载",
 };
 
 export type MuscleGroupId =
@@ -27,7 +52,10 @@ export interface Exercise {
   id: string;
   name: string;
   category: ExerciseCategory;
-  type: ExerciseType;
+  recording_mode: RecordingMode;
+  load_basis: LoadBasis | null;
+  load_direction: LoadDirection | null;
+  rate_metric: RateMetric;
   equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
@@ -52,7 +80,10 @@ export interface WorkoutSet {
 export interface WorkoutExercise {
   id?: string;
   exercise_id: string;
-  exercise_type: ExerciseType;
+  recording_mode: RecordingMode;
+  load_basis: LoadBasis | null;
+  load_direction: LoadDirection | null;
+  rate_metric: RateMetric;
   exercise_name?: string;
   exercise_category?: string;
   sort_order: number;
@@ -90,6 +121,8 @@ export interface WorkoutSummary {
   total_volume_unit: "kg" | "lb";
   total_distance_m: number;
   total_duration_sec: number;
+  total_load_distance_kg_m: number;
+  total_load_duration_kg_sec: number;
   total_reps: number;
   plan_template_id: string | null;
   template_name: string | null;
@@ -243,7 +276,10 @@ export interface ExerciseDetail {
   id: string;
   name: string;
   category: ExerciseCategory;
-  type: ExerciseType;
+  recording_mode: RecordingMode;
+  load_basis: LoadBasis | null;
+  load_direction: LoadDirection | null;
+  rate_metric: RateMetric;
   equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
@@ -260,15 +296,28 @@ export interface ExercisePersonalStats {
   working_set_count: number;
   recent_7_day_set_count: number;
   last_completed_date: string | null;
-  strength: {
-    best_weight: number | null;
-    best_volume: number;
+  performance: {
+    load_basis: LoadBasis | null;
+    load_direction: LoadDirection | null;
+    best_input_load: number | null;
+    best_effective_load: number | null;
+    best_set_volume: number | null;
+    best_workout_volume: number | null;
+    best_reps: number | null;
+    best_distance_m: number | null;
+    best_duration_sec: number | null;
+    best_speed_mps: number | null;
+    best_load_distance_kg_m: number | null;
+    best_load_duration_kg_sec: number | null;
+    best_load_distance_rate_kg_mps: number | null;
     display_unit: "kg" | "lb";
   };
-  cardio: { best_distance_m: number; best_speed_kmh: number | null };
-  reps_only: { best_reps: number };
-  static_hold: { best_duration_sec: number };
 }
-import type { EquipmentId, ExerciseCategory } from "@/core/models";
-
-export type { EquipmentId, ExerciseCategory } from "@/core/models";
+export type {
+  EquipmentId,
+  ExerciseCategory,
+  LoadBasis,
+  LoadDirection,
+  RateMetric,
+  RecordingMode,
+} from "@/core/models";

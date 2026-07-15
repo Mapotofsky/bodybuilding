@@ -5,7 +5,10 @@ describe("workout metrics", () => {
   it("converts mixed kg/lb strength volume into the requested display unit and includes warmups", () => {
     const metrics = calculateWorkoutMetrics([
       {
-        exerciseType: "strength",
+        recordingMode: "weight_reps",
+        loadBasis: "total",
+        loadDirection: "higher_better",
+        rateMetric: "none",
         sets: [
           { weight: 100, reps: 10, unit: "lb", durationSec: null, distanceM: null },
           { weight: 60, reps: 5, unit: "kg", durationSec: null, distanceM: null },
@@ -16,6 +19,18 @@ describe("workout metrics", () => {
     expect(metrics.totalSets).toBe(2);
     expect(metrics.totalVolumeUnit).toBe("kg");
     expect(metrics.totalVolume).toBeCloseTo(753.59237, 5);
+  });
+
+  it("applies the per-hand multiplier after unit conversion", () => {
+    const metrics = calculateWorkoutMetrics([{
+      recordingMode: "weight_reps",
+      loadBasis: "per_hand",
+      loadDirection: "higher_better",
+      rateMetric: "none",
+      sets: [{ weight: 20, reps: 10, unit: "kg", durationSec: null, distanceM: null }],
+    }], "kg");
+
+    expect(metrics.totalVolume).toBe(400);
   });
 
   it("uses the same conversion constant in both directions", () => {

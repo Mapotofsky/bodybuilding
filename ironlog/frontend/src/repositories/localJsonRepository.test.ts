@@ -13,7 +13,7 @@ describe("workout aggregate persistence", () => {
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
     const created = await repository.createWorkout({
       date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
-      exercises: [{ id: "", exerciseId: "ex-bench-press", exerciseType: "strength", sortOrder: 0, supersetGroup: null, sets: [set(1)] }],
+      exercises: [{ id: "", exerciseId: "ex-bench-press", ...weightedRecording(), sortOrder: 0, supersetGroup: null, sets: [set(1)] }],
     });
     const stable = await repository.updateWorkout(created.id, { exercises: created.exercises });
     expect(stable.exercises[0].id).toBe(created.exercises[0].id);
@@ -59,10 +59,10 @@ describe("workout aggregate persistence", () => {
 
   it("creates custom IDs, keeps them stable on edit, and atomically migrates active template references", async () => {
     const initial = makeEmptySnapshot("device-test");
-    initial.templates.push({ id: "template-1", planId: "plan-1", name: "模板", sortOrder: 0, color: null, scheduleRule: null, exercises: [{ id: "te-1", exerciseId: "custom-ex-source", sortOrder: 0, note: null }], createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 3 });
-    initial.exercises.push({ id: "custom-ex-source", name: "源动作", category: "core", type: "reps_only", equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: null, provenance: { source: "catalog-test", sourceId: "source-1", sourceRevision: "revision-1" }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 3 });
+    initial.templates.push({ id: "template-1", planId: "plan-1", name: "模板", sortOrder: 0, color: null, scheduleRule: null, exercises: [{ id: "te-1", exerciseId: "custom-ex-source", sortOrder: 0, note: null }], createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 4 });
+    initial.exercises.push({ id: "custom-ex-source", name: "源动作", category: "core", recordingMode: "reps", loadBasis: null, loadDirection: null, rateMetric: "none", equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: null, provenance: { source: "catalog-test", sourceId: "source-1", sourceRevision: "revision-1" }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null, schemaVersion: 4 });
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(initial)));
-    const created = await repository.create({ name: "新动作", category: "core", type: "strength", equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
+    const created = await repository.create({ name: "新动作", category: "core", ...weightedRecording(), equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
     expect(created.id).toMatch(/^custom-ex-/);
     expect(created).toMatchObject({ primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
     const edited = await repository.updateExercise(created.id, { name: "已编辑" });
@@ -77,23 +77,45 @@ describe("workout aggregate persistence", () => {
 
   it("tombstones a custom exercise without rewriting template references when no replacement is selected", async () => {
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
-    const created = await repository.create({ name: "临时动作", category: "core", type: "reps_only", equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
+    const created = await repository.create({ name: "临时动作", category: "core", recordingMode: "reps", loadBasis: null, loadDirection: null, rateMetric: "none", equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
     await repository.deleteExercise(created.id, null);
     expect((await repository.getSnapshot()).exercises.find((exercise) => exercise.id === created.id)).toMatchObject({ deletedAt: expect.any(String), replacedByExerciseId: null });
   });
 
-  it("rejects replacement exercises with a different record type", async () => {
+  it("rejects replacement exercises with an incompatible recording snapshot", async () => {
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
-    const created = await repository.create({ name: "临时力量动作", category: "core", type: "strength", equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
+    const created = await repository.create({ name: "临时力量动作", category: "core", ...weightedRecording(), equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
 
-    await expect(repository.deleteExercise(created.id, "ex-running")).rejects.toThrow("替代动作必须与原动作记录类型一致");
+    await expect(repository.deleteExercise(created.id, "ex-running")).rejects.toThrow("记录方式、重量口径、成绩方向和竞速指标一致");
+  });
+
+  it("rejects a v3 development snapshot before writing anything back", async () => {
+    const v3 = makeEmptySnapshot("device-test");
+    v3.manifest.schemaVersion = 3;
+    const store = memoryStore(v3);
+    const save = vi.spyOn(store, "save");
+    const repository = new LocalJsonRepository(Promise.resolve(store));
+
+    await expect(repository.getSnapshot()).rejects.toThrow("不兼容开发快照");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("requires every recording snapshot field to match when replacing history", async () => {
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
+    const perHand = await repository.create({ name: "每手动作", category: "core", ...weightedRecording(), loadBasis: "per_hand", equipment: "dumbbell", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
+    const assisted = await repository.create({ name: "辅助动作", category: "core", ...weightedRecording(), loadDirection: "lower_better", equipment: "machine", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
+    const timed = await repository.create({ name: "计时负重距离", category: "core", recordingMode: "weight_distance_duration", loadBasis: "per_hand", loadDirection: "higher_better", rateMetric: "none", equipment: "dumbbell", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [] });
+
+    await expect(repository.deleteExercise(perHand.id, "ex-bench-press")).rejects.toThrow("记录方式、重量口径、成绩方向和竞速指标一致");
+    await expect(repository.deleteExercise(assisted.id, "ex-bench-press")).rejects.toThrow("记录方式、重量口径、成绩方向和竞速指标一致");
+    await expect(repository.deleteExercise(timed.id, "ex-farmer-walk")).rejects.toThrow("记录方式、重量口径、成绩方向和竞速指标一致");
   });
 
   it("does not clear custom exercise description when an edit omits description", async () => {
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
-    const created = await repository.create({ name: "说明动作", category: "core", type: "strength", equipment: "barbell", description: "保留这段说明\n第二段", primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [] });
+    const created = await repository.create({ name: "说明动作", category: "core", ...weightedRecording(), equipment: "barbell", description: "保留这段说明\n第二段", primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [] });
 
-    const edited = await repository.updateExercise(created.id, { name: "改名动作", category: "core", type: "strength" });
+    const edited = await repository.updateExercise(created.id, { name: "改名动作", category: "core", recordingMode: "weight_reps" });
 
     expect(edited).toMatchObject({ equipment: "barbell", description: "保留这段说明\n第二段", primaryMuscleGroupIds: ["core"] });
   });
@@ -155,22 +177,22 @@ describe("workout aggregate persistence", () => {
       workoutId: null,
     });
     await repository.replaceExercisePerformanceRecords({ all: true }, [{
-      id: "performance:strength.max_weight:workout-1:workout-exercise-1:set-1:true_pr",
+      id: "performance:weight.max_effective:workout-1:workout-exercise-1:set-1:true_pr",
       exerciseId: "ex-bench-press",
       kind: "true_pr",
-      metricType: "strength.max_weight",
+      metricType: "weight.max_effective",
       value: 100,
       unit: "kg",
       achievedAt: "2026-06-20T10:00:00.000Z",
       sourceWorkoutId: "workout-1",
       sourceWorkoutExerciseId: "workout-exercise-1",
       sourceSetId: "set-1",
-      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      input: performanceInput(),
       rm: null,
       createdAt: "2026-06-20T10:00:00.000Z",
       updatedAt: "2026-06-20T10:00:00.000Z",
       deletedAt: null,
-      schemaVersion: 3,
+      schemaVersion: 4,
     }]);
 
     const snapshot = await repository.getSnapshot();
@@ -191,19 +213,19 @@ describe("workout aggregate persistence", () => {
       id: "performance-1",
       exerciseId: "ex-bench-press",
       kind: "true_pr",
-      metricType: "strength.max_weight",
+      metricType: "weight.max_effective",
       value: 100,
       unit: "kg",
       achievedAt: "2026-06-20T10:00:00.000Z",
       sourceWorkoutId: "workout-1",
       sourceWorkoutExerciseId: "workout-exercise-1",
       sourceSetId: "set-1",
-      input: { weightKg: 100, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      input: performanceInput(),
       rm: null,
       createdAt: "2026-06-20T10:00:00.000Z",
       updatedAt: "2026-06-20T10:00:00.000Z",
       deletedAt: null,
-      schemaVersion: 3,
+      schemaVersion: 4,
     }]);
 
     await repository.replaceExercisePerformanceRecords({ sourceWorkoutIds: ["workout-1"] }, []);
@@ -215,6 +237,14 @@ describe("workout aggregate persistence", () => {
 
 function set(setNumber: number) {
   return { id: "", setNumber, weight: 50, reps: 8, unit: "kg" as const, durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null };
+}
+
+function weightedRecording() {
+  return { recordingMode: "weight_reps" as const, loadBasis: "total" as const, loadDirection: "higher_better" as const, rateMetric: "none" as const };
+}
+
+function performanceInput() {
+  return { enteredLoad: 100, enteredLoadUnit: "kg" as const, effectiveLoadKg: 100, loadBasis: "total" as const, loadDirection: "higher_better" as const, reps: 5, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null };
 }
 
 function memoryStore(initial: DataSnapshot): DocumentStore {

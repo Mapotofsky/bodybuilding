@@ -3,3 +3,5 @@ dist
 .env
 .env.local
 output
+test-results/
+playwright-report/

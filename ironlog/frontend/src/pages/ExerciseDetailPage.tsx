@@ -1,22 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Check, ChevronLeft, Dumbbell, Gauge, ListChecks, NotebookText, Pencil, Rocket, Trash2, TrendingUp, X } from "lucide-react";
+import { Check, ChevronLeft, Dumbbell, Gauge, NotebookText, Pencil, Trash2, TrendingUp, X } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
 import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
-import type { EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, MuscleGroupId } from "@/types";
+import type { EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
 import { getSettings } from "@/services/settings";
-import { CATEGORY_LABELS, EQUIPMENT_LABELS, EXERCISE_TYPE_LABELS, MUSCLE_GROUP_LABELS } from "@/types";
+import { CATEGORY_LABELS, EQUIPMENT_LABELS, LOAD_BASIS_LABELS, LOAD_DIRECTION_LABELS, MUSCLE_GROUP_LABELS, RATE_METRIC_LABELS, RECORDING_MODE_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import MuscleHighlightMap from "@/components/MuscleHighlightMap";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
-import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
+import { convertWeight, formatOneDecimal } from "@/core/workoutMetrics";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
+import { comparePerformanceValues } from "@/core/performanceMetrics";
+import {
+  displayPerformanceScalar,
+  displayPerformanceUnit,
+  formatPerformanceInput,
+  formatPerformanceMetric,
+  formatRecordingDescription,
+  formatSet,
+  recordingSnapshotEquals,
+} from "@/utils/recordingPresentation";
 
 export default function ExerciseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +47,10 @@ export default function ExerciseDetailPage() {
   useAndroidBackDismiss(showDelete, () => setShowDelete(false));
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ExerciseCategory>("core");
-  const [type, setType] = useState<Exercise["type"]>("strength");
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>("weight_reps");
+  const [loadBasis, setLoadBasis] = useState<LoadBasis | null>("total");
+  const [loadDirection, setLoadDirection] = useState<LoadDirection | null>("higher_better");
+  const [rateMetric, setRateMetric] = useState<RateMetric>("none");
   const [equipment, setEquipment] = useState<EquipmentId | null>(null);
   const [description, setDescription] = useState("");
   const [primaryMuscles, setPrimaryMuscles] = useState<MuscleGroupId[]>([]);
@@ -82,9 +95,12 @@ export default function ExerciseDetailPage() {
     return byDate;
   }, [history]);
   const dates = Object.keys(groupedHistory).sort((a, b) => b.localeCompare(a));
-  const currentBestPerformance = useMemo(() => currentBestByMetric(performance), [performance]);
+  const currentBestPerformance = useMemo(
+    () => currentBestByMetric(performance, detail?.load_basis ?? null),
+    [performance, detail?.load_basis]
+  );
   const trendData = useMemo(
-    () => trend?.points.map((point) => ({ ...point, display_value: displayPerformanceScalarValue(point.value, point.unit, displayUnit) })) ?? [],
+    () => trend?.points.map((point) => ({ ...point, display_value: displayPerformanceScalar(point.value, point.unit, displayUnit) })) ?? [],
     [trend, displayUnit]
   );
   const trendUnit = trend ? displayPerformanceUnit(trend.points[0]?.unit ?? "kg", displayUnit) : "";
@@ -92,7 +108,10 @@ export default function ExerciseDetailPage() {
   function setEditorState(nextDetail: ExerciseDetail) {
     setName(nextDetail.name);
     setCategory(nextDetail.category);
-    setType(nextDetail.type as Exercise["type"]);
+    setRecordingMode(nextDetail.recording_mode);
+    setLoadBasis(nextDetail.load_basis);
+    setLoadDirection(nextDetail.load_direction);
+    setRateMetric(nextDetail.rate_metric);
     setEquipment(nextDetail.equipment);
     setDescription(nextDetail.description || "");
     setPrimaryMuscles(nextDetail.primary_muscle_group_ids);
@@ -110,7 +129,10 @@ export default function ExerciseDetailPage() {
       const updated = await updateExercise(detail.id, {
         name,
         category,
-        type,
+        recording_mode: recordingMode,
+        load_basis: loadBasis,
+        load_direction: loadDirection,
+        rate_metric: rateMetric,
         equipment,
         description: description.trim() || null,
         primary_muscle_group_ids: primaryMuscles,
@@ -131,7 +153,7 @@ export default function ExerciseDetailPage() {
     const ok = await confirm(
       "删除自定义动作",
       replacement
-        ? `删除后，存活模板中的「${detail.name}」会替换为所选动作；历史训练记录保留原始 ID 和记录类型。`
+        ? `删除后，仍在使用的模板中的「${detail.name}」会替换为所选动作；历史训练保留原来的动作和记录方式。`
         : "删除后会保留历史训练记录；未选择替代动作时，模板中的旧引用不会被迁移。"
     );
     if (!ok) return;
@@ -193,11 +215,31 @@ export default function ExerciseDetailPage() {
             <p className="font-bold app-text break-words">{detail.name}</p>
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <Badge>{CATEGORY_LABELS[detail.category] || detail.category}</Badge>
-              <Badge>{EXERCISE_TYPE_LABELS[detail.type as Exercise["type"]] || detail.type}</Badge>
+              <Badge>{RECORDING_MODE_LABELS[detail.recording_mode]}</Badge>
               <Badge>{detail.equipment ? EQUIPMENT_LABELS[detail.equipment] : "未设置器械"}</Badge>
               {detail.is_custom && <Badge>自定义</Badge>}
             </div>
           </div>
+          <dl className="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 mt-3 text-sm">
+            <dt className="app-text-muted">记录方式</dt>
+            <dd className="app-text font-medium">{RECORDING_MODE_LABELS[detail.recording_mode]}</dd>
+            {detail.load_basis && (
+              <>
+                <dt className="app-text-muted">重量口径</dt>
+                <dd className="app-text font-medium">{LOAD_BASIS_LABELS[detail.load_basis]}</dd>
+              </>
+            )}
+            {detail.rate_metric !== "none" && (
+              <>
+                <dt className="app-text-muted">成绩摘要</dt>
+                <dd className="app-text font-medium">
+                  {[detail.load_direction ? LOAD_DIRECTION_LABELS[detail.load_direction] : null, RATE_METRIC_LABELS[detail.rate_metric]]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </dd>
+              </>
+            )}
+          </dl>
         </section>
 
         <section className="app-surface rounded-2xl border app-border shadow-sm p-4 space-y-3">
@@ -220,7 +262,7 @@ export default function ExerciseDetailPage() {
           <div className="grid grid-cols-2 gap-3">
             <StatCard icon={<Check size={14} />} label="已完成训练" value={detail.stats.completed_workout_count} unit="次" />
             <StatCard icon={<NotebookText size={14} />} label="7天内总组" value={detail.stats.recent_7_day_set_count} unit="组" />
-            {bestStatCards(detail).map((card) => (
+            {bestStatCards(detail.stats.performance).map((card) => (
               <StatCard key={card.label} icon={card.icon} label={card.label} value={card.value} unit={card.unit} />
             ))}
           </div>
@@ -239,9 +281,12 @@ export default function ExerciseDetailPage() {
                 <button key={record.id} onClick={() => navigate(`/workouts/${record.source_workout_id}`)} className="app-surface-muted w-full min-w-0 text-left rounded-xl border app-border p-3">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                     <span className="text-sm font-semibold app-text break-words">{record.metric_label}</span>
-                    <span className="text-sm font-bold app-primary-text text-right break-words max-w-36">{formatPerformanceValue(record, displayUnit)}</span>
+                    <span className="text-sm font-bold app-primary-text text-right break-words max-w-36">{formatPerformanceMetric(record, displayUnit)}</span>
                   </div>
                   <p className="text-xs app-text-muted mt-1">{record.kind === "rpe_adjusted_rm" ? "基于 RPE 修正" : "真实 PR"} · {record.achieved_at.slice(0, 10)}</p>
+                  {formatPerformanceInput(record.input, displayUnit) && (
+                    <p className="text-xs app-text-muted mt-1 break-words">{formatPerformanceInput(record.input, displayUnit)}</p>
+                  )}
                 </button>
               ))}
             </div>
@@ -277,18 +322,17 @@ export default function ExerciseDetailPage() {
             <div className="space-y-2">
               {dates.map((date) => {
                 const records = groupedHistory[date];
-                const dayType = records[0].exercise_type;
-                const maxWeight = dayType === "strength" ? Math.max(...records.map((record) => record.weight ?? 0)) : 0;
+                const dayRecording = records[0];
                 return (
                   <div key={date} className="app-surface rounded-2xl border app-border shadow-sm overflow-hidden">
                     <div className="app-surface-muted px-4 py-2.5 border-b app-border flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold app-text-muted">{date.replace(/-/g, "/")}</p>
-                      <span className="text-xs app-primary-text font-semibold text-right break-words">{EXERCISE_TYPE_LABELS[dayType]}</span>
+                      <span className="text-xs app-primary-text font-semibold text-right break-words">{formatRecordingDescription(dayRecording)}</span>
                     </div>
                     <div>
                       {records.map((record, index) => (
                         <div key={`${date}-${index}`} className={index > 0 ? "border-t app-border" : ""}>
-                          <HistorySet record={record} maxWeight={maxWeight} />
+                          <HistorySet record={record} />
                         </div>
                       ))}
                     </div>
@@ -309,14 +353,20 @@ export default function ExerciseDetailPage() {
         <ExerciseEditor
           name={name}
           category={category}
-          type={type}
+          recordingMode={recordingMode}
+          loadBasis={loadBasis}
+          loadDirection={loadDirection}
+          rateMetric={rateMetric}
           equipment={equipment}
           description={description}
           primary={primaryMuscles}
           secondary={secondaryMuscles}
           onName={setName}
           onCategory={setCategory}
-          onType={setType}
+          onRecordingMode={setRecordingMode}
+          onLoadBasis={setLoadBasis}
+          onLoadDirection={setLoadDirection}
+          onRateMetric={setRateMetric}
           onEquipment={setEquipment}
           onDescription={setDescription}
           onPrimary={setPrimaryMuscles}
@@ -337,7 +387,7 @@ export default function ExerciseDetailPage() {
               </button>
             </div>
             <p className="text-sm app-text-muted leading-relaxed">
-              选择替代动作后，存活模板会迁移到目标动作；历史训练保留原始动作 ID 和记录类型快照。
+              选择替代动作后，仍在使用的模板会迁移到目标动作；历史训练保留原来的动作和记录方式。
             </p>
             <select
               value={replacement}
@@ -345,7 +395,7 @@ export default function ExerciseDetailPage() {
               className="app-input w-full h-12 rounded-xl border px-3 text-sm"
             >
               <option value="">仅删除，不迁移模板</option>
-              {availableExercises.filter((exercise) => exercise.id !== detail.id && exercise.type === detail.type).map((exercise) => (
+              {availableExercises.filter((exercise) => exercise.id !== detail.id && recordingSnapshotEquals(exercise, detail)).map((exercise) => (
                 <option key={exercise.id} value={exercise.id}>{exercise.name}</option>
               ))}
             </select>
@@ -362,14 +412,20 @@ export default function ExerciseDetailPage() {
 function ExerciseEditor(props: {
   name: string;
   category: ExerciseCategory;
-  type: Exercise["type"];
+  recordingMode: RecordingMode;
+  loadBasis: LoadBasis | null;
+  loadDirection: LoadDirection | null;
+  rateMetric: RateMetric;
   equipment: EquipmentId | null;
   description: string;
   primary: MuscleGroupId[];
   secondary: MuscleGroupId[];
   onName: (value: string) => void;
   onCategory: (value: ExerciseCategory) => void;
-  onType: (value: Exercise["type"]) => void;
+  onRecordingMode: (value: RecordingMode) => void;
+  onLoadBasis: (value: LoadBasis | null) => void;
+  onLoadDirection: (value: LoadDirection | null) => void;
+  onRateMetric: (value: RateMetric) => void;
   onEquipment: (value: EquipmentId | null) => void;
   onDescription: (value: string) => void;
   onPrimary: (value: MuscleGroupId[]) => void;
@@ -380,7 +436,10 @@ function ExerciseEditor(props: {
   const value: CustomExerciseFormValue = {
     name: props.name,
     category: props.category,
-    type: props.type,
+    recording_mode: props.recordingMode,
+    load_basis: props.loadBasis,
+    load_direction: props.loadDirection,
+    rate_metric: props.rateMetric,
     equipment: props.equipment,
     description: props.description,
     primary_muscle_group_ids: props.primary,
@@ -389,7 +448,10 @@ function ExerciseEditor(props: {
   function onChange(next: CustomExerciseFormValue) {
     props.onName(next.name);
     props.onCategory(next.category);
-    props.onType(next.type);
+    props.onRecordingMode(next.recording_mode);
+    props.onLoadBasis(next.load_basis);
+    props.onLoadDirection(next.load_direction);
+    props.onRateMetric(next.rate_metric);
     props.onEquipment(next.equipment);
     props.onDescription(next.description);
     props.onPrimary(next.primary_muscle_group_ids);
@@ -442,75 +504,42 @@ function StatCard({ icon, label, value, unit }: { icon: ReactNode; label: string
   );
 }
 
-function bestStatCards(detail: ExerciseDetail): Array<{ icon: ReactNode; label: string; value: string | number; unit?: string }> {
-  if (detail.type === "strength") {
-    return [
-      {
-        icon: <TrendingUp size={14} />,
-        label: "单次最大重量",
-        value: detail.stats.strength.best_weight == null ? "暂无" : round(detail.stats.strength.best_weight),
-        unit: detail.stats.strength.best_weight == null ? undefined : detail.stats.strength.display_unit,
-      },
-      {
-        icon: <Gauge size={14} />,
-        label: "单次最大容量",
-        value: detail.stats.strength.best_volume > 0 ? formatOneDecimal(detail.stats.strength.best_volume) : "暂无",
-        unit: detail.stats.strength.best_volume > 0 ? `${detail.stats.strength.display_unit}·次` : undefined,
-      },
-    ];
+export function bestStatCards(stats: ExerciseDetail["stats"]["performance"]): Array<{ icon: ReactNode; label: string; value: string | number; unit?: string }> {
+  const cards: Array<{ icon: ReactNode; label: string; value: string | number; unit?: string }> = [];
+  if (stats.load_basis === "per_hand" && stats.best_input_load != null) {
+    cards.push({
+      icon: <TrendingUp size={14} />,
+      label: stats.load_direction === "lower_better" ? "最低输入辅助重量" : "最大输入重量",
+      value: round(stats.best_input_load),
+      unit: stats.display_unit,
+    });
   }
-  if (detail.type === "cardio") {
-    return [
-      {
-        icon: <TrendingUp size={14} />,
-        label: "单次最大距离",
-        value: detail.stats.cardio.best_distance_m > 0 ? round(detail.stats.cardio.best_distance_m / 1000) : "暂无",
-        unit: detail.stats.cardio.best_distance_m > 0 ? "km" : undefined,
-      },
-      {
-        icon: <Rocket size={14} />,
-        label: "单次最快速度",
-        value: detail.stats.cardio.best_speed_kmh == null ? "暂无" : round(detail.stats.cardio.best_speed_kmh),
-        unit: detail.stats.cardio.best_speed_kmh == null ? undefined : "km/h",
-      },
-    ];
+  if (stats.best_effective_load != null) {
+    cards.push({
+      icon: <TrendingUp size={14} />,
+      label: stats.load_direction === "lower_better" ? "最低有效辅助重量" : "最大有效负重",
+      value: round(stats.best_effective_load),
+      unit: stats.display_unit,
+    });
   }
-  if (detail.type === "reps_only") {
-    return [{
-      icon: <ListChecks size={14} />,
-      label: "单次最大次数",
-      value: detail.stats.reps_only.best_reps > 0 ? detail.stats.reps_only.best_reps : "暂无",
-      unit: detail.stats.reps_only.best_reps > 0 ? "次" : undefined,
-    }];
+  if (stats.best_set_volume != null) {
+    cards.push({ icon: <Gauge size={14} />, label: "最大单组容量", value: formatOneDecimal(stats.best_set_volume), unit: `${stats.display_unit}·次` });
   }
-  return [{
-    icon: <TrendingUp size={14} />,
-    label: "单次最长保持",
-    value: detail.stats.static_hold.best_duration_sec > 0 ? formatDuration(detail.stats.static_hold.best_duration_sec) : "暂无",
-  }];
+  if (stats.best_reps != null) cards.push({ icon: <TrendingUp size={14} />, label: "最大次数", value: stats.best_reps, unit: "次" });
+  if (stats.best_distance_m != null) cards.push({ icon: <TrendingUp size={14} />, label: "最大距离", value: round(stats.best_distance_m), unit: "m" });
+  if (stats.best_duration_sec != null) cards.push({ icon: <TrendingUp size={14} />, label: "最长时间", value: formatDuration(stats.best_duration_sec) });
+  if (stats.best_speed_mps != null) cards.push({ icon: <TrendingUp size={14} />, label: "最快速度", value: round(stats.best_speed_mps), unit: "m/s" });
+  if (stats.best_load_distance_kg_m != null) cards.push({ icon: <Gauge size={14} />, label: "最大距离负载", value: formatOneDecimal(convertWeight(stats.best_load_distance_kg_m, "kg", stats.display_unit)), unit: `${stats.display_unit}·m` });
+  if (stats.best_load_duration_kg_sec != null) cards.push({ icon: <Gauge size={14} />, label: "最大持续负载", value: formatOneDecimal(convertWeight(stats.best_load_duration_kg_sec, "kg", stats.display_unit)), unit: `${stats.display_unit}·s` });
+  if (stats.best_load_distance_rate_kg_mps != null) cards.push({ icon: <Gauge size={14} />, label: "最大单位时间负载", value: round(convertWeight(stats.best_load_distance_rate_kg_mps, "kg", stats.display_unit)), unit: `${stats.display_unit}·m/s` });
+  return cards;
 }
 
-function HistorySet({ record, maxWeight }: { record: ExerciseHistoryRecord; maxWeight: number }) {
+function HistorySet({ record }: { record: ExerciseHistoryRecord }) {
   return (
     <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 px-4 py-2.5">
       <span className="text-xs font-semibold app-text-muted whitespace-nowrap">第{record.set_number}组</span>
-      {record.exercise_type === "cardio" ? (
-        <span className="text-sm font-semibold app-text break-words">{record.distance_m ?? "—"} m · {record.duration_sec ?? "—"} s</span>
-      ) : record.exercise_type === "static_hold" ? (
-        <span className="text-sm font-semibold app-text break-words">{record.duration_sec ?? "—"} s</span>
-      ) : (
-        <span className="flex min-w-0 items-center gap-2 flex-wrap">
-          {record.exercise_type === "strength" && (
-            <>
-              <span className={`text-sm font-bold ${record.weight === maxWeight && maxWeight > 0 ? "app-primary-text" : "app-text"}`}>
-                {record.weight !== null ? `${record.weight}${record.unit}` : "—"}
-              </span>
-              <span className="app-text-muted">×</span>
-            </>
-          )}
-          <span className="text-sm font-semibold app-text">{record.reps !== null ? `${record.reps}次` : "—"}</span>
-        </span>
-      )}
+      <span className="text-sm font-semibold app-text break-words">{formatSet(record, record)}</span>
     </div>
   );
 }
@@ -540,39 +569,17 @@ function formatDuration(seconds: number): string {
   return remain === 0 ? `${minutes} 分钟` : `${minutes} 分 ${remain} 秒`;
 }
 
-function formatPerformanceValue(record: PerformanceRecord, displayUnit: "kg" | "lb"): string {
-  if (record.metric_type === "strength.rpe_adjusted_rm_mean" && record.rm) {
-    const mean = convertWeight(record.rm.meanKg, "kg", displayUnit);
-    const standardDeviation = convertWeight(record.rm.standardDeviationKg, "kg", displayUnit);
-    return `${formatOneDecimal(mean)} ± ${formatOneDecimal(standardDeviation)} ${displayUnit}`;
-  }
-  if (record.unit === "kg_reps") return formatVolume(displayPerformanceScalarValue(record.value, record.unit, displayUnit), displayUnit);
-  if (record.unit === "kg") return `${formatOneDecimal(displayPerformanceScalarValue(record.value, record.unit, displayUnit))} ${displayUnit}`;
-  if (record.unit === "m_per_sec") return `${formatOneDecimal(record.value)} m/s`;
-  if (record.unit === "sec") return formatDuration(Math.round(record.value));
-  if (record.unit === "reps") return `${formatOneDecimal(record.value)} 次`;
-  return `${formatOneDecimal(record.value)} ${record.unit}`;
-}
-
-function displayPerformanceScalarValue(value: number, unit: PerformanceRecord["unit"], displayUnit: "kg" | "lb"): number {
-  if (unit === "kg" || unit === "kg_reps") return convertWeight(value, "kg", displayUnit);
-  return value;
-}
-
-function displayPerformanceUnit(unit: PerformanceRecord["unit"], displayUnit: "kg" | "lb"): string {
-  if (unit === "kg_reps") return `${displayUnit}·次`;
-  if (unit === "kg") return displayUnit;
-  if (unit === "m_per_sec") return "m/s";
-  if (unit === "sec") return "s";
-  if (unit === "reps") return "次";
-  return unit;
-}
-
-function currentBestByMetric(records: PerformanceRecord[]): PerformanceRecord[] {
+function currentBestByMetric(records: PerformanceRecord[], loadBasis: LoadBasis | null): PerformanceRecord[] {
   const best = new Map<string, PerformanceRecord>();
   for (const record of records) {
+    if (record.metric_type === "weight.max_input" && loadBasis !== "per_hand") continue;
     const previous = best.get(record.metric_type);
-    if (!previous || record.value > previous.value || (record.value === previous.value && record.achieved_at > previous.achieved_at)) {
+    const comparison = previous ? comparePerformanceValues({
+      metricType: record.metric_type,
+      leftValue: record.value,
+      rightValue: previous.value,
+    }) : 1;
+    if (comparison > 0 || (comparison === 0 && previous && record.achieved_at > previous.achieved_at)) {
       best.set(record.metric_type, record);
     }
   }
@@ -581,18 +588,23 @@ function currentBestByMetric(records: PerformanceRecord[]): PerformanceRecord[] 
 
 function metricOrder(metricType: PerformanceRecord["metric_type"]): number {
   const order: PerformanceRecord["metric_type"][] = [
-    "strength.max_weight",
-    "strength.max_reps",
-    "strength.max_set_volume",
-    "strength.max_workout_volume",
-    "strength.rpe_adjusted_rm_mean",
-    "cardio.max_distance",
-    "cardio.max_duration",
-    "cardio.best_average_speed",
-    "reps_only.max_set_reps",
-    "reps_only.max_workout_reps",
-    "static_hold.max_set_duration",
-    "static_hold.max_workout_duration",
+    "weight.max_input",
+    "weight.max_effective",
+    "assistance.min_weight",
+    "assistance.best_reps",
+    "reps.max_set",
+    "reps.max_workout",
+    "volume.max_set",
+    "volume.max_workout",
+    "rm.rpe_adjusted_mean",
+    "distance.max_set",
+    "distance.max_workout",
+    "duration.max_set",
+    "duration.max_workout",
+    "speed.max",
+    "load_duration.max",
+    "load_distance.max",
+    "load_distance_rate.max",
   ];
   const index = order.indexOf(metricType);
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;

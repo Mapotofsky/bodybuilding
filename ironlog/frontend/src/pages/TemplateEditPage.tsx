@@ -252,7 +252,7 @@ export default function TemplateEditPage() {
                     prev.map((item, i) => (i === idx ? { ...item, note: e.target.value } : item))
                   )
                 }
-                placeholder="训练备注，如：4组 8-12次，组间休息90秒"
+                placeholder="训练备注，如：目标、节奏或组间休息安排"
                 rows={2}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-300 focus:border-emerald-400 text-slate-700 placeholder:text-slate-300"
               />

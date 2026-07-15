@@ -1,22 +1,48 @@
-import { CURRENT_SCHEMA_VERSION, type ExerciseDoc, type ExercisePerformanceRecordDoc, type ExerciseType, type PerformanceMetricType, type PerformanceRecordKind, type PerformanceUnit, type WorkoutDoc, type WorkoutExerciseDoc, type WorkoutSetDoc } from "@/core/models";
+import {
+  CURRENT_SCHEMA_VERSION,
+  type ExerciseDoc,
+  type ExercisePerformanceRecordDoc,
+  type PerformanceMetricType,
+  type PerformanceRecordKind,
+  type PerformanceUnit,
+  type RecordingMode,
+  type WorkoutDoc,
+  type WorkoutExerciseDoc,
+  type WorkoutSetDoc,
+} from "@/core/models";
 import { resolveExerciseId } from "@/core/exerciseRedirects";
+import { comparePerformanceValues, getPerformanceMetricSpec } from "@/core/performanceMetrics";
+import { getRecordingModeSpec, recordingConfigOf, validateRecordingConfig } from "@/core/recordingModes";
 import { calculateRpeAdjustedRm } from "@/core/rm";
-import { convertWeight } from "@/core/workoutMetrics";
+import {
+  calculateSetDistanceRateMps,
+  calculateSetLoadDistanceKgM,
+  calculateSetLoadDistanceRateKgMps,
+  calculateSetLoadDurationKgSec,
+  calculateSetVolumeKgReps,
+  convertWeight,
+  effectiveLoadKg,
+} from "@/core/workoutMetrics";
 import { localRepository } from "@/repositories/localJsonRepository";
 
 export const PERFORMANCE_METRIC_LABELS: Record<PerformanceMetricType, string> = {
-  "strength.max_weight": "最大重量",
-  "strength.max_reps": "最大次数",
-  "strength.max_set_volume": "最大单组容量",
-  "strength.max_workout_volume": "最大训练容量",
-  "strength.rpe_adjusted_rm_mean": "1RM 预测",
-  "cardio.max_distance": "最大距离",
-  "cardio.max_duration": "最长时长",
-  "cardio.best_average_speed": "最佳平均速度",
-  "reps_only.max_set_reps": "最大单组次数",
-  "reps_only.max_workout_reps": "最大训练总次数",
-  "static_hold.max_set_duration": "最长单组保持",
-  "static_hold.max_workout_duration": "最长训练总保持",
+  "weight.max_input": "最大输入重量",
+  "weight.max_effective": "最大有效负重",
+  "reps.max_set": "最大单组次数",
+  "reps.max_workout": "最大训练总次数",
+  "volume.max_set": "最大单组容量",
+  "volume.max_workout": "最大训练容量",
+  "rm.rpe_adjusted_mean": "1RM 预测",
+  "assistance.best_reps": "最佳辅助次数",
+  "assistance.min_weight": "最低辅助重量",
+  "distance.max_set": "最大单组距离",
+  "distance.max_workout": "最大训练距离",
+  "duration.max_set": "最长单组时间",
+  "duration.max_workout": "最长训练时间",
+  "speed.max": "最快速度",
+  "load_duration.max": "最大持续负载",
+  "load_distance.max": "最大距离负载",
+  "load_distance_rate.max": "最大单位时间负载",
 };
 
 export interface PerformanceRecord {
@@ -76,7 +102,8 @@ export async function recordPerformanceForCompletedWorkout(workoutId: string): P
   if (!workout || workout.deletedAt || workout.endTime == null) return;
 
   const records = buildPerformanceRefreshRecordsForWorkout(workout, snapshot.exercises, snapshot.exercisePerformanceRecords);
-  const hasExistingRecordsForWorkout = snapshot.exercisePerformanceRecords.some((record) => !record.deletedAt && record.sourceWorkoutId === workout.id);
+  const hasExistingRecordsForWorkout = snapshot.exercisePerformanceRecords
+    .some((record) => !record.deletedAt && record.sourceWorkoutId === workout.id);
   if (records.length === 0 && !hasExistingRecordsForWorkout) return;
 
   await localRepository.replaceExercisePerformanceRecords({ sourceWorkoutIds: [workout.id] }, records);
@@ -108,18 +135,21 @@ export async function getWorkoutPerformanceRecords(workoutId: string): Promise<P
 
 export async function getExercisePerformanceTrend(exerciseId: string): Promise<ExercisePerformanceTrend> {
   const snapshot = await localRepository.getSnapshot();
-  const exercise = snapshot.exercises.find((item) => item.id === exerciseId);
-  const exerciseType = exercise?.type || "strength";
-  return buildExercisePerformanceTrend(snapshot.workouts, snapshot.exercises, exerciseId, exerciseType);
+  const exercise = snapshot.exercises.find((item) => item.id === exerciseId && !item.deletedAt);
+  if (!exercise) throw new Error("动作不存在");
+  return buildExercisePerformanceTrend(snapshot.workouts, snapshot.exercises, exerciseId, exercise.recordingMode);
 }
 
 export function buildExercisePerformanceTrend(
   workouts: WorkoutDoc[],
   exercises: ExerciseDoc[],
   exerciseId: string,
-  exerciseType: ExerciseType
+  recordingMode: RecordingMode
 ): ExercisePerformanceTrend {
-  const metricType = trendMetricForType(exerciseType);
+  const exercise = exercises.find((item) => item.id === exerciseId);
+  if (!exercise) throw new Error("动作不存在");
+  const metricType = trendMetricForConfig(exercise);
+  if (exercise.recordingMode !== recordingMode) throw new Error("趋势记录方式与动作配置不一致");
   const points = workouts
     .filter((workout) => !workout.deletedAt && workout.endTime != null)
     .slice()
@@ -129,19 +159,10 @@ export function buildExercisePerformanceTrend(
         .filter((candidate) => candidate.exerciseId === exerciseId && candidate.metricType === metricType)
         .sort((left, right) => compareCandidate(right, left))[0];
       if (!best) return null;
-      return {
-        date: workout.date,
-        value: best.value,
-        unit: best.unit,
-        source_workout_id: workout.id,
-      };
+      return { date: workout.date, value: best.value, unit: best.unit, source_workout_id: workout.id };
     })
     .filter((point): point is ExercisePerformanceTrendPoint => point != null);
-  return {
-    metric_type: metricType,
-    metric_label: PERFORMANCE_METRIC_LABELS[metricType],
-    points,
-  };
+  return { metric_type: metricType, metric_label: PERFORMANCE_METRIC_LABELS[metricType], points };
 }
 
 export async function getPeriodPerformanceSummary(params: { from: string; to: string }): Promise<PerformanceSummary> {
@@ -161,10 +182,14 @@ export async function getPeriodPerformanceSummary(params: { from: string; to: st
         .filter((item) => item.exerciseId === record.exerciseId && item.metricType === record.metricType && item.achievedAt < record.achievedAt)
         .sort((left, right) => right.achievedAt.localeCompare(left.achievedAt))[0];
       if (!previous || previous.value <= 0) return null;
+      const direction = getPerformanceMetricSpec(record.metricType).direction;
+      const improvementRatio = direction === "max"
+        ? (record.value - previous.value) / previous.value
+        : (previous.value - record.value) / previous.value;
       return {
         record: toPerformanceRecord(record, exercises),
         previous_value: previous.value,
-        improvement_ratio: (record.value - previous.value) / previous.value,
+        improvement_ratio: improvementRatio,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item != null && item.improvement_ratio > 0)
@@ -178,13 +203,6 @@ export async function getPeriodPerformanceSummary(params: { from: string; to: st
   };
 }
 
-function trendMetricForType(exerciseType: ExerciseType): PerformanceMetricType {
-  if (exerciseType === "strength") return "strength.rpe_adjusted_rm_mean";
-  if (exerciseType === "cardio") return "cardio.best_average_speed";
-  if (exerciseType === "reps_only") return "reps_only.max_set_reps";
-  return "static_hold.max_set_duration";
-}
-
 export function buildPerformanceRecords(workouts: WorkoutDoc[], exercises: ExerciseDoc[]): ExercisePerformanceRecordDoc[] {
   const candidates = workouts
     .filter((workout) => !workout.deletedAt && workout.endTime != null)
@@ -194,7 +212,7 @@ export function buildPerformanceRecords(workouts: WorkoutDoc[], exercises: Exerc
   const best = new Map<string, PerformanceCandidate>();
   const records: ExercisePerformanceRecordDoc[] = [];
   for (const candidate of candidates) {
-    const key = `${candidate.exerciseId}:${candidate.metricType}`;
+    const key = performanceKey(candidate);
     const previous = best.get(key);
     if (!previous || compareCandidate(candidate, previous) > 0) {
       records.push(stripCandidate(candidate));
@@ -210,22 +228,15 @@ export function buildPerformanceRefreshRecordsForWorkout(
   existingRecords: ExercisePerformanceRecordDoc[]
 ): ExercisePerformanceRecordDoc[] {
   if (workout.deletedAt || workout.endTime == null) return [];
-
-  const previousBest = bestCandidatesByKey(
-    existingRecords
-      .filter((record) => !record.deletedAt && record.sourceWorkoutId !== workout.id)
-      .map(candidateFromRecord)
-  );
+  const previousBest = bestCandidatesByKey(existingRecords
+    .filter((record) => !record.deletedAt && record.sourceWorkoutId !== workout.id)
+    .map(candidateFromRecord));
   const workoutBest = bestCandidatesByKey(candidatesForWorkout(workout, exercises));
   const records: ExercisePerformanceRecordDoc[] = [];
-
   for (const [key, candidate] of workoutBest) {
     const previous = previousBest.get(key);
-    if (!previous || compareCandidate(candidate, previous) > 0) {
-      records.push(stripCandidate(candidate));
-    }
+    if (!previous || compareCandidate(candidate, previous) > 0) records.push(stripCandidate(candidate));
   }
-
   return records.sort((left, right) => left.achievedAt.localeCompare(right.achievedAt) || left.id.localeCompare(right.id));
 }
 
@@ -241,158 +252,269 @@ function bestCandidatesByKey(candidates: PerformanceCandidate[]): Map<string, Pe
 
 function candidatesForWorkout(workout: WorkoutDoc, exercises: ExerciseDoc[]): PerformanceCandidate[] {
   return workout.exercises.flatMap((exercise) => {
+    validateRecordingConfig(recordingConfigOf(exercise));
     const resolved = resolveExerciseId(exercise.exerciseId, exercises);
+    if (resolved.status === "unresolved" && resolved.reason !== "missing") return [];
     const exerciseId = resolved.status === "resolved" ? resolved.resolvedId : exercise.exerciseId;
-    const sourceTime = achievedAt(workout);
-    const baseUpdatedAt = maxIso(workout.updatedAt, sourceTime);
-    if (exercise.exerciseType === "strength") return strengthCandidates(workout, exercise, exerciseId, sourceTime, baseUpdatedAt);
-    if (exercise.exerciseType === "cardio") return cardioCandidates(workout, exercise, exerciseId, sourceTime, baseUpdatedAt);
-    if (exercise.exerciseType === "reps_only") return repsOnlyCandidates(workout, exercise, exerciseId, sourceTime, baseUpdatedAt);
-    return staticHoldCandidates(workout, exercise, exerciseId, sourceTime, baseUpdatedAt);
+    return exerciseCandidates(workout, exercise, exerciseId, achievedAt(workout), maxIso(workout.updatedAt, achievedAt(workout)));
   });
 }
 
-function strengthCandidates(workout: WorkoutDoc, exercise: WorkoutExerciseDoc, exerciseId: string, sourceTime: string, updatedAt: string): PerformanceCandidate[] {
-  const candidates: PerformanceCandidate[] = [];
+function exerciseCandidates(
+  workout: WorkoutDoc,
+  exercise: WorkoutExerciseDoc,
+  exerciseId: string,
+  sourceTime: string,
+  updatedAt: string
+): PerformanceCandidate[] {
+  const spec = getRecordingModeSpec(exercise.recordingMode);
   const workingSets = exercise.sets.filter((set) => !set.isWarmup);
-  let workoutVolumeKgReps = 0;
-  for (const set of workingSets) {
-    const weightKg = set.weight == null ? null : convertWeight(set.weight, set.unit, "kg");
-    const setVolume = weightKg != null && set.reps != null ? weightKg * set.reps : null;
-    if (setVolume != null) workoutVolumeKgReps += setVolume;
-    if (weightKg != null) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "strength.max_weight", value: weightKg, unit: "kg", achievedAt: sourceTime, updatedAt, tieBreakers: [set.reps ?? 0], input: inputSummary({ weightKg, reps: set.reps, rpe: set.rpe, workoutVolumeKgReps: null }) }));
-    if (set.reps != null) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "strength.max_reps", value: set.reps, unit: "reps", achievedAt: sourceTime, updatedAt, tieBreakers: [weightKg ?? 0], input: inputSummary({ weightKg, reps: set.reps, rpe: set.rpe, workoutVolumeKgReps: null }) }));
-    if (setVolume != null) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "strength.max_set_volume", value: setVolume, unit: "kg_reps", achievedAt: sourceTime, updatedAt, tieBreakers: [weightKg ?? 0, set.reps ?? 0], input: inputSummary({ weightKg, reps: set.reps, rpe: set.rpe, workoutVolumeKgReps: null }) }));
-    if (weightKg != null && set.reps != null && set.rpe != null) {
-      const rm = calculateRpeAdjustedRm({ weightKg, reps: set.reps, rpe: set.rpe });
-      if (rm) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "rpe_adjusted_rm", metricType: "strength.rpe_adjusted_rm_mean", value: rm.formulas.meanKg, unit: "kg", achievedAt: sourceTime, updatedAt, tieBreakers: [weightKg, set.reps], input: inputSummary({ weightKg, reps: set.reps, rpe: set.rpe, effectiveReps: rm.effectiveReps, workoutVolumeKgReps: null }), rm: rm.formulas }));
-    }
-  }
-  if (workoutVolumeKgReps > 0) candidates.push(makeCandidate({ workout, exercise, exerciseId, set: null, kind: "true_pr", metricType: "strength.max_workout_volume", value: workoutVolumeKgReps, unit: "kg_reps", achievedAt: sourceTime, updatedAt, tieBreakers: [workingSets.length], input: inputSummary({ workoutVolumeKgReps }) }));
-  return candidates;
-}
-
-function cardioCandidates(workout: WorkoutDoc, exercise: WorkoutExerciseDoc, exerciseId: string, sourceTime: string, updatedAt: string): PerformanceCandidate[] {
-  const candidates: PerformanceCandidate[] = [];
-  for (const set of exercise.sets.filter((item) => !item.isWarmup)) {
-    if (set.distanceM != null) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "cardio.max_distance", value: set.distanceM, unit: "m", achievedAt: sourceTime, updatedAt, tieBreakers: [set.durationSec ?? 0], input: inputSummary({ distanceM: set.distanceM, durationSec: set.durationSec }) }));
-    if (set.durationSec != null) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "cardio.max_duration", value: set.durationSec, unit: "sec", achievedAt: sourceTime, updatedAt, tieBreakers: [set.distanceM ?? 0], input: inputSummary({ distanceM: set.distanceM, durationSec: set.durationSec }) }));
-    if (set.distanceM != null && set.durationSec != null && set.durationSec > 0) candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "cardio.best_average_speed", value: set.distanceM / set.durationSec, unit: "m_per_sec", achievedAt: sourceTime, updatedAt, tieBreakers: [set.distanceM], input: inputSummary({ distanceM: set.distanceM, durationSec: set.durationSec }) }));
-  }
-  return candidates;
-}
-
-function repsOnlyCandidates(workout: WorkoutDoc, exercise: WorkoutExerciseDoc, exerciseId: string, sourceTime: string, updatedAt: string): PerformanceCandidate[] {
   const candidates: PerformanceCandidate[] = [];
   let workoutReps = 0;
-  for (const set of exercise.sets.filter((item) => !item.isWarmup)) {
-    if (set.reps == null) continue;
-    workoutReps += set.reps;
-    candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "reps_only.max_set_reps", value: set.reps, unit: "reps", achievedAt: sourceTime, updatedAt, tieBreakers: [], input: inputSummary({ reps: set.reps }) }));
+  let workoutDistanceM = 0;
+  let workoutDurationSec = 0;
+  let workoutVolumeKgReps = 0;
+
+  for (const set of workingSets) {
+    const enteredLoadKg = set.weight == null ? null : convertWeight(set.weight, set.unit, "kg");
+    const effectiveKg = set.weight == null || !exercise.loadBasis
+      ? null
+      : effectiveLoadKg(set.weight, set.unit, exercise.loadBasis);
+    const input = setInput(exercise, set, effectiveKg);
+
+    if (spec.performance.base.includes("load") && enteredLoadKg != null && effectiveKg != null) {
+      if (exercise.loadDirection === "higher_better") {
+        if (exercise.loadBasis === "per_hand") {
+          candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "weight.max_input", value: enteredLoadKg, sourceTime, updatedAt, input }));
+        }
+        candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "weight.max_effective", value: effectiveKg, sourceTime, updatedAt, input }));
+      } else if (exercise.loadDirection === "lower_better") {
+        candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "assistance.min_weight", value: effectiveKg, sourceTime, updatedAt, input }));
+      }
+    }
+
+    if (spec.performance.base.includes("reps") && set.reps != null) {
+      workoutReps += set.reps;
+      const metricType = exercise.loadDirection === "lower_better" ? "assistance.best_reps" : "reps.max_set";
+      candidates.push(candidate({ workout, exercise, exerciseId, set, metricType, value: set.reps, sourceTime, updatedAt, input }));
+    }
+    if (spec.performance.base.includes("distance") && set.distanceM != null) {
+      workoutDistanceM += set.distanceM;
+      candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "distance.max_set", value: set.distanceM, sourceTime, updatedAt, input }));
+    }
+    if (spec.performance.base.includes("duration") && set.durationSec != null) {
+      workoutDurationSec += set.durationSec;
+      candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "duration.max_set", value: set.durationSec, sourceTime, updatedAt, input }));
+    }
+
+    if (exercise.loadDirection === "higher_better" && exercise.loadBasis) {
+      if (spec.performance.compound.includes("volume")) {
+        const volume = calculateSetVolumeKgReps(set, exercise.loadBasis);
+        if (volume != null) {
+          workoutVolumeKgReps += volume;
+          candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "volume.max_set", value: volume, sourceTime, updatedAt, input }));
+        }
+      }
+      if (spec.performance.compound.includes("rpe_adjusted_rm") && effectiveKg != null && set.reps != null && set.rpe != null) {
+        const rm = calculateRpeAdjustedRm({ weightKg: effectiveKg, reps: set.reps, rpe: set.rpe });
+        if (rm) {
+          candidates.push(candidate({
+            workout,
+            exercise,
+            exerciseId,
+            set,
+            metricType: "rm.rpe_adjusted_mean",
+            value: rm.formulas.meanKg,
+            sourceTime,
+            updatedAt,
+            input: { ...input, effectiveReps: rm.effectiveReps },
+            kind: "rpe_adjusted_rm",
+            rm: rm.formulas,
+          }));
+        }
+      }
+      if (spec.performance.compound.includes("load_duration")) {
+        const value = calculateSetLoadDurationKgSec(set, exercise.loadBasis);
+        if (value != null) candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "load_duration.max", value, sourceTime, updatedAt, input }));
+      }
+      if (spec.performance.compound.includes("load_duration_without_distance") && set.distanceM == null) {
+        const value = calculateSetLoadDurationKgSec(set, exercise.loadBasis);
+        if (value != null) candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "load_duration.max", value, sourceTime, updatedAt, input }));
+      }
+      if (spec.performance.compound.includes("load_distance")) {
+        const value = calculateSetLoadDistanceKgM(set, exercise.loadBasis);
+        if (value != null) candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "load_distance.max", value, sourceTime, updatedAt, input }));
+      }
+      if (spec.performance.compound.includes("load_distance_rate") && exercise.rateMetric === "load_distance_per_time") {
+        const value = calculateSetLoadDistanceRateKgMps(set, exercise.loadBasis);
+        if (value != null) candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "load_distance_rate.max", value, sourceTime, updatedAt, input }));
+      }
+    }
+    if (spec.performance.compound.includes("distance_rate") && exercise.rateMetric === "distance_per_time") {
+      const value = calculateSetDistanceRateMps(set);
+      if (value != null) candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "speed.max", value, sourceTime, updatedAt, input }));
+    }
   }
-  if (workoutReps > 0) candidates.push(makeCandidate({ workout, exercise, exerciseId, set: null, kind: "true_pr", metricType: "reps_only.max_workout_reps", value: workoutReps, unit: "reps", achievedAt: sourceTime, updatedAt, tieBreakers: [], input: inputSummary({ reps: workoutReps }) }));
+
+  if (workoutReps > 0 && exercise.loadDirection !== "lower_better") {
+    candidates.push(candidate({ workout, exercise, exerciseId, set: null, metricType: "reps.max_workout", value: workoutReps, sourceTime, updatedAt, input: inputSummary({ reps: workoutReps }) }));
+  }
+  if (workoutDistanceM > 0) {
+    candidates.push(candidate({ workout, exercise, exerciseId, set: null, metricType: "distance.max_workout", value: workoutDistanceM, sourceTime, updatedAt, input: inputSummary({ distanceM: workoutDistanceM, durationSec: workoutDurationSec || null }) }));
+  }
+  if (workoutDurationSec > 0) {
+    candidates.push(candidate({ workout, exercise, exerciseId, set: null, metricType: "duration.max_workout", value: workoutDurationSec, sourceTime, updatedAt, input: inputSummary({ durationSec: workoutDurationSec, distanceM: workoutDistanceM || null }) }));
+  }
+  if (workoutVolumeKgReps > 0) {
+    candidates.push(candidate({ workout, exercise, exerciseId, set: null, metricType: "volume.max_workout", value: workoutVolumeKgReps, sourceTime, updatedAt, input: inputSummary({ workoutVolumeKgReps, reps: workoutReps || null }) }));
+  }
   return candidates;
 }
 
-function staticHoldCandidates(workout: WorkoutDoc, exercise: WorkoutExerciseDoc, exerciseId: string, sourceTime: string, updatedAt: string): PerformanceCandidate[] {
-  const candidates: PerformanceCandidate[] = [];
-  let workoutDuration = 0;
-  for (const set of exercise.sets.filter((item) => !item.isWarmup)) {
-    if (set.durationSec == null) continue;
-    workoutDuration += set.durationSec;
-    candidates.push(makeCandidate({ workout, exercise, exerciseId, set, kind: "true_pr", metricType: "static_hold.max_set_duration", value: set.durationSec, unit: "sec", achievedAt: sourceTime, updatedAt, tieBreakers: [], input: inputSummary({ durationSec: set.durationSec }) }));
-  }
-  if (workoutDuration > 0) candidates.push(makeCandidate({ workout, exercise, exerciseId, set: null, kind: "true_pr", metricType: "static_hold.max_workout_duration", value: workoutDuration, unit: "sec", achievedAt: sourceTime, updatedAt, tieBreakers: [], input: inputSummary({ durationSec: workoutDuration }) }));
-  return candidates;
-}
-
-function makeCandidate(params: {
+function candidate(params: {
   workout: WorkoutDoc;
   exercise: WorkoutExerciseDoc;
   exerciseId: string;
   set: WorkoutSetDoc | null;
-  kind: PerformanceRecordKind;
   metricType: PerformanceMetricType;
   value: number;
-  unit: PerformanceUnit;
-  achievedAt: string;
+  sourceTime: string;
   updatedAt: string;
-  tieBreakers: number[];
   input: ExercisePerformanceRecordDoc["input"];
+  kind?: PerformanceRecordKind;
   rm?: ExercisePerformanceRecordDoc["rm"];
 }): PerformanceCandidate {
+  const metricSpec = getPerformanceMetricSpec(params.metricType);
   return {
     id: performanceId(params),
     exerciseId: params.exerciseId,
-    kind: params.kind,
+    kind: params.kind ?? "true_pr",
     metricType: params.metricType,
     value: round(params.value),
-    unit: params.unit,
-    achievedAt: params.achievedAt,
+    unit: metricSpec.unit,
+    achievedAt: params.sourceTime,
     sourceWorkoutId: params.workout.id,
     sourceWorkoutExerciseId: params.exercise.id,
     sourceSetId: params.set?.id ?? null,
-    input: params.input,
+    input: roundInput(params.input),
     rm: params.rm ? roundRm(params.rm) : null,
-    createdAt: params.achievedAt,
+    createdAt: params.sourceTime,
     updatedAt: params.updatedAt,
     deletedAt: null,
     schemaVersion: CURRENT_SCHEMA_VERSION,
-    tieBreakers: params.tieBreakers.map(round),
+    tieBreakers: tieBreakersFor(params.metricType, params.input),
   };
 }
 
-function performanceId(params: Pick<Parameters<typeof makeCandidate>[0], "workout" | "exercise" | "set" | "kind" | "metricType">): string {
-  return `performance:${params.metricType}:${params.workout.id}:${params.exercise.id}:${params.set?.id ?? "workout"}:${params.kind}`;
+function performanceId(params: {
+  workout: WorkoutDoc;
+  exercise: WorkoutExerciseDoc;
+  set: WorkoutSetDoc | null;
+  metricType: PerformanceMetricType;
+  kind?: PerformanceRecordKind;
+}): string {
+  return `performance:${params.metricType}:${params.workout.id}:${params.exercise.id}:${params.set?.id ?? "workout"}:${params.kind ?? "true_pr"}`;
+}
+
+function setInput(exercise: WorkoutExerciseDoc, set: WorkoutSetDoc, effectiveKg: number | null): ExercisePerformanceRecordDoc["input"] {
+  return inputSummary({
+    enteredLoad: set.weight,
+    enteredLoadUnit: set.weight == null ? null : set.unit,
+    effectiveLoadKg: effectiveKg,
+    loadBasis: exercise.loadBasis,
+    loadDirection: exercise.loadDirection,
+    reps: set.reps,
+    rpe: set.rpe,
+    distanceM: set.distanceM,
+    durationSec: set.durationSec,
+  });
 }
 
 function inputSummary(values: Partial<ExercisePerformanceRecordDoc["input"]>): ExercisePerformanceRecordDoc["input"] {
   return {
-    weightKg: values.weightKg == null ? null : round(values.weightKg),
+    enteredLoad: values.enteredLoad ?? null,
+    enteredLoadUnit: values.enteredLoadUnit ?? null,
+    effectiveLoadKg: values.effectiveLoadKg ?? null,
+    loadBasis: values.loadBasis ?? null,
+    loadDirection: values.loadDirection ?? null,
     reps: values.reps ?? null,
     rpe: values.rpe ?? null,
     effectiveReps: values.effectiveReps ?? null,
     distanceM: values.distanceM ?? null,
     durationSec: values.durationSec ?? null,
-    workoutVolumeKgReps: values.workoutVolumeKgReps == null ? null : round(values.workoutVolumeKgReps),
+    workoutVolumeKgReps: values.workoutVolumeKgReps ?? null,
+  };
+}
+
+function roundInput(input: ExercisePerformanceRecordDoc["input"]): ExercisePerformanceRecordDoc["input"] {
+  return {
+    ...input,
+    enteredLoad: input.enteredLoad == null ? null : round(input.enteredLoad),
+    effectiveLoadKg: input.effectiveLoadKg == null ? null : round(input.effectiveLoadKg),
+    distanceM: input.distanceM == null ? null : round(input.distanceM),
+    workoutVolumeKgReps: input.workoutVolumeKgReps == null ? null : round(input.workoutVolumeKgReps),
   };
 }
 
 function candidateFromRecord(record: ExercisePerformanceRecordDoc): PerformanceCandidate {
-  return {
-    ...record,
-    tieBreakers: tieBreakersFromRecord(record),
-  };
+  return { ...record, tieBreakers: tieBreakersFor(record.metricType, record.input) };
 }
 
-function tieBreakersFromRecord(record: ExercisePerformanceRecordDoc): number[] {
-  if (record.metricType === "strength.max_weight") return [record.input.reps ?? 0];
-  if (record.metricType === "strength.max_reps") return [record.input.weightKg ?? 0];
-  if (record.metricType === "strength.max_set_volume") return [record.input.weightKg ?? 0, record.input.reps ?? 0];
-  if (record.metricType === "strength.rpe_adjusted_rm_mean") return [record.input.weightKg ?? 0, record.input.reps ?? 0];
-  if (record.metricType === "cardio.max_distance") return [record.input.durationSec ?? 0];
-  if (record.metricType === "cardio.max_duration") return [record.input.distanceM ?? 0];
-  if (record.metricType === "cardio.best_average_speed") return [record.input.distanceM ?? 0];
-  return [];
+function tieBreakersFor(metricType: PerformanceMetricType, input: ExercisePerformanceRecordDoc["input"]): number[] {
+  switch (metricType) {
+    case "weight.max_input":
+    case "weight.max_effective":
+      return [input.reps ?? 0, input.distanceM ?? 0, input.durationSec ?? 0];
+    case "reps.max_set": return [input.effectiveLoadKg ?? 0];
+    case "reps.max_workout": return [input.reps ?? 0];
+    case "volume.max_set": return [input.effectiveLoadKg ?? 0, input.reps ?? 0];
+    case "volume.max_workout": return [input.reps ?? 0];
+    case "rm.rpe_adjusted_mean": return [input.effectiveLoadKg ?? 0, input.reps ?? 0];
+    case "assistance.best_reps": return [input.effectiveLoadKg ?? Number.MAX_SAFE_INTEGER];
+    case "assistance.min_weight": return [input.reps ?? input.durationSec ?? input.distanceM ?? 0];
+    case "distance.max_set":
+    case "distance.max_workout": return [input.durationSec ?? Number.MAX_SAFE_INTEGER];
+    case "duration.max_set":
+    case "duration.max_workout": return [input.distanceM ?? 0];
+    case "speed.max": return [input.distanceM ?? 0, input.durationSec ?? Number.MAX_SAFE_INTEGER];
+    case "load_duration.max": return [input.effectiveLoadKg ?? 0, input.durationSec ?? 0];
+    case "load_distance.max":
+    case "load_distance_rate.max": return [input.effectiveLoadKg ?? 0, input.distanceM ?? 0, input.durationSec ?? Number.MAX_SAFE_INTEGER];
+  }
 }
 
 function compareCandidate(left: PerformanceCandidate, right: PerformanceCandidate): number {
-  const primary = left.value - right.value;
-  if (Math.abs(primary) > 1e-9) return primary;
-  const length = Math.max(left.tieBreakers.length, right.tieBreakers.length);
-  for (let index = 0; index < length; index += 1) {
-    const diff = (left.tieBreakers[index] ?? 0) - (right.tieBreakers[index] ?? 0);
-    if (Math.abs(diff) > 1e-9) return diff;
+  return comparePerformanceValues({
+    metricType: left.metricType,
+    leftValue: left.value,
+    rightValue: right.value,
+    leftTieBreakers: left.tieBreakers,
+    rightTieBreakers: right.tieBreakers,
+  });
+}
+
+function trendMetricForConfig(exercise: ExerciseDoc): PerformanceMetricType {
+  validateRecordingConfig(recordingConfigOf(exercise));
+  switch (exercise.recordingMode) {
+    case "weight_reps":
+      return exercise.loadDirection === "lower_better" ? "assistance.best_reps" : "rm.rpe_adjusted_mean";
+    case "reps": return "reps.max_set";
+    case "duration": return "duration.max_set";
+    case "distance_duration": return exercise.rateMetric === "distance_per_time" ? "speed.max" : "distance.max_set";
+    case "weight_duration": return exercise.loadDirection === "lower_better" ? "duration.max_set" : "load_duration.max";
+    case "weight_distance_duration":
+      if (exercise.rateMetric === "load_distance_per_time") return "load_distance_rate.max";
+      if (exercise.rateMetric === "distance_per_time") return "speed.max";
+      return exercise.loadDirection === "lower_better" ? "distance.max_set" : "load_distance.max";
   }
-  return 0;
 }
 
 function performanceKey(record: Pick<ExercisePerformanceRecordDoc, "exerciseId" | "metricType">): string {
   return `${record.exerciseId}:${record.metricType}`;
 }
 
-function stripCandidate(candidate: PerformanceCandidate): ExercisePerformanceRecordDoc {
-  const { tieBreakers: _tieBreakers, ...record } = candidate;
+function stripCandidate(candidateValue: PerformanceCandidate): ExercisePerformanceRecordDoc {
+  const { tieBreakers: _tieBreakers, ...record } = candidateValue;
   return record;
 }
 

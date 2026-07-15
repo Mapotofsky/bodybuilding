@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 export type DocId = string;
 export type ISODate = string;
@@ -6,7 +6,16 @@ export type ISODateTime = string;
 export type WeightUnit = "kg" | "lb";
 export const DEFAULT_THEME_ID = "emerald-slate";
 export type PlanMode = "weekly" | "cyclic" | "flexible";
-export type ExerciseType = "strength" | "cardio" | "reps_only" | "static_hold";
+export type RecordingMode =
+  | "weight_reps"
+  | "reps"
+  | "duration"
+  | "distance_duration"
+  | "weight_duration"
+  | "weight_distance_duration";
+export type LoadBasis = "total" | "per_hand";
+export type LoadDirection = "higher_better" | "lower_better";
+export type RateMetric = "none" | "distance_per_time" | "load_distance_per_time";
 export type ExerciseCategory =
   | "chest" | "back" | "legs" | "shoulders" | "arms"
   | "core" | "cardio" | "stretch" | "other";
@@ -49,7 +58,10 @@ export interface SyncEndpointConfig {
 export interface ExerciseDoc extends BaseDoc {
   name: string;
   category: ExerciseCategory;
-  type: ExerciseType;
+  recordingMode: RecordingMode;
+  loadBasis: LoadBasis | null;
+  loadDirection: LoadDirection | null;
+  rateMetric: RateMetric;
   equipment: EquipmentId | null;
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
@@ -70,7 +82,10 @@ export interface DefaultExerciseSeed {
   id: string;
   name: string;
   category: ExerciseCategory;
-  type: ExerciseType;
+  recordingMode: RecordingMode;
+  loadBasis: LoadBasis | null;
+  loadDirection: LoadDirection | null;
+  rateMetric: RateMetric;
   equipment: EquipmentId | null;
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
@@ -121,7 +136,10 @@ export interface WorkoutExerciseDoc {
   id: DocId;
   exerciseId: DocId;
   /** Immutable interpretation of the exercise at the time this workout was recorded. */
-  exerciseType: ExerciseType;
+  recordingMode: RecordingMode;
+  loadBasis: LoadBasis | null;
+  loadDirection: LoadDirection | null;
+  rateMetric: RateMetric;
   sortOrder: number;
   supersetGroup: number | null;
   sets: WorkoutSetDoc[];
@@ -168,20 +186,34 @@ export interface TimelineNoteDoc extends BaseDoc {
 export type PerformanceRecordKind = "true_pr" | "rpe_adjusted_rm";
 
 export type PerformanceMetricType =
-  | "strength.max_weight"
-  | "strength.max_reps"
-  | "strength.max_set_volume"
-  | "strength.max_workout_volume"
-  | "strength.rpe_adjusted_rm_mean"
-  | "cardio.max_distance"
-  | "cardio.max_duration"
-  | "cardio.best_average_speed"
-  | "reps_only.max_set_reps"
-  | "reps_only.max_workout_reps"
-  | "static_hold.max_set_duration"
-  | "static_hold.max_workout_duration";
+  | "weight.max_input"
+  | "weight.max_effective"
+  | "reps.max_set"
+  | "reps.max_workout"
+  | "volume.max_set"
+  | "volume.max_workout"
+  | "rm.rpe_adjusted_mean"
+  | "assistance.best_reps"
+  | "assistance.min_weight"
+  | "distance.max_set"
+  | "distance.max_workout"
+  | "duration.max_set"
+  | "duration.max_workout"
+  | "speed.max"
+  | "load_duration.max"
+  | "load_distance.max"
+  | "load_distance_rate.max";
 
-export type PerformanceUnit = "kg" | "kg_reps" | "m" | "sec" | "m_per_sec" | "reps";
+export type PerformanceUnit =
+  | "kg"
+  | "kg_reps"
+  | "kg_seconds"
+  | "kg_meters"
+  | "kg_meters_per_second"
+  | "m"
+  | "sec"
+  | "m_per_sec"
+  | "reps";
 
 export interface RmFormulaResults {
   epleyKg: number;
@@ -195,7 +227,11 @@ export interface RmFormulaResults {
 }
 
 export interface PerformanceInputSummary {
-  weightKg: number | null;
+  enteredLoad: number | null;
+  enteredLoadUnit: WeightUnit | null;
+  effectiveLoadKg: number | null;
+  loadBasis: LoadBasis | null;
+  loadDirection: LoadDirection | null;
   reps: number | null;
   rpe: number | null;
   effectiveReps: number | null;

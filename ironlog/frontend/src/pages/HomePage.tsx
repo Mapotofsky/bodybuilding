@@ -12,6 +12,7 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 import { formatVolume } from "@/core/workoutMetrics";
+import { formatWorkoutSummariesPrimaryMetric, formatWorkoutSummaryPrimaryMetric } from "@/utils/workoutPresentation";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ export default function HomePage() {
   }
 
   const thisMonthCount = monthWorkouts.length;
-  const thisMonthVolume = monthWorkouts.reduce((sum, w) => sum + w.total_volume, 0);
+  const thisMonthMetric = formatWorkoutSummariesPrimaryMetric(monthWorkouts);
   const displayUnit = monthWorkouts[0]?.total_volume_unit || recentWorkouts[0]?.total_volume_unit || "kg";
 
   const volumeChartData = [...recentWorkouts]
@@ -187,9 +188,9 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-sm shadow-emerald-200">
             <BarChart2 size={16} className="text-white/80 mb-2" />
             <p className="text-2xl font-bold text-white">
-              {formatVolume(thisMonthVolume, displayUnit)}
+              {thisMonthMetric.value}
             </p>
-            <p className="text-emerald-100 text-xs mt-0.5">本月容量</p>
+            <p className="text-emerald-100 text-xs mt-0.5">{thisMonthMetric.label}</p>
           </div>
         </section>
 
@@ -260,7 +261,7 @@ export default function HomePage() {
                         {w.mood ? ` ${MOOD_LABELS[w.mood]}` : ""}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {w.exercise_count} 个动作 · {w.total_sets} 组 · {summaryMetric(w)}
+                        {w.exercise_count} 个动作 · {w.total_sets} 组 · {formatWorkoutSummaryPrimaryMetric(w).value}
                       </p>
                     </div>
                     <ChevronRight size={16} className="text-slate-300 flex-shrink-0" />
@@ -274,11 +275,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
-
-function summaryMetric(workout: WorkoutSummary): string {
-  if (workout.total_volume > 0) return formatVolume(workout.total_volume, workout.total_volume_unit);
-  if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
-  if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
-  return `${workout.total_reps} 次`;
 }

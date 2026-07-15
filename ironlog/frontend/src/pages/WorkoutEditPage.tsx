@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
 import { getSettings } from "@/services/settings";
-import type { Exercise, ExerciseType, Workout, WorkoutSet } from "@/types";
+import type { Exercise, LoadBasis, LoadDirection, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
@@ -14,16 +14,25 @@ import {
 import { useToastStore } from "@/components/Toast";
 import { makeEmptySet } from "@/utils/workout";
 import ExercisePicker from "@/components/ExercisePicker";
+import SetFieldEditor, { type SetFieldDraft } from "@/components/SetFieldEditor";
+import type { RecordingSnapshot } from "@/utils/recordingPresentation";
+
+interface LocalSet extends WorkoutSet {
+  fieldInputs: SetFieldDraft;
+}
 
 interface LocalExercise {
   tempId: string;
   id?: string;
   exercise_id: string;
-  exercise_type: ExerciseType;
+  recording_mode: RecordingMode;
+  load_basis: LoadBasis | null;
+  load_direction: LoadDirection | null;
+  rate_metric: RateMetric;
   exercise_name: string;
   exercise_category: string;
   superset_group: number | null;
-  sets: WorkoutSet[];
+  sets: LocalSet[];
 }
 
 export default function WorkoutEditPage() {
@@ -67,7 +76,10 @@ export default function WorkoutEditPage() {
             tempId: crypto.randomUUID(),
             id: ex.id,
             exercise_id: ex.exercise_id,
-            exercise_type: ex.exercise_type,
+            recording_mode: ex.recording_mode,
+            load_basis: ex.load_basis,
+            load_direction: ex.load_direction,
+            rate_metric: ex.rate_metric,
             exercise_name: ex.exercise_name || `动作#${ex.exercise_id}`,
             exercise_category: ex.exercise_category || "",
             superset_group: ex.superset_group,
@@ -83,6 +95,7 @@ export default function WorkoutEditPage() {
               is_warmup: s.is_warmup,
               is_failure: s.is_failure,
               rest_seconds: s.rest_seconds ?? null,
+              fieldInputs: setFieldInputs(s),
             })),
           }))
         );
@@ -98,11 +111,14 @@ export default function WorkoutEditPage() {
         tempId: crypto.randomUUID(),
         id: undefined,
         exercise_id: ex.id,
-        exercise_type: ex.type,
+        recording_mode: ex.recording_mode,
+        load_basis: ex.load_basis,
+        load_direction: ex.load_direction,
+        rate_metric: ex.rate_metric,
         exercise_name: ex.name,
         exercise_category: ex.category,
         superset_group: null,
-        sets: [makeEmptySet(1, weightUnit)],
+        sets: [editableSet(makeEmptySet(1, weightUnit))],
       },
     ]);
     setShowPicker(false);
@@ -116,7 +132,7 @@ export default function WorkoutEditPage() {
     setExercises((prev) =>
       prev.map((e) =>
         e.tempId === tempId
-          ? { ...e, sets: [...e.sets, makeEmptySet(e.sets.length + 1, weightUnit)] }
+          ? { ...e, sets: [...e.sets, editableSet(makeEmptySet(e.sets.length + 1, weightUnit))] }
           : e
       )
     );
@@ -157,6 +173,17 @@ export default function WorkoutEditPage() {
     );
   };
 
+  const updateSetFieldInput = (tempId: string, setIdx: number, field: keyof SetFieldDraft, value: string) => {
+    setExercises((previous) => previous.map((exercise) => exercise.tempId !== tempId ? exercise : {
+      ...exercise,
+      sets: exercise.sets.map((set, index) => index !== setIdx ? set : {
+        ...set,
+        unit: field === "weight" ? weightUnit : set.unit,
+        fieldInputs: { ...set.fieldInputs, [field]: value },
+      }),
+    }));
+  };
+
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
@@ -169,17 +196,20 @@ export default function WorkoutEditPage() {
         end_time: endTime ? new Date(endTime).toISOString() : null,
         exercises: exercises.map((e, idx) => ({
           exercise_id: e.exercise_id,
-          exercise_type: e.exercise_type,
+          recording_mode: e.recording_mode,
+          load_basis: e.load_basis,
+          load_direction: e.load_direction,
+          rate_metric: e.rate_metric,
           id: e.id,
           sort_order: idx,
           superset_group: e.superset_group,
           sets: e.sets.map((s) => ({
             set_number: s.set_number,
-            weight: s.weight,
-            reps: s.reps,
+            weight: parseNullableNumber(s.fieldInputs.weight),
+            reps: parseNullableNumber(s.fieldInputs.reps),
             unit: s.unit,
-            duration_sec: s.duration_sec,
-            distance_m: s.distance_m,
+            duration_sec: parseNullableNumber(s.fieldInputs.durationSec),
+            distance_m: parseNullableNumber(s.fieldInputs.distanceM),
             id: s.id,
             rpe: s.rpe,
             is_warmup: s.is_warmup,
@@ -225,14 +255,14 @@ export default function WorkoutEditPage() {
 
       <div className="px-5 pt-4 space-y-4 pb-8">
         {/* Date, time & meta */}
-        <div className="flex gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm"
+            className="w-full min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm"
           />
-          <div className="flex gap-1">
+          <div className="grid grid-cols-5 gap-1 min-w-0">
             {[1, 2, 3, 4, 5].map((m) => (
               <button
                 key={m}
@@ -250,23 +280,23 @@ export default function WorkoutEditPage() {
         </div>
 
         {/* Start / End time */}
-        <div className="flex gap-2">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="min-w-0">
             <label className="text-xs text-slate-400 mb-0.5 block">开始时间</label>
             <input
               type="datetime-local"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              className="w-full min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm"
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0">
             <label className="text-xs text-slate-400 mb-0.5 block">结束时间</label>
             <input
               type="datetime-local"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              className="w-full min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm"
             />
           </div>
         </div>
@@ -312,74 +342,19 @@ export default function WorkoutEditPage() {
               </button>
             </div>
 
-            {/* Sets Header */}
-            <div className="grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_36px] gap-2 text-xs text-slate-400 px-1">
-              <span>组</span>
-              <span>{ex.exercise_type === "cardio" ? "距离(m)" : ex.exercise_type === "static_hold" ? "时长(s)" : ex.exercise_type === "reps_only" ? "次数" : `重量(${weightUnit})`}</span>
-              <span>{ex.exercise_type === "cardio" ? "时长(s)" : ex.exercise_type === "strength" ? "次数" : ""}</span>
-              <span></span>
-            </div>
-
             {/* Sets */}
             {ex.sets.map((s, si) => (
               <div key={s.id || `${ex.tempId}-${si}`} className="space-y-2">
-                <div className="grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_36px] gap-2 items-center">
-                  <span
-                    className={`text-center text-sm font-medium ${
-                      s.is_warmup ? "text-orange-400" : "text-slate-500"
-                    }`}
-                  >
-                    {s.is_warmup ? "W" : s.set_number}
-                  </span>
-                  {(ex.exercise_type === "strength" || ex.exercise_type === "cardio") && <input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={ex.exercise_type === "cardio" ? s.distance_m ?? "" : s.weight ?? ""}
-                    onChange={(e) => {
-                      const val = e.target.value ? parseFloat(e.target.value) : null;
-                      setExercises((prev) =>
-                        prev.map((ex2) =>
-                          ex2.tempId === ex.tempId
-                            ? {
-                                ...ex2,
-                                sets: ex2.sets.map((s2, i2) =>
-                                  i2 === si ? (ex.exercise_type === "cardio" ? { ...s2, distance_m: val } : { ...s2, weight: val, unit: weightUnit }) : s2
-                                ),
-                              }
-                            : ex2
-                        )
-                      );
-                    }}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
-                  />}
-                  {ex.exercise_type === "reps_only" ? <input
-                    type="number" inputMode="numeric" placeholder="0" value={s.reps ?? ""}
-                    onChange={(e) => updateSet(ex.tempId, si, "reps", e.target.value ? parseInt(e.target.value) : null)}
-                    className="col-span-2 w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm"
-                  /> : <input
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={ex.exercise_type === "cardio" || ex.exercise_type === "static_hold" ? s.duration_sec ?? "" : s.reps ?? ""}
-                    onChange={(e) =>
-                      updateSet(
-                        ex.tempId,
-                        si,
-                        ex.exercise_type === "cardio" || ex.exercise_type === "static_hold" ? "duration_sec" : "reps",
-                        e.target.value ? parseInt(e.target.value) : null
-                      )
-                    }
-                    className={`${ex.exercise_type === "static_hold" ? "col-span-2 " : ""}w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-center text-sm`}
-                  />}
-                  <button
-                    onClick={() => removeSet(ex.tempId, si)}
-                    className="p-1 text-slate-300 hover:text-red-400"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2 pl-10">
+                <WorkoutEditSetFieldBlock
+                  recording={ex}
+                  setNumber={s.set_number}
+                  isWarmup={s.is_warmup}
+                  value={s.fieldInputs}
+                  weightUnit={s.unit}
+                  onChange={(field, value) => updateSetFieldInput(ex.tempId, si, field, value)}
+                  onRemove={() => removeSet(ex.tempId, si)}
+                />
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
                   <button
                     type="button"
                     onClick={() => updateSet(ex.tempId, si, "is_warmup", !s.is_warmup)}
@@ -395,7 +370,7 @@ export default function WorkoutEditPage() {
                     力竭
                   </button>
                   <input
-                    type="number"
+                    type="text"
                     inputMode="numeric"
                     min={1}
                     max={10}
@@ -439,4 +414,48 @@ export default function WorkoutEditPage() {
       <ExercisePicker open={showPicker} exercises={allExercises} onSelect={addExercise} onCreated={(exercise) => setAllExercises((previous) => [...previous, exercise])} onClose={() => setShowPicker(false)} />
     </div>
   );
+}
+
+export function WorkoutEditSetFieldBlock({ recording, setNumber, isWarmup, value, weightUnit, onChange, onRemove }: {
+  recording: RecordingSnapshot;
+  setNumber: number;
+  isWarmup: boolean;
+  value: SetFieldDraft;
+  weightUnit: "kg" | "lb";
+  onChange: (field: keyof SetFieldDraft, value: string) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="space-y-2 min-w-0" data-mobile-set-block>
+      <div className="flex items-center justify-between gap-2" data-mobile-set-toolbar>
+        <span className={`text-sm font-medium ${isWarmup ? "text-orange-400" : "text-slate-500"}`}>
+          {isWarmup ? "热身组" : `第 ${setNumber} 组`}
+        </span>
+        <button type="button" onClick={onRemove} aria-label={`删除第 ${setNumber} 组`} className="w-9 h-9 shrink-0 flex items-center justify-center text-slate-300 hover:text-red-400">
+          <X size={16} />
+        </button>
+      </div>
+      <div className="w-full min-w-0" data-mobile-set-fields>
+        <SetFieldEditor recording={recording} value={value} weightUnit={weightUnit} onChange={onChange} />
+      </div>
+    </div>
+  );
+}
+
+function editableSet(set: WorkoutSet): LocalSet {
+  return { ...set, fieldInputs: setFieldInputs(set) };
+}
+
+function setFieldInputs(set: WorkoutSet): SetFieldDraft {
+  return {
+    weight: set.weight == null ? "" : String(set.weight),
+    reps: set.reps == null ? "" : String(set.reps),
+    distanceM: set.distance_m == null ? "" : String(set.distance_m),
+    durationSec: set.duration_sec == null ? "" : String(set.duration_sec),
+  };
+}
+
+function parseNullableNumber(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : Number(trimmed);
 }

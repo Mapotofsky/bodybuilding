@@ -52,7 +52,8 @@ export default function StepInput({
           −
         </button>
         <input
-          type="number"
+          type="text"
+          aria-label={label}
           inputMode={inputMode}
           value={value}
           onChange={(e) => onChange(e.target.value)}

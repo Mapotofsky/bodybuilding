@@ -4,16 +4,17 @@ import { toExercise } from "./localMappers";
 import { validateCreateExerciseInput, validateUpdateExerciseInput } from "./exercise";
 
 describe("exercise service contract", () => {
-  it("requires type, equipment, and description on create and strips unknown provenance", () => {
+  it("requires the complete recording contract, equipment, and description on create and strips unknown provenance", () => {
     const valid = {
-      name: " 自定义动作 ", category: "core" as const, type: "reps_only" as const,
+      name: " 自定义动作 ", category: "core" as const, recording_mode: "reps" as const,
+      load_basis: null, load_direction: null, rate_metric: "none" as const,
       equipment: null, description: null, primary_muscle_group_ids: ["core" as const], secondary_muscle_group_ids: [],
       provenance: { source: "forbidden", sourceId: "1", sourceRevision: "1" },
     };
     const result = validateCreateExerciseInput(valid);
-    expect(result).toMatchObject({ name: "自定义动作", type: "reps_only", equipment: null, description: null });
+    expect(result).toMatchObject({ name: "自定义动作", recordingMode: "reps", loadBasis: null, equipment: null, description: null });
     expect(Object.prototype.hasOwnProperty.call(result, "provenance")).toBe(false);
-    expect(() => validateCreateExerciseInput({ ...valid, type: undefined } as never)).toThrow("必须明确提交");
+    expect(() => validateCreateExerciseInput({ ...valid, recording_mode: undefined } as never)).toThrow("必须明确提交");
     expect(() => validateCreateExerciseInput({ ...valid, equipment: undefined } as never)).toThrow("必须明确提交");
     expect(() => validateCreateExerciseInput({ ...valid, description: undefined } as never)).toThrow("必须明确提交");
   });

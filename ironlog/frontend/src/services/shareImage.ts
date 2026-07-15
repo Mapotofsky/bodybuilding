@@ -1,9 +1,9 @@
-import { formatVolume } from "@/core/workoutMetrics";
 import { savePngImage } from "@/platform/shareImageSave";
-import { getWorkoutPerformanceRecords } from "@/services/performance";
+import { getWorkoutPerformanceRecords, type PerformanceRecord } from "@/services/performance";
 import { getWorkout, shareWorkout } from "@/services/workout";
 import type { WorkoutExercise, WorkoutSet } from "@/types";
-import { formatWorkoutPrimaryMetric } from "@/utils/workoutPresentation";
+import { formatExerciseAggregate, formatWorkoutPrimaryMetric } from "@/utils/workoutPresentation";
+import { formatPerformanceInput, formatPerformanceMetric, formatSet } from "@/utils/recordingPresentation";
 
 export interface WorkoutShareImage {
   data_url: string;
@@ -17,7 +17,10 @@ export async function prepareWorkoutShareImage(workoutId: string, options: { sho
   const width = 1080;
   const lineHeight = 50;
   const detailLines = data.exercises.reduce((sum, _exercise, index) => sum + 1 + (options.show_details ? workout.exercises[index]?.sets.length || 0 : 0), 0);
-  const performanceLines = performance.length > 0 ? Math.min(3, performance.length) + 1 : 0;
+  const performanceEntries = performance.slice(0, 3).map((record) => formatPerformanceShareLines(record, data.total_volume_unit));
+  const performanceLines = performanceEntries.length > 0
+    ? 1 + performanceEntries.reduce((sum, lines) => sum + lines.length, 0)
+    : 0;
   const height = 430 + detailLines * lineHeight + performanceLines * lineHeight + (data.note ? 92 : 0);
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -38,13 +41,15 @@ export async function prepareWorkoutShareImage(workoutId: string, options: { sho
   ctx.fillStyle = theme.primary;
   fill(ctx, 92, 176, width - 184, 4, theme.primary, 2);
 
-  const primaryMetric = formatWorkoutPrimaryMetric(data.exercises.map((exercise) => exercise.type), {
+  const primaryMetric = formatWorkoutPrimaryMetric(data.exercises, {
     totalSets: data.total_sets,
     totalVolume: data.total_volume,
     totalVolumeUnit: data.total_volume_unit,
     totalDistanceM: data.total_distance_m,
     totalDurationSec: data.total_duration_sec,
     totalReps: data.exercises.reduce((sum, exercise) => sum + exercise.reps, 0),
+    totalLoadDistanceKgM: data.total_load_distance_kg_m,
+    totalLoadDurationKgSec: data.total_load_duration_kg_sec,
   });
   const summary = [
     ["动作", String(data.exercise_count)],
@@ -72,9 +77,17 @@ export async function prepareWorkoutShareImage(workoutId: string, options: { sho
     y += lineHeight;
     ctx.fillStyle = theme.text;
     ctx.font = "400 24px sans-serif";
-    for (const record of performance.slice(0, 3)) {
-      ctx.fillText(`• ${record.exercise_name || "动作"} ${record.metric_label}`, 108, y);
+    for (const lines of performanceEntries) {
+      ctx.fillStyle = theme.text;
+      ctx.font = "400 24px sans-serif";
+      ctx.fillText(lines[0], 108, y, width - 216);
       y += lineHeight;
+      if (lines[1]) {
+        ctx.fillStyle = theme.muted;
+        ctx.font = "400 20px sans-serif";
+        ctx.fillText(lines[1], 128, y, width - 256);
+        y += lineHeight;
+      }
     }
   }
 
@@ -83,13 +96,7 @@ export async function prepareWorkoutShareImage(workoutId: string, options: { sho
   ctx.fillText(options.show_details ? "训练明细" : "动作摘要", 92, y);
   y += lineHeight;
   for (const [index, exercise] of data.exercises.entries()) {
-    const value = exercise.type === "cardio"
-      ? `${Math.round(exercise.distance_m)} m · ${exercise.duration_sec}s`
-      : exercise.type === "static_hold"
-      ? `${exercise.duration_sec}s`
-      : exercise.type === "reps_only"
-      ? `${exercise.reps} 次`
-      : formatVolume(exercise.volume, data.total_volume_unit);
+    const value = formatExerciseAggregate(exercise, exercise, data.total_volume_unit);
     fill(ctx, 92, y - 35, width - 184, 44, theme.surface2, 14);
     fill(ctx, 106, y - 24, 22, 22, theme.primary, 11);
     ctx.fillStyle = theme.surface;
@@ -188,16 +195,12 @@ function formatSetDetail(exercise: WorkoutExercise, set: WorkoutSet): string {
     set.rest_seconds == null ? null : `休 ${set.rest_seconds}s`,
     set.is_failure ? "力竭" : null,
   ].filter(Boolean).join(" · ");
-  const main = exercise.exercise_type === "strength"
-    ? `${formatNumber(set.weight)} ${set.unit} x ${formatNumber(set.reps)}`
-    : exercise.exercise_type === "cardio"
-    ? `${formatNumber(set.distance_m)} m · ${formatNumber(set.duration_sec)}s`
-    : exercise.exercise_type === "static_hold"
-    ? `${formatNumber(set.duration_sec)}s`
-    : `${formatNumber(set.reps)} 次`;
+  const main = formatSet(exercise, set);
   return `${prefix}  ${main}${suffix ? ` · ${suffix}` : ""}`;
 }
 
-function formatNumber(value: number | null | undefined): string {
-  return value == null ? "-" : String(Math.round(value * 10) / 10);
+export function formatPerformanceShareLines(record: PerformanceRecord, displayUnit: "kg" | "lb"): string[] {
+  const valueLine = `• ${record.exercise_name || "动作"} ${record.metric_label} ${formatPerformanceMetric(record, displayUnit)}`;
+  const context = formatPerformanceInput(record.input, displayUnit);
+  return context ? [valueLine, `原始记录：${context}`] : [valueLine];
 }

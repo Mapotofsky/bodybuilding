@@ -18,8 +18,10 @@ import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { useToastStore } from "@/components/Toast";
 import { useConfirmStore } from "@/components/ConfirmDialog";
-import { calculateStrengthVolume, calculateWorkoutMetrics, formatVolume } from "@/core/workoutMetrics";
+import { calculateWorkoutMetrics, convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
+import { formatExerciseCompletion } from "@/utils/workoutPresentation";
+import { formatRecordingDescription, formatSet, formatSetMetrics } from "@/utils/recordingPresentation";
 
 export default function WorkoutDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -111,7 +113,10 @@ export default function WorkoutDetailPage() {
   if (!workout) return null;
 
   const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
-    exerciseType: exercise.exercise_type,
+    recordingMode: exercise.recording_mode,
+    loadBasis: exercise.load_basis,
+    loadDirection: exercise.load_direction,
+    rateMetric: exercise.rate_metric,
     sets: exercise.sets.map((set) => ({
       weight: set.weight,
       reps: set.reps,
@@ -144,6 +149,7 @@ export default function WorkoutDetailPage() {
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
+            aria-label="更多操作"
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
           >
             <MoreHorizontal size={20} className="text-slate-700" />
@@ -206,7 +212,7 @@ export default function WorkoutDetailPage() {
               </span>
             </div>
           )}
-          <div className="flex gap-4 mt-3">
+          <div className="flex flex-wrap gap-4 mt-3">
             <div className="text-center">
               <p className="text-xl font-bold text-slate-900">{workout.exercises.length}</p>
               <p className="text-xs text-slate-400 mt-0.5">动作</p>
@@ -217,6 +223,8 @@ export default function WorkoutDetailPage() {
               <p className="text-xs text-slate-400 mt-0.5">总组数</p>
             </div>
             {totalVolume > 0 && <><div className="w-px bg-slate-100" /><div className="text-center"><p className="text-xl font-bold text-slate-900">{formatVolume(totalVolume, metrics.totalVolumeUnit)}</p><p className="text-xs text-slate-400 mt-0.5">容量</p></div></>}
+            {metrics.totalLoadDistanceKgM > 0 && <><div className="w-px bg-slate-100" /><div className="text-center"><p className="text-xl font-bold text-slate-900">{formatOneDecimal(convertWeight(metrics.totalLoadDistanceKgM, "kg", displayUnit))} {displayUnit}·m</p><p className="text-xs text-slate-400 mt-0.5">距离负载</p></div></>}
+            {metrics.totalLoadDurationKgSec > 0 && <><div className="w-px bg-slate-100" /><div className="text-center"><p className="text-xl font-bold text-slate-900">{formatOneDecimal(convertWeight(metrics.totalLoadDurationKgSec, "kg", displayUnit))} {displayUnit}·s</p><p className="text-xs text-slate-400 mt-0.5">持续负载</p></div></>}
             {duration != null && duration > 0 && (
               <>
                 <div className="w-px bg-slate-100" />
@@ -231,8 +239,7 @@ export default function WorkoutDetailPage() {
 
         {/* Exercises */}
         {workout.exercises.map((ex) => {
-          const exVolume = ex.exercise_type === "strength" ? calculateStrengthVolume(ex.sets.map((set) => ({ weight: set.weight, reps: set.reps, unit: set.unit })), displayUnit) : 0;
-          const exDistance = ex.exercise_type === "cardio" ? ex.sets.reduce((s, set) => s + (set.distance_m || 0), 0) : 0;
+          const summary = formatExerciseCompletion(ex, ex.sets, displayUnit);
           return (
             <div key={ex.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
@@ -244,16 +251,16 @@ export default function WorkoutDetailPage() {
                     <span className="text-[11px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
                       {CATEGORY_LABELS[ex.exercise_category || ""] || ex.exercise_category}
                     </span>
-                    <span className="text-xs text-slate-400">{ex.exercise_type === "cardio" ? `${Math.round(exDistance)} m` : ex.exercise_type === "static_hold" ? `${ex.sets.reduce((s, set) => s + (set.duration_sec || 0), 0)} s` : ex.exercise_type === "reps_only" ? `${ex.sets.reduce((s, set) => s + (set.reps || 0), 0)} 次` : formatVolume(exVolume, displayUnit)}</span>
+                    <span className="text-xs text-slate-400">{summary.value}</span>
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-1">{formatRecordingDescription(ex)}</p>
                 </div>
                 <span className="text-sm font-bold text-slate-500">{ex.sets.length} 组</span>
               </div>
 
-              <div className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,1fr)_52px] gap-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-2 bg-slate-50/60">
+              <div className="grid grid-cols-[36px_minmax(0,1fr)_52px] gap-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-2 bg-slate-50/60">
                 <span>组</span>
-                <span>{ex.exercise_type === "cardio" ? "距离" : ex.exercise_type === "static_hold" ? "时长" : ex.exercise_type === "reps_only" ? "次数" : "重量"}</span>
-                <span>{ex.exercise_type === "cardio" ? "时长" : ex.exercise_type === "strength" ? "次数" : ""}</span>
+                <span>记录</span>
                 <span>休息</span>
               </div>
 
@@ -261,24 +268,26 @@ export default function WorkoutDetailPage() {
                 {ex.sets.map((s) => (
                   <div
                     key={s.id}
-                    className="grid grid-cols-[36px_minmax(0,1fr)_minmax(0,1fr)_52px] gap-2 items-center px-4 py-2.5"
+                    className="grid grid-cols-[36px_minmax(0,1fr)_52px] gap-2 items-start px-4 py-2.5"
                   >
                     <span className={`text-center text-sm font-bold ${
                       s.is_warmup ? "text-amber-500" : "text-slate-500"
                     }`}>
                       {s.is_warmup ? "W" : s.set_number}
                     </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {ex.exercise_type === "cardio" ? `${s.distance_m ?? "—"} m` : ex.exercise_type === "static_hold" ? `${s.duration_sec ?? "—"} s` : ex.exercise_type === "reps_only" ? `${s.reps ?? "—"} 次` : `${s.weight ?? "—"} ${s.unit}`}
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800">
-                      {ex.exercise_type === "cardio" ? `${s.duration_sec ?? "—"} s` : ex.exercise_type === "strength" ? `${s.reps ?? "—"} 次` : ""}
+                    <span className="min-w-0 text-sm font-semibold text-slate-800">
+                      <span className="break-words">{formatSet(ex, s)}</span>
                       {s.rpe ? (
                         <span className="text-slate-400 text-xs ml-1">@{s.rpe}</span>
                       ) : null}
                       {s.is_failure ? (
                         <span className="text-red-500 text-xs ml-1">力竭</span>
                       ) : null}
+                      {formatSetMetrics(ex, s, displayUnit).map((metric) => (
+                        <span key={metric.label} className="block text-[11px] font-normal text-slate-400 mt-0.5">
+                          {metric.label} {metric.value}
+                        </span>
+                      ))}
                     </span>
                     <span className="text-xs text-slate-400">
                       {s.rest_seconds != null ? `${s.rest_seconds}s` : "—"}

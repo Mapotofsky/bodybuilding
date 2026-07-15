@@ -10,7 +10,10 @@ describe("exercise personal stats", () => {
       id: "custom-ex-old",
       name: "旧动作",
       category: "core",
-      type: "reps_only",
+      recordingMode: "reps",
+      loadBasis: null,
+      loadDirection: null,
+      rateMetric: "none",
       equipment: null,
       description: null,
       primaryMuscleGroupIds: [],
@@ -20,7 +23,7 @@ describe("exercise personal stats", () => {
       createdAt: "2026-06-20T00:00:00.000Z",
       updatedAt: "2026-06-21T00:00:00.000Z",
       deletedAt: "2026-06-21T00:00:00.000Z",
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
     snapshot.workouts = [
       workout("done", "2026-06-21", "2026-06-21T11:00:00.000Z", [
@@ -52,9 +55,34 @@ describe("exercise personal stats", () => {
     expect(stats.workingSetCount).toBe(3);
     expect(stats.recent7DaySetCount).toBe(2);
     expect(stats.lastCompletedDate).toBe("2026-06-21");
-    expect(stats.strength.bestWeight).toBe(60);
-    expect(stats.strength.bestVolume).toBeCloseTo(226.796185);
-    expect(stats.strength.displayUnit).toBe("kg");
+    expect(stats.performance.bestInputLoad).toBe(60);
+    expect(stats.performance.bestEffectiveLoad).toBe(60);
+    expect(stats.performance.bestSetVolume).toBeCloseTo(226.796185);
+    expect(stats.performance.bestWorkoutVolume).toBeCloseTo(226.796185);
+    expect(stats.performance.displayUnit).toBe("kg");
+    expect(stats.performance.loadBasis).toBe("total");
+    expect(stats.performance.loadDirection).toBe("higher_better");
+  });
+
+  it("does not reinterpret snapshots or produce order-dependent generic load bests across incompatible history", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const total = workout("total", "2026-06-20", "2026-06-20T11:00:00.000Z", [
+      { id: "total-set", setNumber: 1, weight: 100, reps: 1, unit: "kg", durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
+    ]);
+    total.exercises[0].exerciseId = "ex-bench-press";
+    const perHand = workout("per-hand", "2026-06-21", "2026-06-21T11:00:00.000Z", [
+      { id: "per-hand-set", setNumber: 1, weight: 60, reps: 1, unit: "kg", durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
+    ]);
+    perHand.exercises[0].exerciseId = "ex-bench-press";
+    perHand.exercises[0].loadBasis = "per_hand";
+    const params = { exerciseId: "ex-bench-press", exercises: snapshot.exercises, weightUnit: "kg" as const, today: "2026-06-25" };
+
+    const forward = buildExercisePersonalStats({ ...params, workouts: [total, perHand] });
+    const reverse = buildExercisePersonalStats({ ...params, workouts: [perHand, total] });
+
+    expect(forward.performance).toMatchObject({ bestInputLoad: null, bestEffectiveLoad: null, loadBasis: null, loadDirection: null, bestSetVolume: 120 });
+    expect(reverse.performance).toEqual(forward.performance);
+    expect(perHand.exercises[0]).toMatchObject({ loadBasis: "per_hand", recordingMode: "weight_reps" });
   });
 });
 
@@ -70,7 +98,10 @@ function workout(id: string, date: string, endTime: string | null, sets: Workout
     exercises: [{
       id: `${id}-exercise`,
       exerciseId: "custom-ex-old",
-      exerciseType: "strength",
+      recordingMode: "weight_reps",
+      loadBasis: "total",
+      loadDirection: "higher_better",
+      rateMetric: "none",
       sortOrder: 0,
       supersetGroup: null,
       sets,
@@ -78,6 +109,6 @@ function workout(id: string, date: string, endTime: string | null, sets: Workout
     createdAt: `${date}T10:00:00.000Z`,
     updatedAt: `${date}T10:00:00.000Z`,
     deletedAt: null,
-    schemaVersion: 3,
+    schemaVersion: 4,
   };
 }

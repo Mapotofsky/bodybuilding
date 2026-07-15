@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildShardList, makeEmptySnapshot } from "@/core/migrations";
 import { CURRENT_SCHEMA_VERSION, type WorkoutDoc } from "@/core/models";
-import { snapshotToFiles } from "./documentStore";
+import { filesToSnapshot, snapshotToFiles } from "./documentStore";
 
 function workout(id: string, date: string): WorkoutDoc {
   return {
@@ -61,20 +61,56 @@ describe("document file serialization", () => {
     });
   });
 
+  it("round-trips farmer-walk snapshots and nested set metadata through workout shards", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const farmerWorkout = workout("workout-farmer", "2026-07-15");
+    farmerWorkout.exercises = [{
+      id: "workout-exercise-farmer",
+      exerciseId: "ex-farmer-walk",
+      recordingMode: "weight_distance_duration",
+      loadBasis: "per_hand",
+      loadDirection: "higher_better",
+      rateMetric: "load_distance_per_time",
+      sortOrder: 0,
+      supersetGroup: 2,
+      sets: [{
+        id: "workout-set-farmer",
+        setNumber: 1,
+        weight: 32,
+        reps: null,
+        unit: "kg",
+        durationSec: 28,
+        distanceM: 40,
+        rpe: 8,
+        isWarmup: false,
+        isFailure: false,
+        restSeconds: 90,
+      }],
+    }];
+    snapshot.workouts = [farmerWorkout];
+    snapshot.manifest.shards = buildShardList(snapshot);
+
+    const files = snapshotToFiles(snapshot);
+    const imported = filesToSnapshot(files);
+
+    expect((files["workouts/2026-07.json"] as WorkoutDoc[])[0].exercises[0]).toEqual(farmerWorkout.exercises[0]);
+    expect(imported.workouts?.[0].exercises[0]).toEqual(farmerWorkout.exercises[0]);
+  });
+
   it("writes exercise performance records to achieved month files", () => {
     const snapshot = makeEmptySnapshot("device-test");
     const record = {
       id: "performance-1",
       exerciseId: "ex-bench-press",
       kind: "true_pr" as const,
-      metricType: "strength.max_weight" as const,
+      metricType: "weight.max_effective" as const,
       value: 120,
       unit: "kg" as const,
       achievedAt: "2026-07-02T10:00:00.000Z",
       sourceWorkoutId: "workout-1",
       sourceWorkoutExerciseId: "workout-exercise-1",
       sourceSetId: "set-1",
-      input: { weightKg: 120, reps: 3, rpe: null, effectiveReps: null, distanceM: null, durationSec: null, workoutVolumeKgReps: null },
+      input: { enteredLoad: 60, enteredLoadUnit: "kg" as const, effectiveLoadKg: 120, loadBasis: "per_hand" as const, loadDirection: "higher_better" as const, reps: 3, rpe: null, effectiveReps: null, distanceM: 40, durationSec: 28, workoutVolumeKgReps: null },
       rm: null,
       createdAt: "2026-07-02T10:00:00.000Z",
       updatedAt: "2026-07-02T10:00:00.000Z",
@@ -88,6 +124,7 @@ describe("document file serialization", () => {
 
     expect(files["exercise-performance/2026-07.json"]).toEqual([record]);
     expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("exercise-performance/2026-07.json");
+    expect(filesToSnapshot(files).exercisePerformanceRecords?.[0].input).toEqual(record.input);
   });
 
   it("serializes avatar resources as separate files", () => {

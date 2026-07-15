@@ -1,6 +1,15 @@
 import { resolveExerciseId } from "./exerciseRedirects";
-import type { ExerciseDoc, WeightUnit, WorkoutDoc } from "./models";
-import { convertWeight } from "./workoutMetrics";
+import type { ExerciseDoc, LoadBasis, LoadDirection, WeightUnit, WorkoutDoc } from "./models";
+import { getRecordingModeSpec } from "./recordingModes";
+import {
+  calculateSetDistanceRateMps,
+  calculateSetLoadDistanceKgM,
+  calculateSetLoadDistanceRateKgMps,
+  calculateSetLoadDurationKgSec,
+  calculateStrengthVolume,
+  convertWeight,
+  effectiveLoadKg,
+} from "./workoutMetrics";
 
 export interface ExercisePersonalStats {
   completedWorkoutCount: number;
@@ -8,14 +17,22 @@ export interface ExercisePersonalStats {
   workingSetCount: number;
   recent7DaySetCount: number;
   lastCompletedDate: string | null;
-  strength: {
-    bestWeight: number | null;
-    bestVolume: number;
+  performance: {
+    bestInputLoad: number | null;
+    bestEffectiveLoad: number | null;
+    bestSetVolume: number | null;
+    bestWorkoutVolume: number | null;
+    bestReps: number | null;
+    bestDistanceM: number | null;
+    bestDurationSec: number | null;
+    bestSpeedMps: number | null;
+    bestLoadDistanceKgM: number | null;
+    bestLoadDurationKgSec: number | null;
+    bestLoadDistanceRateKgMps: number | null;
     displayUnit: WeightUnit;
+    loadBasis: LoadBasis | null;
+    loadDirection: LoadDirection | null;
   };
-  cardio: { bestDistanceM: number; bestSpeedKmh: number | null };
-  repsOnly: { bestReps: number };
-  staticHold: { bestDurationSec: number };
 }
 
 export function buildExercisePersonalStats(params: {
@@ -31,57 +48,94 @@ export function buildExercisePersonalStats(params: {
     workingSetCount: 0,
     recent7DaySetCount: 0,
     lastCompletedDate: null,
-    strength: { bestWeight: null, bestVolume: 0, displayUnit: params.weightUnit },
-    cardio: { bestDistanceM: 0, bestSpeedKmh: null },
-    repsOnly: { bestReps: 0 },
-    staticHold: { bestDurationSec: 0 },
+    performance: {
+      bestInputLoad: null,
+      bestEffectiveLoad: null,
+      bestSetVolume: null,
+      bestWorkoutVolume: null,
+      bestReps: null,
+      bestDistanceM: null,
+      bestDurationSec: null,
+      bestSpeedMps: null,
+      bestLoadDistanceKgM: null,
+      bestLoadDurationKgSec: null,
+      bestLoadDistanceRateKgMps: null,
+      displayUnit: params.weightUnit,
+      loadBasis: null,
+      loadDirection: null,
+    },
   };
+  const loadSamples: Array<{ input: number; effective: number; basis: LoadBasis; direction: LoadDirection }> = [];
 
   for (const workout of params.workouts) {
     if (workout.deletedAt || workout.endTime == null) continue;
     let matchedInWorkout = false;
-    let workoutStrengthVolume = 0;
-    let workoutCardioDistanceM = 0;
-    let workoutCardioDurationSec = 0;
-    let workoutRepsOnlyReps = 0;
-    let workoutStaticHoldDurationSec = 0;
+    let workoutVolume = 0;
 
     for (const workoutExercise of workout.exercises) {
       if (!matchesExercise(workoutExercise.exerciseId, params.exerciseId, params.exercises)) continue;
       matchedInWorkout = true;
       stats.totalSetCount += workoutExercise.sets.length;
+      const spec = getRecordingModeSpec(workoutExercise.recordingMode);
+      const workingSets = workoutExercise.sets.filter((set) => !set.isWarmup);
+      stats.workingSetCount += workingSets.length;
 
-      for (const set of workoutExercise.sets) {
-        if (set.isWarmup) continue;
-        stats.workingSetCount += 1;
+      if (spec.performance.compound.includes("volume") && workoutExercise.loadBasis
+        && workoutExercise.loadDirection === "higher_better") {
+        workoutVolume += calculateStrengthVolume(workingSets, params.weightUnit, workoutExercise.loadBasis);
+      }
 
-        if (workoutExercise.exerciseType === "strength") {
-          if (set.weight != null) {
-            const weight = convertWeight(set.weight, set.unit, params.weightUnit);
-            stats.strength.bestWeight = stats.strength.bestWeight == null ? weight : Math.max(stats.strength.bestWeight, weight);
-            if (set.reps != null) workoutStrengthVolume += weight * set.reps;
+      for (const set of workingSets) {
+        if (set.weight != null && workoutExercise.loadBasis && workoutExercise.loadDirection) {
+          const inputLoad = convertWeight(set.weight, set.unit, params.weightUnit);
+          const effectiveKg = effectiveLoadKg(set.weight, set.unit, workoutExercise.loadBasis);
+          const effectiveDisplay = convertWeight(effectiveKg, "kg", params.weightUnit);
+          loadSamples.push({ input: inputLoad, effective: effectiveDisplay, basis: workoutExercise.loadBasis, direction: workoutExercise.loadDirection });
+
+          if (spec.performance.compound.includes("volume") && workoutExercise.loadDirection === "higher_better" && set.reps != null) {
+            stats.performance.bestSetVolume = maxNullable(stats.performance.bestSetVolume, effectiveDisplay * set.reps);
           }
-        } else if (workoutExercise.exerciseType === "cardio") {
-          if (set.distanceM != null) workoutCardioDistanceM += set.distanceM;
-          if (set.durationSec != null) workoutCardioDurationSec += set.durationSec;
-        } else if (workoutExercise.exerciseType === "reps_only") {
-          if (set.reps != null) workoutRepsOnlyReps += set.reps;
-        } else if (workoutExercise.exerciseType === "static_hold") {
-          if (set.durationSec != null) workoutStaticHoldDurationSec += set.durationSec;
+          if (spec.performance.compound.includes("load_distance") && workoutExercise.loadDirection === "higher_better") {
+            stats.performance.bestLoadDistanceKgM = maxNullable(
+              stats.performance.bestLoadDistanceKgM,
+              calculateSetLoadDistanceKgM(set, workoutExercise.loadBasis)
+            );
+          }
+          if (workoutExercise.loadDirection === "higher_better"
+            && (spec.performance.compound.includes("load_duration")
+              || (spec.performance.compound.includes("load_duration_without_distance") && set.distanceM == null))) {
+            stats.performance.bestLoadDurationKgSec = maxNullable(
+              stats.performance.bestLoadDurationKgSec,
+              calculateSetLoadDurationKgSec(set, workoutExercise.loadBasis)
+            );
+          }
+          if (workoutExercise.loadDirection === "higher_better"
+            && spec.performance.compound.includes("load_distance_rate")
+            && workoutExercise.rateMetric === "load_distance_per_time") {
+            stats.performance.bestLoadDistanceRateKgMps = maxNullable(
+              stats.performance.bestLoadDistanceRateKgMps,
+              calculateSetLoadDistanceRateKgMps(set, workoutExercise.loadBasis)
+            );
+          }
+        }
+        if (set.reps != null && spec.fields.includes("reps")) {
+          stats.performance.bestReps = maxNullable(stats.performance.bestReps, set.reps);
+        }
+        if (set.distanceM != null && spec.fields.includes("distanceM")) {
+          stats.performance.bestDistanceM = maxNullable(stats.performance.bestDistanceM, set.distanceM);
+        }
+        if (set.durationSec != null && spec.fields.includes("durationSec")) {
+          stats.performance.bestDurationSec = maxNullable(stats.performance.bestDurationSec, set.durationSec);
+        }
+        if (spec.performance.compound.includes("distance_rate") && workoutExercise.rateMetric === "distance_per_time") {
+          stats.performance.bestSpeedMps = maxNullable(stats.performance.bestSpeedMps, calculateSetDistanceRateMps(set));
         }
       }
     }
 
     if (matchedInWorkout) {
       stats.completedWorkoutCount += 1;
-      stats.strength.bestVolume = Math.max(stats.strength.bestVolume, workoutStrengthVolume);
-      stats.cardio.bestDistanceM = Math.max(stats.cardio.bestDistanceM, workoutCardioDistanceM);
-      if (workoutCardioDistanceM > 0 && workoutCardioDurationSec > 0) {
-        const speedKmh = (workoutCardioDistanceM / workoutCardioDurationSec) * 3.6;
-        stats.cardio.bestSpeedKmh = stats.cardio.bestSpeedKmh == null ? speedKmh : Math.max(stats.cardio.bestSpeedKmh, speedKmh);
-      }
-      stats.repsOnly.bestReps = Math.max(stats.repsOnly.bestReps, workoutRepsOnlyReps);
-      stats.staticHold.bestDurationSec = Math.max(stats.staticHold.bestDurationSec, workoutStaticHoldDurationSec);
+      if (workoutVolume > 0) stats.performance.bestWorkoutVolume = maxNullable(stats.performance.bestWorkoutVolume, workoutVolume);
       stats.lastCompletedDate = stats.lastCompletedDate == null || workout.date > stats.lastCompletedDate
         ? workout.date
         : stats.lastCompletedDate;
@@ -98,7 +152,26 @@ export function buildExercisePersonalStats(params: {
     }
   }
 
+  const configs = new Map(loadSamples.map((sample) => [`${sample.basis}:${sample.direction}`, sample]));
+  if (configs.size === 1) {
+    const [{ basis, direction }] = [...configs.values()];
+    stats.performance.loadBasis = basis;
+    stats.performance.loadDirection = direction;
+    stats.performance.bestInputLoad = loadSamples.reduce<number | null>((best, sample) => betterLoad(best, sample.input, direction), null);
+    stats.performance.bestEffectiveLoad = loadSamples.reduce<number | null>((best, sample) => betterLoad(best, sample.effective, direction), null);
+  }
+
   return stats;
+}
+
+function betterLoad(current: number | null, next: number, direction: LoadDirection): number {
+  if (current == null) return next;
+  return direction === "higher_better" ? Math.max(current, next) : Math.min(current, next);
+}
+
+function maxNullable(current: number | null, next: number | null): number | null {
+  if (next == null) return current;
+  return current == null ? next : Math.max(current, next);
 }
 
 function matchesExercise(sourceId: string, targetId: string, exercises: readonly ExerciseDoc[]): boolean {

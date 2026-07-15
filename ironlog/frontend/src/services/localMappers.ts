@@ -27,7 +27,10 @@ export function toExercise(doc: ExerciseDoc): Exercise {
     id: doc.id,
     name: doc.name,
     category: doc.category,
-    type: doc.type,
+    recording_mode: doc.recordingMode,
+    load_basis: doc.loadBasis,
+    load_direction: doc.loadDirection,
+    rate_metric: doc.rateMetric,
     equipment: doc.equipment,
     description: doc.description,
     primary_muscle_group_ids: doc.primaryMuscleGroupIds ?? [],
@@ -53,7 +56,10 @@ export async function toExerciseDetail(doc: ExerciseDoc): Promise<ExerciseDetail
     id: doc.id,
     name: doc.name,
     category: doc.category,
-    type: doc.type,
+    recording_mode: doc.recordingMode,
+    load_basis: doc.loadBasis,
+    load_direction: doc.loadDirection,
+    rate_metric: doc.rateMetric,
     equipment: doc.equipment,
     description: doc.description,
     primary_muscle_group_ids: doc.primaryMuscleGroupIds ?? [],
@@ -77,20 +83,21 @@ function toExercisePersonalStats(stats: CoreExercisePersonalStats): ExerciseDeta
     working_set_count: stats.workingSetCount,
     recent_7_day_set_count: stats.recent7DaySetCount,
     last_completed_date: stats.lastCompletedDate,
-    strength: {
-      best_weight: stats.strength.bestWeight,
-      best_volume: stats.strength.bestVolume,
-      display_unit: stats.strength.displayUnit,
-    },
-    cardio: {
-      best_distance_m: stats.cardio.bestDistanceM,
-      best_speed_kmh: stats.cardio.bestSpeedKmh,
-    },
-    reps_only: {
-      best_reps: stats.repsOnly.bestReps,
-    },
-    static_hold: {
-      best_duration_sec: stats.staticHold.bestDurationSec,
+    performance: {
+      best_input_load: stats.performance.bestInputLoad,
+      best_effective_load: stats.performance.bestEffectiveLoad,
+      best_set_volume: stats.performance.bestSetVolume,
+      best_workout_volume: stats.performance.bestWorkoutVolume,
+      best_reps: stats.performance.bestReps,
+      best_distance_m: stats.performance.bestDistanceM,
+      best_duration_sec: stats.performance.bestDurationSec,
+      best_speed_mps: stats.performance.bestSpeedMps,
+      best_load_distance_kg_m: stats.performance.bestLoadDistanceKgM,
+      best_load_duration_kg_sec: stats.performance.bestLoadDurationKgSec,
+      best_load_distance_rate_kg_mps: stats.performance.bestLoadDistanceRateKgMps,
+      display_unit: stats.performance.displayUnit,
+      load_basis: stats.performance.loadBasis,
+      load_direction: stats.performance.loadDirection,
     },
   };
 }
@@ -181,7 +188,10 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
   const allExercises = (await localRepository.getSnapshot()).exercises;
   const displayUnit = (await localRepository.getSettings()).weightUnit;
   const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
-    exerciseType: exercise.exercise_type,
+    recordingMode: exercise.recording_mode,
+    loadBasis: exercise.load_basis,
+    loadDirection: exercise.load_direction,
+    rateMetric: exercise.rate_metric,
     sets: exercise.sets.map((set) => ({
       weight: set.weight,
       reps: set.reps,
@@ -203,6 +213,8 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
     total_volume_unit: metrics.totalVolumeUnit,
     total_distance_m: metrics.totalDistanceM,
     total_duration_sec: metrics.totalDurationSec,
+    total_load_distance_kg_m: metrics.totalLoadDistanceKgM,
+    total_load_duration_kg_sec: metrics.totalLoadDurationKgSec,
     total_reps: metrics.totalReps,
     plan_template_id: workout.plan_template_id,
     template_name: workout.template_name,
@@ -222,7 +234,10 @@ async function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExerci
   return {
     id: doc.id,
     exercise_id: doc.exerciseId,
-    exercise_type: doc.exerciseType,
+    recording_mode: doc.recordingMode,
+    load_basis: doc.loadBasis,
+    load_direction: doc.loadDirection,
+    rate_metric: doc.rateMetric,
     exercise_name: exercise?.name,
     exercise_category: exercise?.category,
     sort_order: doc.sortOrder,

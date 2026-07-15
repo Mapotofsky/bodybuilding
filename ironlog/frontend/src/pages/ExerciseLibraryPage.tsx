@@ -2,12 +2,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Dumbbell, Plus, Search, Trash2, X } from "lucide-react";
 import { createExercise, deleteExercise, getExercises } from "@/services/exercise";
-import { CATEGORY_LABELS, EQUIPMENT_LABELS, EXERCISE_TYPE_LABELS, type EquipmentId, type Exercise, type ExerciseCategory } from "@/types";
+import { CATEGORY_LABELS, EQUIPMENT_LABELS, RECORDING_MODE_LABELS, type EquipmentId, type Exercise, type ExerciseCategory } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 import { restoreRouteScrollPosition, saveRouteScrollPosition } from "@/utils/scroll";
+import { recordingSnapshotEquals } from "@/utils/recordingPresentation";
 
 const FILTER_STORAGE_KEY = "ironlog.exerciseLibraryQuery";
 const SCROLL_STORAGE_KEY = "ironlog.exerciseLibraryScroll";
@@ -109,7 +110,7 @@ export default function ExerciseLibraryPage() {
     const ok = await confirm(
       "删除自定义动作",
       replacement
-        ? `删除后，存活模板中的「${deleteTarget.name}」会替换为所选动作；历史训练记录保留原始 ID 和记录类型。`
+        ? `删除后，存活模板中的「${deleteTarget.name}」会替换为所选动作；历史训练记录保留原始 ID 和记录方式。`
         : `删除后会保留历史训练记录；未选择替代动作时，模板中的旧引用不会被迁移。`
     );
     if (!ok) return;
@@ -243,7 +244,7 @@ export default function ExerciseLibraryPage() {
               className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
             >
               <option value="">仅删除，不迁移模板</option>
-              {allExercises.filter((exercise) => exercise.id !== deleteTarget.id && exercise.type === deleteTarget.type).map((exercise) => (
+              {allExercises.filter((exercise) => exercise.id !== deleteTarget.id && recordingSnapshotEquals(exercise, deleteTarget)).map((exercise) => (
                 <option key={exercise.id} value={exercise.id}>{exercise.name}</option>
               ))}
             </select>
@@ -349,7 +350,7 @@ function SwipeExerciseCard(props: {
             <span className="block font-semibold text-slate-900 truncate">{props.exercise.name}</span>
             <span className="mt-1 flex flex-wrap gap-1.5">
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{CATEGORY_LABELS[props.exercise.category] || props.exercise.category}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{EXERCISE_TYPE_LABELS[props.exercise.type]}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{RECORDING_MODE_LABELS[props.exercise.recording_mode]}</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{props.exercise.equipment ? EQUIPMENT_LABELS[props.exercise.equipment] : "未设置器械"}</span>
               {props.exercise.is_custom && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">自定义</span>}
             </span>

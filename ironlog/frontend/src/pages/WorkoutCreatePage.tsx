@@ -9,9 +9,11 @@ import { completeWorkoutDraft, createWorkout, getLatestWorkoutDraft, updateWorko
 import { appendExerciseToTemplate, getTemplate, getPlans, getPlan } from "@/services/plan";
 import { getSettings } from "@/services/settings";
 import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
-import { completionTimestamp, formatExerciseCompletion, formatWorkoutPrimaryMetric } from "@/utils/workoutPresentation";
+import { getRecordingModeSpec, validateWorkoutSetForMode } from "@/core/recordingModes";
+import { completionTimestamp, formatExerciseCompletion, formatWorkoutPrimaryMetric, splitMetricValue } from "@/utils/workoutPresentation";
+import { formatSet } from "@/utils/recordingPresentation";
 import { scrollAppToTop } from "@/utils/scroll";
-import { exerciseForDraftResume } from "@/utils/workoutDraft";
+import { sessionExerciseForDraft } from "@/utils/workoutDraft";
 import type { Exercise, Workout, WorkoutSet, PlanTemplate, PlanSummary } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
@@ -26,6 +28,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import StepInput from "@/components/ui/StepInput";
+import SetFieldEditor from "@/components/SetFieldEditor";
 import { format, parseISO } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { useToastStore } from "@/components/Toast";
@@ -40,6 +43,7 @@ type Phase = "select" | "training" | "rest" | "finish";
 interface SessionExercise {
   id?: string;
   exercise: Exercise;
+  superset_group: number | null;
   sets: WorkoutSet[];
 }
 
@@ -47,6 +51,11 @@ function formatTimer(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function parseNullableNumber(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : Number(trimmed);
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,6 +92,7 @@ export default function WorkoutCreatePage() {
   const [inputDistance, setInputDistance] = useState("");
   const [inputDuration, setInputDuration] = useState("");
   const [inputRpe, setInputRpe] = useState("");
+  const [inputRpeError, setInputRpeError] = useState<string | null>(null);
   const [inputWarmup, setInputWarmup] = useState(false);
   const [inputFailure, setInputFailure] = useState(false);
 
@@ -201,6 +211,7 @@ export default function WorkoutCreatePage() {
 
   function resetSetMetaInputs() {
     setInputRpe("");
+    setInputRpeError(null);
     setInputWarmup(false);
     setInputFailure(false);
   }
@@ -306,8 +317,12 @@ export default function WorkoutCreatePage() {
     exercises: exercises.map((se, idx) => ({
       id: se.id,
       exercise_id: se.exercise.id,
-      exercise_type: se.exercise.type,
+      recording_mode: se.exercise.recording_mode,
+      load_basis: se.exercise.load_basis,
+      load_direction: se.exercise.load_direction,
+      rate_metric: se.exercise.rate_metric,
       sort_order: idx,
+      superset_group: se.superset_group,
       sets: se.sets.map((s) => ({
         id: s.id,
         set_number: s.set_number,
@@ -367,24 +382,42 @@ export default function WorkoutCreatePage() {
 
   const handleCompleteSet = async () => {
     if (!currentExercise) return;
-    const w = inputWeight ? parseFloat(inputWeight) : null;
-    const r = inputReps ? parseInt(inputReps) : null;
-    const distance = inputDistance ? parseFloat(inputDistance) : null;
-    const duration = inputDuration ? parseInt(inputDuration) : null;
-    const rpe = inputRpe ? parseInt(inputRpe) : null;
+    const spec = getRecordingModeSpec(currentExercise.recording_mode);
+    const w = parseNullableNumber(inputWeight);
+    const r = parseNullableNumber(inputReps);
+    const distance = parseNullableNumber(inputDistance);
+    const duration = parseNullableNumber(inputDuration);
+    const rpe = parseNullableNumber(inputRpe);
 
     const completedSet: WorkoutSet = {
       set_number: currentSetNum,
-      weight: currentExercise.type === "strength" ? w : null,
-      reps: currentExercise.type === "cardio" || currentExercise.type === "static_hold" ? null : r,
+      weight: spec.fields.includes("weight") ? w : null,
+      reps: spec.fields.includes("reps") ? r : null,
       unit: weightUnit,
-      duration_sec: currentExercise.type === "cardio" || currentExercise.type === "static_hold" ? duration : null,
-      distance_m: currentExercise.type === "cardio" ? distance : null,
+      duration_sec: spec.fields.includes("durationSec") ? duration : null,
+      distance_m: spec.fields.includes("distanceM") ? distance : null,
       rpe,
       is_warmup: inputWarmup,
       is_failure: inputFailure,
       rest_seconds: null,
     };
+    try {
+      validateWorkoutSetForMode({
+        weight: completedSet.weight,
+        reps: completedSet.reps,
+        distanceM: completedSet.distance_m,
+        durationSec: completedSet.duration_sec,
+      }, {
+        recordingMode: currentExercise.recording_mode,
+        loadBasis: currentExercise.load_basis,
+        loadDirection: currentExercise.load_direction,
+        rateMetric: currentExercise.rate_metric,
+      }, "complete");
+      if (rpe != null && (!Number.isInteger(rpe) || rpe < 1 || rpe > 10)) throw new Error("RPE 必须是 1 到 10 的整数");
+    } catch (error) {
+      useToastStore.getState().add(error instanceof Error ? error.message : "请检查本组输入", "error");
+      return;
+    }
 
     // Compute updated exercises list
     let updated: SessionExercise[];
@@ -400,7 +433,7 @@ export default function WorkoutCreatePage() {
     } else {
       updated = [
         ...sessionExercises,
-        { exercise: currentExercise, sets: [completedSet] },
+        { exercise: currentExercise, superset_group: null, sets: [completedSet] },
       ];
     }
     setSessionExercises(updated);
@@ -518,14 +551,7 @@ export default function WorkoutCreatePage() {
   async function continueDraft() {
     if (!draft) return;
     const exerciseMap = new Map(allExercises.map((exercise) => [exercise.id, exercise]));
-    const restored = draft.exercises.map((item) => {
-      const linked = exerciseMap.get(item.exercise_id);
-      return {
-        id: item.id,
-        exercise: exerciseForDraftResume(item, linked),
-        sets: item.sets,
-      };
-    });
+    const restored = draft.exercises.map((item) => sessionExerciseForDraft(item, exerciseMap.get(item.exercise_id)));
     workoutIdRef.current = draft.id;
     setDate(draft.date);
     setMood(draft.mood);
@@ -792,7 +818,7 @@ export default function WorkoutCreatePage() {
           </div>
 
           {/* Unit toggle */}
-          {currentExercise.type === "strength" && <div className="flex items-center gap-3 mb-5">
+          {getRecordingModeSpec(currentExercise.recording_mode).fields.includes("weight") && <div className="flex items-center gap-3 mb-5">
             <span className="text-sm text-slate-500 font-medium">单位</span>
             <div className="flex bg-slate-100 rounded-xl p-0.5">
               {(["kg", "lb"] as const).map((u) => (
@@ -812,28 +838,18 @@ export default function WorkoutCreatePage() {
           </div>}
 
           {/* Step inputs */}
-          <div className="space-y-4 mb-5">
-            {currentExercise.type === "strength" && <StepInput
-              label={`重量 (${weightUnit})`}
-              value={inputWeight}
-              onChange={setInputWeight}
-              step={weightUnit === "kg" ? 2.5 : 5}
-              inputMode="decimal"
-              placeholder="0"
-            />}
-            {(currentExercise.type === "strength" || currentExercise.type === "reps_only") && <StepInput
-              label="次数"
-              value={inputReps}
-              onChange={setInputReps}
-              step={1}
-              inputMode="numeric"
-              placeholder="0"
-            />}
-            {currentExercise.type === "cardio" && <>
-              <StepInput label="距离 (m)" value={inputDistance} onChange={setInputDistance} step={100} inputMode="decimal" placeholder="0" />
-              <StepInput label="时长 (秒)" value={inputDuration} onChange={setInputDuration} step={60} inputMode="numeric" placeholder="0" />
-            </>}
-            {currentExercise.type === "static_hold" && <StepInput label="保持时长 (秒)" value={inputDuration} onChange={setInputDuration} step={10} inputMode="numeric" placeholder="0" />}
+          <div className="mb-5">
+            <SetFieldEditor
+              recording={currentExercise}
+              weightUnit={weightUnit}
+              value={{ weight: inputWeight, reps: inputReps, distanceM: inputDistance, durationSec: inputDuration }}
+              onChange={(field, value) => {
+                if (field === "weight") setInputWeight(value);
+                else if (field === "reps") setInputReps(value);
+                else if (field === "distanceM") setInputDistance(value);
+                else setInputDuration(value);
+              }}
+            />
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 p-3 mb-5 space-y-3">
@@ -856,13 +872,18 @@ export default function WorkoutCreatePage() {
             <StepInput
               label="RPE"
               value={inputRpe}
-              onChange={setInputRpe}
+              onChange={(value) => {
+                setInputRpe(value);
+                const parsed = parseNullableNumber(value);
+                setInputRpeError(parsed == null || (Number.isInteger(parsed) && parsed >= 1 && parsed <= 10) ? null : "RPE 必须是 1 到 10 的整数");
+              }}
               step={1}
               min={1}
               max={10}
               inputMode="numeric"
               placeholder="未设置"
             />
+            {inputRpeError && <p role="alert" className="text-xs text-red-500">{inputRpeError}</p>}
           </div>
 
           {/* History — collapsible */}
@@ -883,7 +904,7 @@ export default function WorkoutCreatePage() {
                     <div key={i} className="flex justify-between items-center px-4 py-2.5 text-sm">
                       <span className="text-slate-400 text-xs">{dateLabel}</span>
                       <span className="font-semibold text-slate-700">
-                        {currentExercise.type === "cardio" ? `${r.distance_m ?? 0}m · ${r.duration_sec ?? 0}s` : currentExercise.type === "static_hold" ? `${r.duration_sec ?? 0}s` : currentExercise.type === "reps_only" ? `${r.reps ?? 0}次` : `${r.weight ?? 0}${r.unit} × ${r.reps ?? 0}次`}
+                        {formatSet(r, r)}
                         {r.is_warmup && (
                           <span className="text-amber-500 text-xs ml-2">热身</span>
                         )}
@@ -948,7 +969,7 @@ export default function WorkoutCreatePage() {
           </div>
           <p className="font-bold text-slate-900">{currentExercise.name} 第 {lastCompletedSet.set_number} 组</p>
           <p className="text-slate-600 text-sm mt-0.5">
-            {currentExercise.type === "cardio" ? `${lastCompletedSet.distance_m ?? 0} m · ${lastCompletedSet.duration_sec ?? 0} s` : currentExercise.type === "static_hold" ? `${lastCompletedSet.duration_sec ?? 0} s` : currentExercise.type === "reps_only" ? `${lastCompletedSet.reps ?? 0} 次` : `${lastCompletedSet.weight ?? 0} ${weightUnit} × ${lastCompletedSet.reps ?? 0} 次`}
+            {formatSet(currentExercise, lastCompletedSet)}
           </p>
         </div>
 
@@ -1026,7 +1047,10 @@ export default function WorkoutCreatePage() {
   if (phase === "finish") {
     const totalSets = sessionExercises.reduce((s, se) => s + se.sets.length, 0);
     const metrics = calculateWorkoutMetrics(sessionExercises.map((se) => ({
-      exerciseType: se.exercise.type,
+      recordingMode: se.exercise.recording_mode,
+      loadBasis: se.exercise.load_basis,
+      loadDirection: se.exercise.load_direction,
+      rateMetric: se.exercise.rate_metric,
       sets: se.sets.map((set) => ({
         weight: set.weight,
         reps: set.reps,
@@ -1035,7 +1059,8 @@ export default function WorkoutCreatePage() {
         distanceM: set.distance_m,
       })),
     })), weightUnit);
-    const primaryMetric = formatWorkoutPrimaryMetric(sessionExercises.map((item) => item.exercise.type), metrics);
+    const primaryMetric = formatWorkoutPrimaryMetric(sessionExercises.map((item) => item.exercise), metrics);
+    const primaryMetricParts = splitMetricValue(primaryMetric.value);
 
     return (
       <div className="app-page bg-slate-50 flex flex-col">
@@ -1053,26 +1078,27 @@ export default function WorkoutCreatePage() {
 
         <div className="px-5 pt-4 space-y-4 pb-6">
           {/* Celebration banner */}
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-5 text-center shadow-md shadow-emerald-200">
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl px-4 py-5 text-center shadow-md shadow-emerald-200">
             <p className="text-4xl mb-2">🌟</p>
             <p className="text-xl font-bold text-white">训练完成！</p>
             <p className="text-emerald-100 text-sm mt-1">你太棒了！</p>
-            <div className="flex justify-center gap-6 mt-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-white">{formatTimer(totalSeconds)}</p>
-                <p className="text-emerald-200 text-xs mt-0.5">训练时长</p>
+            <div data-testid="celebration-stats" className="grid grid-cols-[minmax(0,1fr)_1px_minmax(0,0.75fr)_1px_minmax(0,1.35fr)] items-stretch gap-2 mt-4">
+              <div className="min-w-0 text-center">
+                <p className="text-2xl leading-7 font-bold text-white whitespace-nowrap">{formatTimer(totalSeconds)}</p>
+                <p className="text-emerald-200 text-xs leading-4 mt-0.5 whitespace-nowrap">训练时长</p>
               </div>
-              <div className="w-px bg-white/20" />
-              <div className="text-center">
-                <p className="text-2xl font-bold text-white">{totalSets}</p>
-                <p className="text-emerald-200 text-xs mt-0.5">完成组数</p>
+              <div className="w-px h-full bg-white/20" />
+              <div className="min-w-0 text-center">
+                <p className="text-2xl leading-7 font-bold text-white whitespace-nowrap">{totalSets}</p>
+                <p className="text-emerald-200 text-xs leading-4 mt-0.5 whitespace-nowrap">完成组数</p>
               </div>
-              <div className="w-px bg-white/20" />
-              <div className="text-center">
-                <p className="text-2xl font-bold text-white">
-                  {primaryMetric.value}
+              <div className="w-px h-full bg-white/20" />
+              <div className="min-w-0 text-center">
+                <p data-testid="celebration-primary-metric" className="font-bold text-white leading-7 tracking-tight whitespace-nowrap">
+                  <span className="text-xl">{primaryMetricParts.amount}</span>
+                  {primaryMetricParts.unit && <> <span className="text-sm font-semibold">{primaryMetricParts.unit}</span></>}
                 </p>
-                <p className="text-emerald-200 text-xs mt-0.5">{primaryMetric.label}</p>
+                <p className="text-emerald-200 text-xs leading-4 mt-0.5 whitespace-nowrap">{primaryMetric.label}</p>
               </div>
             </div>
           </div>
@@ -1084,7 +1110,7 @@ export default function WorkoutCreatePage() {
             </div>
             <div className="divide-y divide-slate-50">
               {sessionExercises.map((se) => {
-                const summary = formatExerciseCompletion(se.exercise.type, se.sets, weightUnit);
+                const summary = formatExerciseCompletion(se.exercise, se.sets, weightUnit);
                 return (
                   <div key={se.exercise.id} className="flex items-center justify-between px-4 py-3">
                     <div className="min-w-0">

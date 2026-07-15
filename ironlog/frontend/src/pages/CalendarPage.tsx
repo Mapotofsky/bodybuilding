@@ -8,6 +8,7 @@ import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMet
 import { getCalendarOverview, getCalendarStats, type CalendarDayNote, type CalendarDayOverview, type CalendarStats, type StatsPeriod } from "@/services/calendarStats";
 import { categoryKeyStyle } from "@/theme/categoryColors";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
+import { formatPerformanceMetric } from "@/utils/recordingPresentation";
 
 export default function CalendarPage() {
   const navigate = useNavigate();
@@ -532,17 +533,15 @@ function formatPerformanceComparison(previousValue: number, record: PerformanceR
 }
 
 function formatPerformanceValue(record: PerformanceRecordForDisplay, displayUnit: CalendarStats["kpis"]["total_volume_unit"]): string {
-  if (record.metric_type === "strength.rpe_adjusted_rm_mean" && record.rm) {
-    const mean = convertWeight(record.rm.meanKg, "kg", displayUnit);
-    const standardDeviation = convertWeight(record.rm.standardDeviationKg, "kg", displayUnit);
-    return `${formatOneDecimal(mean)} ± ${formatOneDecimal(standardDeviation)} ${displayUnit}`;
-  }
-  return formatPerformanceScalar(record.value, record.unit, displayUnit);
+  return formatPerformanceMetric(record, displayUnit);
 }
 
 function formatPerformanceScalar(value: number, unit: PerformanceRecordForDisplay["unit"], displayUnit: CalendarStats["kpis"]["total_volume_unit"]): string {
   if (unit === "kg_reps") return formatVolume(convertWeight(value, "kg", displayUnit), displayUnit);
   if (unit === "kg") return `${formatOneDecimal(convertWeight(value, "kg", displayUnit))} ${displayUnit}`;
+  if (unit === "kg_seconds") return `${formatOneDecimal(convertWeight(value, "kg", displayUnit))} ${displayUnit}·s`;
+  if (unit === "kg_meters") return `${formatOneDecimal(convertWeight(value, "kg", displayUnit))} ${displayUnit}·m`;
+  if (unit === "kg_meters_per_second") return `${formatOneDecimal(convertWeight(value, "kg", displayUnit))} ${displayUnit}·m/s`;
   if (unit === "m_per_sec") return `${formatOneDecimal(value)} m/s`;
   if (unit === "sec") return `${formatOneDecimal(value)} s`;
   if (unit === "reps") return `${formatOneDecimal(value)} 次`;

@@ -7,8 +7,7 @@ import { Plus, ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { formatVolume } from "@/core/workoutMetrics";
-import { formatDistance, formatDuration } from "@/utils/workoutPresentation";
+import { formatWorkoutSummariesPrimaryMetric, formatWorkoutSummaryPrimaryMetric } from "@/utils/workoutPresentation";
 
 export default function WorkoutsPage() {
   const navigate = useNavigate();
@@ -100,7 +99,7 @@ export default function WorkoutsPage() {
                   </p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {w.exercise_count} 个动作 · {w.total_sets} 组 ·{" "}
-                    {summaryMetric(w)}
+                    {formatWorkoutSummaryPrimaryMetric(w).value}
                   </p>
                   {w.note && (
                     <p className="text-xs text-slate-400 mt-1 line-clamp-1">{w.note}</p>
@@ -124,21 +123,6 @@ export default function WorkoutsPage() {
   );
 }
 
-function summaryMetric(workout: WorkoutSummary): string {
-  if (workout.total_volume > 0) return formatVolume(workout.total_volume, workout.total_volume_unit);
-  if (workout.total_distance_m > 0) return `${Math.round(workout.total_distance_m)} m`;
-  if (workout.total_duration_sec > 0) return `${workout.total_duration_sec} s`;
-  return `${workout.total_reps} 次`;
-}
-
 export function monthlySummaryMetric(workouts: WorkoutSummary[]): { label: string; value: string } {
-  const volume = workouts.reduce((sum, workout) => sum + workout.total_volume, 0);
-  const unit = workouts[0]?.total_volume_unit || "kg";
-  if (volume > 0 || workouts.length === 0) return { label: "总容量", value: formatVolume(volume, unit) };
-  const distance = workouts.reduce((sum, workout) => sum + workout.total_distance_m, 0);
-  if (distance > 0) return { label: "总距离", value: formatDistance(distance) };
-  const duration = workouts.reduce((sum, workout) => sum + workout.total_duration_sec, 0);
-  if (duration > 0) return { label: "动作时长", value: formatDuration(duration) };
-  const reps = workouts.reduce((sum, workout) => sum + workout.total_reps, 0);
-  return { label: "完成次数", value: `${reps} 次` };
+  return formatWorkoutSummariesPrimaryMetric(workouts);
 }

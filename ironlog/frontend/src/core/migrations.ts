@@ -17,6 +17,8 @@ import {
 } from "./models";
 import { makeId, nowIso } from "./id";
 import { DEFAULT_EXERCISES } from "./defaultData";
+import { recordingConfigOf, validateRecordingConfig, validateWorkoutSetForMode } from "./recordingModes";
+import { getPerformanceMetricSpec } from "./performanceMetrics";
 
 export const STATIC_SHARD_PATHS = [
   "profile.json",
@@ -55,6 +57,9 @@ export function exercisePerformanceShardPathsFromManifest(manifest: Pick<IronLog
 function doc<T extends { id?: string; createdAt?: string; updatedAt?: string; deletedAt?: string | null; schemaVersion?: number }>(
   value: T
 ): T & { id: string; createdAt: string; updatedAt: string; deletedAt: string | null; schemaVersion: number } {
+  if (value.schemaVersion != null && value.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+    throw new Error(`不兼容开发快照（schemaVersion=${value.schemaVersion}）；请按运行指南人工清理隔离测试存储后重试`);
+  }
   const t = nowIso();
   return {
     ...value,
@@ -62,7 +67,7 @@ function doc<T extends { id?: string; createdAt?: string; updatedAt?: string; de
     createdAt: value.createdAt || t,
     updatedAt: value.updatedAt || value.createdAt || t,
     deletedAt: value.deletedAt ?? null,
-    schemaVersion: value.schemaVersion || CURRENT_SCHEMA_VERSION,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
 
@@ -98,7 +103,12 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
     },
     profile,
     settings,
-    exercises: DEFAULT_EXERCISES,
+    exercises: DEFAULT_EXERCISES.map((exercise) => ({
+      ...exercise,
+      primaryMuscleGroupIds: [...exercise.primaryMuscleGroupIds],
+      secondaryMuscleGroupIds: [...exercise.secondaryMuscleGroupIds],
+      provenance: exercise.provenance ? { ...exercise.provenance } : undefined,
+    })),
     plans: [],
     templates: [],
     workouts: [],
@@ -123,7 +133,7 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
     },
     profile: normalizeProfile(raw.profile, base.profile),
     settings: normalizeSettings(raw.settings, base.settings),
-    exercises: normalizeArray<ExerciseDoc>(raw.exercises, []),
+    exercises: normalizeExercises(raw.exercises),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
     workouts: normalizeWorkouts(raw.workouts, []),
@@ -153,10 +163,25 @@ function normalizeProfile(value: ProfileDoc | undefined, fallback: ProfileDoc): 
 function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[]): WorkoutDoc[] {
   return normalizeArray<WorkoutDoc>(value, fallback).map((workout) => ({
     ...workout,
-    exercises: workout.exercises.map((exercise) => ({
-      ...exercise,
-      sets: exercise.sets.map(normalizeWorkoutSet),
-    })),
+    exercises: workout.exercises.map((exercise) => {
+      const config = validateRecordingConfig(recordingConfigOf(exercise));
+      return {
+        ...exercise,
+        ...config,
+        sets: exercise.sets.map((rawSet) => {
+          const set = normalizeWorkoutSet(rawSet);
+          validateWorkoutSetForMode(set, config, workout.endTime == null ? "draft" : "complete");
+          return set;
+        }),
+      };
+    }),
+  }));
+}
+
+function normalizeExercises(value: ExerciseDoc[] | undefined): ExerciseDoc[] {
+  return normalizeArray<ExerciseDoc>(value, []).map((exercise) => ({
+    ...exercise,
+    ...validateRecordingConfig(recordingConfigOf(exercise)),
   }));
 }
 
@@ -203,11 +228,21 @@ function normalizeTimelineNotes(value: TimelineNoteDoc[] | undefined): TimelineN
 }
 
 function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | undefined): ExercisePerformanceRecordDoc[] {
-  return normalizeArray<ExercisePerformanceRecordDoc>(value, []).map((record) => ({
-    ...record,
-    sourceSetId: record.sourceSetId ?? null,
-    rm: record.rm ?? null,
-  }));
+  return normalizeArray<ExercisePerformanceRecordDoc>(value, []).map((record) => {
+    const spec = getPerformanceMetricSpec(record.metricType);
+    if (!spec || record.unit !== spec.unit) throw new Error("成绩指标或单位与当前 schema 不兼容");
+    validatePerformanceInput(record.input);
+    return { ...record, sourceSetId: record.sourceSetId ?? null, rm: record.rm ?? null };
+  }).filter((record) => record.metricType !== "weight.max_input" || record.input.loadBasis === "per_hand");
+}
+
+function validatePerformanceInput(input: ExercisePerformanceRecordDoc["input"]): void {
+  if (!input || typeof input !== "object") throw new Error("成绩输入上下文无效");
+  const requiredKeys: Array<keyof ExercisePerformanceRecordDoc["input"]> = [
+    "enteredLoad", "enteredLoadUnit", "effectiveLoadKg", "loadBasis", "loadDirection", "reps", "rpe",
+    "effectiveReps", "distanceM", "durationSec", "workoutVolumeKgReps",
+  ];
+  if (requiredKeys.some((key) => !(key in input))) throw new Error("成绩输入上下文与当前 schema 不兼容");
 }
 
 function normalizeSettings(value: SettingsDoc | undefined, fallback: SettingsDoc): SettingsDoc {
@@ -244,6 +279,7 @@ function normalizeWorkoutSet(set: WorkoutSetDoc): WorkoutSetDoc {
   const raw = { ...(set as WorkoutSetDoc & Record<string, unknown>) };
   delete raw[legacyFlagKey];
   return {
+    ...raw,
     id: raw.id as string,
     setNumber: raw.setNumber as number,
     weight: (raw.weight as number | null | undefined) ?? null,

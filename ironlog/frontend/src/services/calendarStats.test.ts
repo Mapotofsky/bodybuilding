@@ -92,7 +92,10 @@ function strengthWorkout(id: string, date: string, volume: number, durationMinut
     exercises: [{
       id: `${id}-exercise`,
       exerciseId: "ex-bench-press",
-      exerciseType: "strength",
+      recordingMode: "weight_reps",
+      loadBasis: "total",
+      loadDirection: "higher_better",
+      rateMetric: "none",
       sortOrder: 0,
       supersetGroup: null,
       sets: [{
@@ -112,6 +115,6 @@ function strengthWorkout(id: string, date: string, volume: number, durationMinut
     createdAt: timestamp,
     updatedAt: timestamp,
     deletedAt: null,
-    schemaVersion: 3,
+    schemaVersion: 4,
   };
 }

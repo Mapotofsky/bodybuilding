@@ -55,16 +55,33 @@ export async function syncNow(): Promise<SyncResult> {
   merged.manifest.updatedAt = new Date().toISOString();
   merged.manifest.shards = buildShardList(merged);
 
-  await localRepository.replaceSnapshot(merged);
-  await pushSnapshot(client, merged);
-  await localRepository.updateLastSyncAt(merged.manifest.updatedAt);
-  if (shouldRebuildPerformance) await rebuildAllPerformanceRecords();
+  const readyToPush = await prepareSnapshotForPush(merged, shouldRebuildPerformance);
+  await pushSnapshot(client, readyToPush);
+  await localRepository.updateLastSyncAt(readyToPush.manifest.updatedAt);
 
   return {
     status: conflicts.length > 0 ? "conflict" : "success",
     message: conflicts.length > 0 ? "同步完成，存在已记录冲突" : "同步完成",
     conflicts,
   };
+}
+
+export async function prepareSnapshotForPush(
+  merged: DataSnapshot,
+  shouldRebuildPerformance: boolean,
+  operations: {
+    replaceSnapshot(snapshot: DataSnapshot): Promise<unknown>;
+    rebuildPerformance(): Promise<void>;
+    getSnapshot(): Promise<DataSnapshot>;
+  } = {
+    replaceSnapshot: (snapshot) => localRepository.replaceSnapshot(snapshot),
+    rebuildPerformance: () => rebuildAllPerformanceRecords(),
+    getSnapshot: () => localRepository.getSnapshot(),
+  }
+): Promise<DataSnapshot> {
+  await operations.replaceSnapshot(merged);
+  if (shouldRebuildPerformance) await operations.rebuildPerformance();
+  return operations.getSnapshot();
 }
 
 async function configuredClient(): Promise<WebDavClient> {

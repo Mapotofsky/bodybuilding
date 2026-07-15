@@ -302,7 +302,7 @@ function exercisePerformanceMonthFiles(snapshot: DataSnapshot): Record<string, E
   return grouped;
 }
 
-function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> {
+export function filesToSnapshot(files: Record<string, unknown>): Partial<DataSnapshot> {
   const templateFile = files["templates.json"] as { plans?: unknown; templates?: unknown } | undefined;
   const manifest = files[MANIFEST_PATH] as IronLogManifest | undefined;
   const monthWorkouts = workoutShardPathsFromManifest(manifest)
