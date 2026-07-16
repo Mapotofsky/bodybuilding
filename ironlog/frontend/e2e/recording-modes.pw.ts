@@ -150,6 +150,31 @@ test.describe("农夫行走记录模式", () => {
   });
 });
 
+test("动作详情跳转来源训练后恢复滚动位置", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await startFarmerWalk(page);
+  await fillFarmerSet(page);
+  await page.getByRole("button", { name: "✓ 完成本组" }).click();
+  await page.getByRole("button", { name: "结束" }).click();
+  await page.getByRole("button", { name: "保存训练记录" }).click();
+
+  await page.goto("/exercises/ex-farmer-walk", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "农夫行走" })).toBeVisible();
+  const main = page.getByTestId("app-main");
+  await main.evaluate((element) => element.scrollTo({ top: 260 }));
+  const scrollTopBeforeOpen = await main.evaluate((element) => element.scrollTop);
+  expect(scrollTopBeforeOpen).toBeGreaterThan(0);
+
+  const sourceRecord = page.locator("button").filter({ hasText: "真实 PR" }).first();
+  await expect(sourceRecord).toBeAttached();
+  await sourceRecord.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(page.getByRole("heading", { name: "训练详情" })).toBeVisible();
+  await page.goBack();
+
+  await expect(page.getByRole("heading", { name: "农夫行走" })).toBeVisible();
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(scrollTopBeforeOpen);
+});
+
 test("动作详情只展示适用于当前记录配置的基础信息", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
 

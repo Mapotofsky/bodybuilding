@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Check, ChevronLeft, Dumbbell, Gauge, NotebookText, Pencil, Trash2, TrendingUp, X } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
@@ -27,10 +27,14 @@ import {
   formatSet,
   recordingSnapshotEquals,
 } from "@/utils/recordingPresentation";
+import { restoreRouteScrollPosition, saveRouteScrollPosition } from "@/utils/scroll";
+
+const SCROLL_STORAGE_KEY = "ironlog.exerciseDetailScroll";
 
 export default function ExerciseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const confirm = useConfirmStore((state) => state.show);
   const toast = useToastStore((state) => state.add);
@@ -57,6 +61,7 @@ export default function ExerciseDetailPage() {
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroupId[]>([]);
   const [replacement, setReplacement] = useState("");
   const [displayUnit, setDisplayUnit] = useState<"kg" | "lb">("kg");
+  const restoredScroll = useRef(false);
 
   useEffect(() => {
     if (!id) return;
@@ -85,6 +90,13 @@ export default function ExerciseDetailPage() {
       alive = false;
     };
   }, [id]);
+
+  useLayoutEffect(() => {
+    if (loading || restoredScroll.current || typeof sessionStorage === "undefined") return;
+    restoredScroll.current = true;
+    const main = document.querySelector<HTMLElement>("[data-app-main]");
+    restoreRouteScrollPosition(sessionStorage, SCROLL_STORAGE_KEY, `${location.pathname}${location.search}`, main);
+  }, [loading, location.pathname, location.search]);
 
   const groupedHistory = useMemo(() => {
     const byDate: Record<string, ExerciseHistoryRecord[]> = {};
@@ -121,6 +133,14 @@ export default function ExerciseDetailPage() {
   function goBack() {
     const from = searchParams.get("from");
     navigate(from && from.startsWith("/exercises") ? from : "/exercises");
+  }
+
+  function openSourceWorkout(workoutId: string) {
+    const main = document.querySelector<HTMLElement>("[data-app-main]");
+    if (typeof sessionStorage !== "undefined") {
+      saveRouteScrollPosition(sessionStorage, SCROLL_STORAGE_KEY, `${location.pathname}${location.search}`, main?.scrollTop ?? 0);
+    }
+    navigate(`/workouts/${workoutId}`);
   }
 
   async function saveEdit() {
@@ -278,7 +298,7 @@ export default function ExerciseDetailPage() {
           ) : (
             <div className="space-y-2">
               {currentBestPerformance.map((record) => (
-                <button key={record.id} onClick={() => navigate(`/workouts/${record.source_workout_id}`)} className="app-surface-muted w-full min-w-0 text-left rounded-xl border app-border p-3">
+                <button key={record.id} onClick={() => openSourceWorkout(record.source_workout_id)} className="app-surface-muted w-full min-w-0 text-left rounded-xl border app-border p-3">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                     <span className="text-sm font-semibold app-text break-words">{record.metric_label}</span>
                     <span className="text-sm font-bold app-primary-text text-right break-words max-w-36">{formatPerformanceMetric(record, displayUnit)}</span>

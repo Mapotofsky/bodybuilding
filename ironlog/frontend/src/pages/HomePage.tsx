@@ -12,7 +12,7 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
 import { formatVolume } from "@/core/workoutMetrics";
-import { formatWorkoutSummariesPrimaryMetric, formatWorkoutSummaryPrimaryMetric } from "@/utils/workoutPresentation";
+import { formatWorkoutSummariesPrimaryMetric, formatWorkoutSummaryPrimaryMetric, splitMetricValue } from "@/utils/workoutPresentation";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -71,6 +71,7 @@ export default function HomePage() {
 
   const thisMonthCount = monthWorkouts.length;
   const thisMonthMetric = formatWorkoutSummariesPrimaryMetric(monthWorkouts);
+  const thisMonthMetricValue = splitMetricValue(thisMonthMetric.value);
   const displayUnit = monthWorkouts[0]?.total_volume_unit || recentWorkouts[0]?.total_volume_unit || "kg";
 
   const volumeChartData = [...recentWorkouts]
@@ -188,7 +189,8 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl p-4 shadow-sm shadow-emerald-200">
             <BarChart2 size={16} className="text-white/80 mb-2" />
             <p className="text-2xl font-bold text-white">
-              {thisMonthMetric.value}
+              {thisMonthMetricValue.amount}
+              {thisMonthMetricValue.unit && <span className="text-base font-semibold ml-0.5"> {thisMonthMetricValue.unit}</span>}
             </p>
             <p className="text-emerald-100 text-xs mt-0.5">{thisMonthMetric.label}</p>
           </div>

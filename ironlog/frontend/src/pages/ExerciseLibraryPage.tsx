@@ -9,6 +9,7 @@ import CustomExerciseForm, { EMPTY_CUSTOM_EXERCISE_FORM, type CustomExerciseForm
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 import { restoreRouteScrollPosition, saveRouteScrollPosition } from "@/utils/scroll";
 import { recordingSnapshotEquals } from "@/utils/recordingPresentation";
+import { countEquipmentUsage, frequentlyUsedEquipmentIds, hasOtherEquipmentOption, matchesEquipmentFilter } from "@/utils/equipmentFilters";
 
 const FILTER_STORAGE_KEY = "ironlog.exerciseLibraryQuery";
 const SCROLL_STORAGE_KEY = "ironlog.exerciseLibraryScroll";
@@ -40,6 +41,12 @@ export default function ExerciseLibraryPage() {
     () => [...new Set(allExercises.map((exercise) => exercise.category))].sort((a, b) => a.localeCompare(b)),
     [allExercises]
   );
+  const equipmentCounts = useMemo(() => countEquipmentUsage(allExercises), [allExercises]);
+  const equipmentOptions = useMemo(
+    () => frequentlyUsedEquipmentIds(equipmentCounts, Object.keys(EQUIPMENT_LABELS) as EquipmentId[]),
+    [equipmentCounts]
+  );
+  const showOtherEquipmentOption = useMemo(() => hasOtherEquipmentOption(equipmentCounts), [equipmentCounts]);
 
   useEffect(() => {
     if (location.search) sessionStorage.setItem(FILTER_STORAGE_KEY, location.search);
@@ -51,12 +58,13 @@ export default function ExerciseLibraryPage() {
     setError(null);
     Promise.all([
       getExercises(),
-      getExercises({ q: q || undefined, category: category ? category as ExerciseCategory : undefined, equipment: equipment || undefined }),
+      getExercises({ q: q || undefined, category: category ? category as ExerciseCategory : undefined, equipment: equipment && equipment !== "other" ? equipment : undefined }),
     ])
       .then(([all, filtered]) => {
         if (!alive) return;
         setAllExercises(all);
-        setExercises(filtered);
+        const allCounts = countEquipmentUsage(all);
+        setExercises(equipment === "other" ? filtered.filter((exercise) => matchesEquipmentFilter(exercise, equipment, allCounts)) : filtered);
       })
       .catch((err) => {
         if (!alive) return;
@@ -193,7 +201,8 @@ export default function ExerciseLibraryPage() {
           aria-label="器械筛选"
         >
           <option value="">全部器械</option>
-          {Object.entries(EQUIPMENT_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          {equipmentOptions.map((key) => <option key={key} value={key}>{EQUIPMENT_LABELS[key]}</option>)}
+          {showOtherEquipmentOption && <option value="other">其他</option>}
         </select>
       </div>
 
