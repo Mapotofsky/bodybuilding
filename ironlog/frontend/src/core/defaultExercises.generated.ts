@@ -1,5 +1,5 @@
 // 此文件由 scripts/exerciseCatalog.mjs 生成，禁止手改。
-// candidates sha256: 261f9a696fe9d661d6aacc773a2fa4e8561d9bf5fe777742a564a99a586dffe0
+// candidates sha256: d4450eecd1367848e1034d92ac3c52a27af2b751ef317b0c1e6834e1d658ba57
 // upstream revision: 118e4bd6b14da6df0e36605d7169b65db18389a4
 import type { DefaultExerciseSeed } from "./models";
 

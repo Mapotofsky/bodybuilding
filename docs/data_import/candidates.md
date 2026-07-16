@@ -1,17 +1,20 @@
 # IronLog 精选默认动作候选
 
-> 状态：候选内容权威；后续增删、改名、字段纠错和等级调整只修改本文件，不依赖历史对话。
+> 状态：正式目录的动作字段、来源映射和当前 A43/B20 批次状态权威；后续增删、改名或字段纠错只修改本文件，不依赖历史对话。
 > 上游：`hasaneyldrm/exercises-dataset`，默认分支 `main`，固定 commit [`118e4bd6b14da6df0e36605d7169b65db18389a4`](https://github.com/hasaneyldrm/exercises-dataset/tree/118e4bd6b14da6df0e36605d7169b65db18389a4)，访问日期 `2026-07-14`。
 > 范围：A 级 43 个、B 级 20 个，共 63 个；仅中文文本，不引入图片、GIF、Media 字段、媒体 URL、`media_id` 或非中文 instructions。
+> 当前评价：63 条动作的目标角色、准入状态和 v2 评分见[《训练动作评价指南》](训练动作评价指南.md#5-现有目录与规划动作的重评)。A/B 是现有目录批次标签，不是训练效果、风险或永久优劣等级。
 > 实施步骤与验证：见 [默认动作库引入实施方案](默认动作库引入实施方案.md)。
 
 ## 已确认的策展契约
+
+> 表中“历史 v1 评分”保留为 2026-07-15 的审计记录，已不用于动作筛选、升级、降级或运行时逻辑；当前评价只以《训练动作评价指南》为准。
 
 - 每条动作只有一个记录方式。不同记录语义必须是不同动作，不增加多模式集合，也不允许模板或训练时覆盖记录方式。每条映射的第三行固定为 ``category · recordingMode``，第四行固定为 ``loadBasis · loadDirection · rateMetric``；四项均由策展显式给出，生成器不得从器械自动推断。
 - `per_hand` 表示双手或双侧使用相同重量，次数按每侧完成次数记录；容量和复合负载按两侧合计，计算时乘 2。当前没有左右侧字段，不能表达两侧重量或次数不同；需要左右独立历史的动作暂不加入。
 - `category` 使用 IronLog 导航分类；`compound` 不进入受控集合，深蹲、硬拉等归入 `legs`。`movementPattern` 留待后续版本，本轮不创建空字段。
 - 上游 `target` 与 `muscle_group` 合理融合到主肌群；`secondary_muscles` 映射、去重后进入次肌群。主次不得重复。
-- 器械是独立的 IronLog 领域字段，不放入来源对象。来源使用一个可选只读 `provenance` 对象容纳 `source/sourceId/sourceRevision`，只供目录维护和差异审计，前端不展示。
+- 器械是独立的 IronLog 领域字段，不放入来源对象。`ExerciseDoc.provenance` 是可选只读对象，容纳 `source/sourceId/sourceRevision`，只供目录维护和差异审计，前端不展示；当前 `DefaultExerciseSeed.provenance` 为必填，因此正式默认目录的每条动作都必须有可核验来源。
 - `description` 是唯一中文说明字段。表中“拟用 description”正文是最终策展内容；正文后的 `<br>` 所引出的“规范化/压缩/纠错”状态不写入产品字段。需要显式分段时，在正文中使用 `↵`（换行）或 `↵↵`（空行）标记，生成器分别写成 `\n`/`\n\n`，详情页按原换行显示。上游 `instruction_steps.zh` 只作为逐项核对证据，不在生成时自动追加，避免把已纠正的错误重新拼回。不得新增 `instructionStepsZh` 或其他并列说明字段，最终正文不得超过 500 字。当前大多数候选采用经过压缩的单段说明；存在 `↵` 的候选用于实际验证默认目录的分段展示，另以专用 fixture 覆盖 `↵↵` 空行往返。
 - “规范化、翻译、压缩、人工纠错”等状态描述的是 IronLog 内容，不冒充上游原文。`D1` 表示上游 `muscle_group` 与 `secondary_muscles` 重复，映射时只保留一次。
 - `0684 run (equipment)` 与 `0685 run` 的原始 `equipment` 都是 `body weight`，各语言说明和步骤均描述原地慢跑；仓库没有证据支持把 `0684` 认定为跑步机动作。本轮按产品决策选择 `0685` 并把语义扩展为通用“跑步”，`0684` 作为低价值重复排除。这是经批准的人工语义扩展，不是对上游中文翻译错误的纠正；provenance 只表示策展来源，不保证 IronLog 名称和说明忠实转写上游语义。
@@ -20,7 +23,7 @@
 
 ## A级核心动作
 
-| 级别 | IronLog 映射 | 上游原始事实 | 拟用 description / 状态 | 评分与理由 | 异常或损失 |
+| 级别 | IronLog 映射 | 上游原始事实 | 拟用 description / 状态 | 历史 v1 评分（已废止） | 异常或损失 |
 |---|---|---|---|---|---|
 | A | `ex-bench-press`<br>杠铃卧推<br>`chest · weight_reps`<br>`total · higher_better · none`<br>P `[chest]`；S `[triceps, shoulders]` | [0025](https://github.com/hasaneyldrm/exercises-dataset/blob/118e4bd6b14da6df0e36605d7169b65db18389a4/data/exercises.json#L9788) `barbell bench press`<br>`chest/chest`；`barbell`<br>target `pectorals`；group `triceps`；secondary `[triceps, shoulders]` | 仰卧稳住肩胛和双脚，正握杠铃下放至胸部，再伸肘推回；全程控制下放。<br>规范化、翻译、压缩 | `5/5/4/5/5/0/4=28`<br>基础水平推，长期记录价值高 | D1 |
 | A | `ex-incline-db-press`<br>上斜哑铃卧推<br>`chest · weight_reps`<br>`per_hand · higher_better · none`<br>P `[chest]`；S `[shoulders, triceps]` | [0314](https://github.com/hasaneyldrm/exercises-dataset/blob/118e4bd6b14da6df0e36605d7169b65db18389a4/data/exercises.json#L53068) `dumbbell incline bench press`<br>`chest/chest`；`dumbbell`<br>target `pectorals`；group `shoulders`；secondary `[shoulders, triceps]` | 将长凳调至上斜位，背部贴垫，哑铃从上胸两侧向上推起，再受控下放。<br>规范化、压缩 | `5/5/4/5/5/0/4=28`<br>常见上斜推 | 上游固定 45°，描述去除过度固定角度 |
@@ -68,7 +71,7 @@
 
 ## B级扩展动作
 
-| 级别 | IronLog 映射 | 上游原始事实 | 拟用 description / 状态 | 评分与理由 | 异常或损失 |
+| 级别 | IronLog 映射 | 上游原始事实 | 拟用 description / 状态 | 历史 v1 评分（已废止） | 异常或损失 |
 |---|---|---|---|---|---|
 | B | `ex-cable-standing-fly`<br>站姿绳索夹胸<br>`chest · weight_reps`<br>`total · higher_better · none`<br>P `[chest]`；S `[shoulders, triceps]` | [0227](https://github.com/hasaneyldrm/exercises-dataset/blob/118e4bd6b14da6df0e36605d7169b65db18389a4/data/exercises.json#L40124) `cable standing fly`<br>`chest/chest`；`cable`<br>target `pectorals`；group `deltoids`；secondary `[deltoids, triceps]` | 双侧滑轮调至合适高度，躯干稳定，双臂保持微屈向胸前合拢，再缓慢打开。<br>规范化、压缩 | `4/4/3/3/5/1/4=22`<br>胸部孤立扩展 | triceps 协同可信度一般；与其他胸推冗余 |
 | B | `ex-assisted-pull-up`<br>辅助引体向上<br>`back · weight_reps`<br>`total · lower_better · none`<br>P `[back]`；S `[biceps, forearms]` | [0017](https://github.com/hasaneyldrm/exercises-dataset/blob/118e4bd6b14da6df0e36605d7169b65db18389a4/data/exercises.json#L2494) `assisted pull-up`<br>`back/back`；`leverage machine`<br>target `lats`；group `biceps`；secondary `[biceps, forearms]` | 在辅助器械上选定合适辅助量，稳定肩胛后向上拉至下巴接近横杠，再受控下降。<br>规范化、压缩 | `4/5/3/4/5/0/4=25`<br>降低垂直拉门槛 | 辅助重量以越小越好比较；同次数时辅助重量更小者优先，同辅助重量时次数更多者优先 |
