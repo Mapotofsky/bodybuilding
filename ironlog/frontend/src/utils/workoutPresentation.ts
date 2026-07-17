@@ -3,7 +3,6 @@ import { getRecordingModeSpec } from "@/core/recordingModes";
 import {
   calculateWorkoutMetrics,
   convertWeight,
-  effectiveLoadKg,
   formatOneDecimal,
   formatVolume,
   type WorkoutMetrics,
@@ -30,6 +29,7 @@ export function formatExerciseCompletion(
   const metrics = calculateWorkoutMetrics([{
     recordingMode: recording.recording_mode,
     loadBasis: recording.load_basis,
+    countBasis: recording.count_basis,
     loadDirection: recording.load_direction,
     rateMetric: recording.rate_metric,
     sets: sets.map(toMetricSet),
@@ -38,19 +38,17 @@ export function formatExerciseCompletion(
 
   switch (recording.recording_mode) {
     case "weight_reps": {
-      const maxEffectiveKg = max(sets.map((set) => set.weight == null || !recording.load_basis ? null : effectiveLoadKg(set.weight, set.unit, recording.load_basis)));
+      const maxInputLoad = max(sets.map((set) => set.weight == null ? null : convertWeight(set.weight, set.unit, displayUnit)));
       if (recording.load_direction === "lower_better") {
-        const minAssistance = min(sets.map((set) => set.weight == null || !recording.load_basis
-          ? null
-          : convertWeight(effectiveLoadKg(set.weight, set.unit, recording.load_basis), "kg", displayUnit)));
+        const minAssistance = min(sets.map((set) => set.weight == null ? null : convertWeight(set.weight, set.unit, displayUnit)));
         const maxReps = max(sets.map((set) => set.reps));
         return {
-          detail: `${count} 组 · 最低辅助 ${minAssistance == null ? "—" : `${formatOneDecimal(minAssistance)} ${displayUnit}`}`,
+          detail: `${count} 组 · ${recording.load_basis === "per_hand" ? "每手最低辅助重量" : "最低辅助重量"} ${minAssistance == null ? "—" : `${formatOneDecimal(minAssistance)} ${displayUnit}`}`,
           value: maxReps == null ? "最多 —" : `最多 ${maxReps} 次`,
         };
       }
       return {
-        detail: `${count} 组 · 最大有效负重 ${maxEffectiveKg == null ? "—" : `${formatOneDecimal(convertWeight(maxEffectiveKg, "kg", displayUnit))} ${displayUnit}`}`,
+        detail: `${count} 组 · ${recording.load_basis === "per_hand" ? "每手最大重量" : "最大重量"} ${maxInputLoad == null ? "—" : `${formatOneDecimal(maxInputLoad)} ${displayUnit}`}`,
         value: formatVolume(metrics.totalVolume, displayUnit),
       };
     }

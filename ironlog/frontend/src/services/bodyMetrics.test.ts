@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveCurrentBodyMetrics } from "./bodyMetrics";
 import { emptyBodyMeasurements } from "@/core/migrations";
-import type { BodyMetricDoc } from "@/core/models";
+import { CURRENT_SCHEMA_VERSION, type BodyMetricDoc } from "@/core/models";
 
 describe("body metric derivation", () => {
   it("derives current values independently per metric", () => {
@@ -43,6 +43,6 @@ function metric(id: string, recordedAt: string, values: { weightKg?: number; wai
     createdAt: recordedAt,
     updatedAt: recordedAt,
     deletedAt: null,
-    schemaVersion: 4,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }

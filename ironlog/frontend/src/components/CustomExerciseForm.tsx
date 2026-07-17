@@ -1,6 +1,7 @@
 import { getRecordingModeSpec, validateRecordingConfig } from "@/core/recordingModes";
 import {
   CATEGORY_LABELS,
+  COUNT_BASIS_LABELS,
   EQUIPMENT_LABELS,
   LOAD_BASIS_LABELS,
   LOAD_DIRECTION_LABELS,
@@ -8,6 +9,7 @@ import {
   RATE_METRIC_LABELS,
   RECORDING_MODE_LABELS,
   type EquipmentId,
+  type CountBasis,
   type ExerciseCategory,
   type LoadBasis,
   type LoadDirection,
@@ -21,6 +23,7 @@ export interface CustomExerciseFormValue {
   category: ExerciseCategory;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   equipment: EquipmentId | null;
@@ -45,6 +48,7 @@ export const EMPTY_CUSTOM_EXERCISE_FORM: CustomExerciseFormValue = {
   category: "core",
   recording_mode: "weight_reps",
   load_basis: "total",
+  count_basis: "whole_set",
   load_direction: "higher_better",
   rate_metric: "none",
   equipment: null,
@@ -100,20 +104,31 @@ export default function CustomExerciseForm(props: CustomExerciseFormProps) {
         {Object.entries(EQUIPMENT_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
       </select>
       {hasWeight && (
-        <div className="grid grid-cols-2 gap-3">
-          <select value={props.value.load_basis ?? ""} onChange={(event) => patch({ load_basis: event.target.value as LoadBasis })} className={inputCls} aria-label="重量口径">
-            {recordingSpec.allowedLoadBases.map((basis) => <option key={basis} value={basis}>{LOAD_BASIS_LABELS[basis]}</option>)}
-          </select>
-          <select value={props.value.load_direction ?? ""} onChange={(event) => patch({ load_direction: event.target.value as LoadDirection })} className={inputCls} aria-label="成绩方向">
-            {recordingSpec.allowedLoadDirections.map((direction) => <option key={direction} value={direction}>{LOAD_DIRECTION_LABELS[direction]}</option>)}
-          </select>
+        <div className="space-y-1">
+          <span className="text-xs font-semibold text-slate-500">重量口径与成绩方向</span>
+          <div className="grid grid-cols-2 gap-3">
+            <select value={props.value.load_basis ?? ""} onChange={(event) => patch({ load_basis: event.target.value as LoadBasis })} className={inputCls} aria-label="重量口径">
+              {recordingSpec.allowedLoadBases.map((basis) => <option key={basis} value={basis}>{LOAD_BASIS_LABELS[basis]}</option>)}
+            </select>
+            <select value={props.value.load_direction ?? ""} onChange={(event) => patch({ load_direction: event.target.value as LoadDirection })} className={inputCls} aria-label="成绩方向">
+              {recordingSpec.allowedLoadDirections.map((direction) => <option key={direction} value={direction}>{LOAD_DIRECTION_LABELS[direction]}</option>)}
+            </select>
+          </div>
+          {props.value.load_basis === "per_hand" && (
+            <p className="text-xs text-slate-500 leading-relaxed">填写单手的重量；统计时自动乘以2作为整组成绩。</p>
+          )}
+          {props.value.load_direction === "lower_better" && (
+            <p className="text-xs text-slate-500 leading-relaxed">填写辅助配重的数值；计算成绩时，更小的数值代表更好的成绩。</p>
+          )}
         </div>
       )}
-      {props.value.load_basis === "per_hand" && (
-        <p className="text-xs text-slate-500 leading-relaxed">
-          每手重量表示双手或双侧使用相同重量，次数按每侧完成次数记录；容量和复合负载按两侧合计，因此计算时乘 2。
-        </p>
-      )}
+      <label className="block space-y-1">
+        <span className="text-xs font-semibold text-slate-500">计数口径</span>
+        <select value={props.value.count_basis} onChange={(event) => patch({ count_basis: event.target.value as CountBasis })} className={inputCls} aria-label="计数口径">
+          {Object.entries(COUNT_BASIS_LABELS).map(([basis, label]) => <option key={basis} value={basis}>{label}</option>)}
+        </select>
+      </label>
+      {props.value.count_basis === "per_side" && <p className="text-xs text-slate-500 leading-relaxed">填写每侧的数据；完成左右两侧后，这一组会按两侧合计统计。</p>}
       {recordingSpec.supportedRateMetrics.length > 1 && (
         <select value={props.value.rate_metric} onChange={(event) => patch({ rate_metric: event.target.value as RateMetric })} className={inputCls} aria-label="竞速成绩">
           {recordingSpec.supportedRateMetrics.map((metric) => <option key={metric} value={metric}>{RATE_METRIC_LABELS[metric]}</option>)}
@@ -160,6 +175,7 @@ export function isValidFormValue(value: CustomExerciseFormValue): boolean {
     validateRecordingConfig({
       recordingMode: value.recording_mode,
       loadBasis: value.load_basis,
+      countBasis: value.count_basis,
       loadDirection: value.load_direction,
       rateMetric: value.rate_metric,
     });

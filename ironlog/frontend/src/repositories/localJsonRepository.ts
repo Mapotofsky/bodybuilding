@@ -59,7 +59,7 @@ export class LocalJsonRepository {
     return snapshot.exercises.find((e) => e.id === id && !e.deletedAt) || null;
   }
 
-  async create(body: Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc> {
+  async create(body: Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc> {
     const config = validateRecordingConfig(recordingConfigOf(body));
     return this.mutate((snapshot) => {
       const exercise: ExerciseDoc = withDoc({
@@ -78,13 +78,18 @@ export class LocalJsonRepository {
     });
   }
 
-  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
+  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
       if (!exercise) throw new Error("动作不存在");
       if (!exercise.isCustom) throw new Error("内置动作不可编辑");
       const patch = withoutUndefined(body);
-      validateRecordingConfig(recordingConfigOf({ ...exercise, ...patch }));
+      const nextConfig = validateRecordingConfig(recordingConfigOf({ ...exercise, ...patch }));
+      const hasRecordedSnapshot = snapshot.workouts.some((workout) => !workout.deletedAt
+        && workout.exercises.some((workoutExercise) => workoutExercise.exerciseId === exercise.id));
+      if (hasRecordedSnapshot && !recordingConfigEquals(recordingConfigOf(exercise), nextConfig)) {
+        throw new Error("已有训练记录的动作不能修改记录方式、重量口径、计数口径、成绩方向或竞速指标");
+      }
       Object.assign(exercise, patch, { updatedAt: nextUpdatedAt(exercise.updatedAt, snapshot.manifest.updatedAt) });
       return exercise;
     });
@@ -99,7 +104,7 @@ export class LocalJsonRepository {
         const target = snapshot.exercises.find((item) => item.id === replacedByExerciseId && !item.deletedAt);
         if (!target || target.id === source.id) throw new Error("替代动作不可用");
         if (!recordingConfigEquals(recordingConfigOf(target), recordingConfigOf(source))) {
-          throw new Error("替代动作必须与原动作的记录方式、重量口径、成绩方向和竞速指标一致");
+          throw new Error("替代动作必须与原动作的记录方式、重量口径、计数口径、成绩方向和竞速指标一致");
         }
         const targetResolution = resolveExerciseId(target.id, snapshot.exercises);
         if (targetResolution.status !== "resolved" || targetResolution.resolvedId === source.id) throw new Error("替代动作会形成循环引用");

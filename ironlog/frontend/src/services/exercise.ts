@@ -1,6 +1,6 @@
 import { resolveExerciseId } from "@/core/exerciseRedirects";
-import type { EquipmentId, ExerciseCategory, ExerciseDoc, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode, WeightUnit } from "@/core/models";
-import { recordingConfigOf, validateRecordingConfig } from "@/core/recordingModes";
+import type { CountBasis, EquipmentId, ExerciseCategory, ExerciseDoc, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode, WeightUnit } from "@/core/models";
+import { recordingConfigEquals, recordingConfigOf, validateRecordingConfig } from "@/core/recordingModes";
 import { localRepository } from "@/repositories/localJsonRepository";
 import { toExercise } from "@/services/localMappers";
 import { CATEGORY_LABELS, EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS, type Exercise } from "@/types";
@@ -15,6 +15,7 @@ export interface CreateExerciseInput {
   category: ExerciseCategory;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   equipment: EquipmentId | null;
@@ -28,6 +29,7 @@ export interface UpdateExerciseInput {
   category?: ExerciseCategory;
   recording_mode?: RecordingMode;
   load_basis?: LoadBasis | null;
+  count_basis?: CountBasis;
   load_direction?: LoadDirection | null;
   rate_metric?: RateMetric;
   equipment?: EquipmentId | null;
@@ -53,6 +55,13 @@ export async function updateExercise(id: string, body: UpdateExerciseInput): Pro
   const current = await localRepository.get(id);
   if (!current) throw new Error("动作不存在");
   const patch = validateUpdateExerciseInput(body, current);
+  if (!recordingConfigEquals(recordingConfigOf(current), recordingConfigOf({ ...current, ...patch }))) {
+    const hasRecordedSnapshot = (await localRepository.listWorkouts())
+      .some((workout) => workout.exercises.some((exercise) => exercise.exerciseId === id));
+    if (hasRecordedSnapshot) {
+      throw new Error("已有训练记录的动作不能修改记录方式、重量口径、计数口径、成绩方向或竞速指标");
+    }
+  }
   return toExercise(await localRepository.updateExercise(id, patch));
 }
 
@@ -65,6 +74,7 @@ export interface ExerciseHistoryRecord {
   date: string;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   set_number: number;
@@ -93,6 +103,7 @@ export async function getExerciseHistory(exerciseId: string, limit = 30): Promis
         date: workout.date,
         recording_mode: exercise.recordingMode,
         load_basis: exercise.loadBasis,
+        count_basis: exercise.countBasis,
         load_direction: exercise.loadDirection,
         rate_metric: exercise.rateMetric,
         set_number: set.setNumber,
@@ -111,13 +122,14 @@ export async function getExerciseHistory(exerciseId: string, limit = 30): Promis
 }
 
 export function validateCreateExerciseInput(body: CreateExerciseInput) {
-  if (body.recording_mode === undefined || body.load_basis === undefined || body.load_direction === undefined
+  if (body.recording_mode === undefined || body.load_basis === undefined || body.count_basis === undefined || body.load_direction === undefined
     || body.rate_metric === undefined || body.equipment === undefined || body.description === undefined) {
-    throw new Error("创建动作必须明确提交记录方式、重量口径、成绩方向、竞速指标、器械和动作说明");
+    throw new Error("创建动作必须明确提交记录方式、重量口径、计数口径、成绩方向、竞速指标、器械和动作说明");
   }
   const config = validateRecordingConfig({
     recordingMode: body.recording_mode,
     loadBasis: body.load_basis,
+    countBasis: body.count_basis,
     loadDirection: body.load_direction,
     rateMetric: body.rate_metric,
   });
@@ -136,11 +148,12 @@ export function validateCreateExerciseInput(body: CreateExerciseInput) {
 }
 
 export function validateUpdateExerciseInput(body: UpdateExerciseInput, current: ExerciseDoc) {
-  const patch: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> = {};
+  const patch: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> = {};
   if (body.name !== undefined) patch.name = validateName(body.name);
   if (body.category !== undefined) patch.category = validateCategory(body.category);
   if (body.recording_mode !== undefined) patch.recordingMode = body.recording_mode;
   if (body.load_basis !== undefined) patch.loadBasis = body.load_basis;
+  if (body.count_basis !== undefined) patch.countBasis = body.count_basis;
   if (body.load_direction !== undefined) patch.loadDirection = body.load_direction;
   if (body.rate_metric !== undefined) patch.rateMetric = body.rate_metric;
   if (body.equipment !== undefined) patch.equipment = validateEquipment(body.equipment);

@@ -22,6 +22,7 @@ export function exerciseForDraftResume(item: WorkoutExercise, linked?: Exercise)
       ...linked,
       recording_mode: item.recording_mode,
       load_basis: item.load_basis,
+      count_basis: item.count_basis,
       load_direction: item.load_direction,
       rate_metric: item.rate_metric,
     };
@@ -32,6 +33,7 @@ export function exerciseForDraftResume(item: WorkoutExercise, linked?: Exercise)
     category: isExerciseCategory(item.exercise_category) ? item.exercise_category : "other",
     recording_mode: item.recording_mode,
     load_basis: item.load_basis,
+    count_basis: item.count_basis,
     load_direction: item.load_direction,
     rate_metric: item.rate_metric,
     equipment: null,

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildShardList, makeEmptySnapshot } from "@/core/migrations";
-import type { DataSnapshot, SyncEndpointConfig } from "@/core/models";
+import { CURRENT_SCHEMA_VERSION, type DataSnapshot, type SyncEndpointConfig } from "@/core/models";
 import type { DocumentStore } from "@/platform/documentStore";
 import { LocalJsonRepository } from "@/repositories/localJsonRepository";
 import { backupPathFor, hasPerformanceSourceChanges, mergeSnapshots, prepareSnapshotForPush, pushSnapshot, remoteParentDirsForPath, snapshotToFiles } from "./syncService";
@@ -78,12 +78,12 @@ describe("settings WebDAV sync", () => {
     const snapshot = makeEmptySnapshot("device-test");
     snapshot.workouts = [{
       id: "run-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
-      exercises: [{ id: "run-exercise", exerciseId: "ex-running", recordingMode: "distance_duration", loadBasis: null, loadDirection: null, rateMetric: "distance_per_time", sortOrder: 0, supersetGroup: null, sets: [{ id: "run-set", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 600, distanceM: 1500, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }] }],
-      createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 4,
+      exercises: [{ id: "run-exercise", exerciseId: "ex-running", recordingMode: "distance_duration", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "distance_per_time", sortOrder: 0, supersetGroup: null, sets: [{ id: "run-set", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 600, distanceM: 1500, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }] }],
+      createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
 
     const files = snapshotToFiles(snapshot);
-    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ recordingMode: "distance_duration", rateMetric: "distance_per_time" });
+    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ recordingMode: "distance_duration", countBasis: "whole_set", rateMetric: "distance_per_time" });
   });
 
   it("serializes equipment, provenance, and description newlines into the WebDAV exercise shard", () => {
@@ -120,7 +120,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
     snapshot.timelineNotes = [{
       id: "note-1",
@@ -132,14 +132,14 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
     snapshot.exercisePerformanceRecords = [{
       id: "performance-1",
       exerciseId: "ex-bench-press",
       kind: "true_pr",
-      metricType: "weight.max_effective",
-      value: 100,
+      metricType: "weight.max",
+      value: 50,
       unit: "kg",
       achievedAt: FIRST_SYNC_AT,
       sourceWorkoutId: "workout-1",
@@ -150,7 +150,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
     snapshot.manifest.shards = buildShardList(snapshot);
 
@@ -168,8 +168,8 @@ describe("settings WebDAV sync", () => {
       id: "performance-1",
       exerciseId: "ex-bench-press",
       kind: "true_pr",
-      metricType: "weight.max_effective",
-      value: 100,
+      metricType: "weight.max",
+      value: 50,
       unit: "kg",
       achievedAt: FIRST_SYNC_AT,
       sourceWorkoutId: "workout-1",
@@ -180,7 +180,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
 
     expect(hasPerformanceSourceChanges(local, merged)).toBe(false);
@@ -191,7 +191,7 @@ describe("settings WebDAV sync", () => {
     const workoutChanged = clone(local);
     workoutChanged.workouts = [{
       id: "workout-1", date: "2026-06-22", startTime: null, endTime: FIRST_SYNC_AT, planTemplateId: null, note: null, mood: null,
-      exercises: [], createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: 4,
+      exercises: [], createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
     const exerciseChanged = clone(local);
     exerciseChanged.exercises[0] = { ...exerciseChanged.exercises[0], updatedAt: SECOND_SYNC_AT };
@@ -250,8 +250,8 @@ describe("settings WebDAV sync", () => {
       id: "performance-1",
       exerciseId: "ex-bench-press",
       kind: "true_pr",
-      metricType: "weight.max_effective",
-      value: 100,
+      metricType: "weight.max",
+      value: 50,
       unit: "kg",
       achievedAt: FIRST_SYNC_AT,
       sourceWorkoutId: "workout-1",
@@ -262,7 +262,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
     snapshot.manifest.shards = buildShardList(snapshot);
     const client = new DirectoryCheckingWebDavClient();
@@ -284,8 +284,8 @@ describe("settings WebDAV sync", () => {
       id: "performance-rebuilt",
       exerciseId: "ex-bench-press",
       kind: "true_pr" as const,
-      metricType: "weight.max_effective" as const,
-      value: 100,
+      metricType: "weight.max" as const,
+      value: 50,
       unit: "kg" as const,
       achievedAt: FIRST_SYNC_AT,
       sourceWorkoutId: "workout-1",
@@ -296,7 +296,7 @@ describe("settings WebDAV sync", () => {
       createdAt: FIRST_SYNC_AT,
       updatedAt: FIRST_SYNC_AT,
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     };
     const ready = await prepareSnapshotForPush(merged, true, {
       replaceSnapshot: async (snapshot) => { calls.push("replace"); current = clone(snapshot); },
@@ -335,7 +335,7 @@ describe("settings WebDAV sync", () => {
     const client = new DirectoryCheckingWebDavClient({
       "manifest.json": {
         app: "ironlog",
-        schemaVersion: 4,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
         deviceId: "remote-device",
         updatedAt: FIRST_SYNC_AT,
         shards: [{ path: "settings.json", updatedAt: FIRST_SYNC_AT }],
@@ -371,27 +371,27 @@ describe("settings WebDAV sync", () => {
 
   it("serializes deleted exercise redirects without changing workout historical IDs or recording snapshots", () => {
     const snapshot = makeEmptySnapshot("device-test");
-    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", recordingMode: "reps", loadBasis: null, loadDirection: null, rateMetric: "none", equipment: null, description: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: "ex-side-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: 4 });
-    snapshot.workouts = [{ id: "history-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [{ id: "history-exercise", exerciseId: "custom-ex-old", recordingMode: "reps", loadBasis: null, loadDirection: null, rateMetric: "none", sortOrder: 0, supersetGroup: null, sets: [] }], createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: null, schemaVersion: 4 }];
+    snapshot.exercises.push({ id: "custom-ex-old", name: "旧动作", category: "core", recordingMode: "reps", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "none", equipment: null, description: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId: "ex-side-plank", createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: SECOND_SYNC_AT, schemaVersion: CURRENT_SCHEMA_VERSION });
+    snapshot.workouts = [{ id: "history-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [{ id: "history-exercise", exerciseId: "custom-ex-old", recordingMode: "reps", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "none", sortOrder: 0, supersetGroup: null, sets: [] }], createdAt: FIRST_SYNC_AT, updatedAt: SECOND_SYNC_AT, deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION }];
     const files = snapshotToFiles(snapshot);
     expect((files["exercises.json"] as DataSnapshot["exercises"]).find((exercise) => exercise.id === "custom-ex-old")).toMatchObject({ deletedAt: SECOND_SYNC_AT, replacedByExerciseId: "ex-side-plank", equipment: null, primaryMuscleGroupIds: ["core"], secondaryMuscleGroupIds: [] });
-    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseId: "custom-ex-old", recordingMode: "reps", loadBasis: null, rateMetric: "none" });
+    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ exerciseId: "custom-ex-old", recordingMode: "reps", loadBasis: null, countBasis: "whole_set", rateMetric: "none" });
   });
 });
 
 function performanceInput() {
   return {
+    recordingMode: "weight_distance_duration" as const,
     enteredLoad: 50,
     enteredLoadUnit: "kg" as const,
-    effectiveLoadKg: 100,
     loadBasis: "per_hand" as const,
+    countBasis: "whole_set" as const,
     loadDirection: "higher_better" as const,
+    rateMetric: "load_distance_per_time" as const,
     reps: 5,
     rpe: null,
-    effectiveReps: null,
     distanceM: 40,
     durationSec: 28,
-    workoutVolumeKgReps: null,
   };
 }
 

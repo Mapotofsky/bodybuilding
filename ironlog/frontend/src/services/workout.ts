@@ -1,4 +1,5 @@
 import type {
+  CountBasis,
   LoadBasis,
   LoadDirection,
   RateMetric,
@@ -49,6 +50,7 @@ export interface WorkoutExercisePayload {
   /** Immutable snapshot of the exercise interpretation at recording time. */
   recording_mode?: RecordingMode;
   load_basis?: LoadBasis | null;
+  count_basis?: CountBasis;
   load_direction?: LoadDirection | null;
   rate_metric?: RateMetric;
   sort_order: number;
@@ -151,6 +153,7 @@ export interface WorkoutShareData {
     category: string | null;
     recording_mode: RecordingMode;
     load_basis: LoadBasis | null;
+    count_basis: CountBasis;
     load_direction: LoadDirection | null;
     rate_metric: RateMetric;
     sets: number;
@@ -174,6 +177,7 @@ export async function shareWorkout(id: string): Promise<WorkoutShareData> {
       category: exercise.exercise_category || null,
       recording_mode: exercise.recording_mode,
       load_basis: exercise.load_basis,
+      count_basis: exercise.count_basis,
       load_direction: exercise.load_direction,
       rate_metric: exercise.rate_metric,
       sets: exercise.sets.length,
@@ -233,7 +237,7 @@ async function normalizeWorkoutPayload(body: WorkoutCreatePayload): Promise<Omit
 }
 
 function resolveRecordingSnapshot(exercise: WorkoutExercisePayload, linked: RecordingConfig | null): RecordingConfig {
-  const values = [exercise.recording_mode, exercise.load_basis, exercise.load_direction, exercise.rate_metric];
+  const values = [exercise.recording_mode, exercise.load_basis, exercise.count_basis, exercise.load_direction, exercise.rate_metric];
   const hasAny = values.some((value) => value !== undefined);
   const hasAll = values.every((value) => value !== undefined);
   if (hasAny && !hasAll) throw new Error("训练动作必须完整提交记录方式快照");
@@ -241,6 +245,7 @@ function resolveRecordingSnapshot(exercise: WorkoutExercisePayload, linked: Reco
     return validateRecordingConfig({
       recordingMode: exercise.recording_mode!,
       loadBasis: exercise.load_basis!,
+      countBasis: exercise.count_basis!,
       loadDirection: exercise.load_direction!,
       rateMetric: exercise.rate_metric!,
     });
@@ -279,8 +284,8 @@ function mergeExercisePayload(existing: WorkoutExercisePayload[], incoming: Work
 }
 
 function assertRecordingSnapshotImmutable(current: WorkoutExercisePayload, incoming: WorkoutExercisePayload): void {
-  const fields: Array<keyof Pick<WorkoutExercisePayload, "recording_mode" | "load_basis" | "load_direction" | "rate_metric">> = [
-    "recording_mode", "load_basis", "load_direction", "rate_metric",
+  const fields: Array<keyof Pick<WorkoutExercisePayload, "recording_mode" | "load_basis" | "count_basis" | "load_direction" | "rate_metric">> = [
+    "recording_mode", "load_basis", "count_basis", "load_direction", "rate_metric",
   ];
   if (fields.some((field) => incoming[field] !== undefined && incoming[field] !== current[field])) {
     throw new Error("已记录训练的记录方式快照不可修改");
@@ -321,6 +326,7 @@ function workoutToPayload(workout: WorkoutDoc): WorkoutCreatePayload {
       exercise_id: exercise.exerciseId,
       recording_mode: exercise.recordingMode,
       load_basis: exercise.loadBasis,
+      count_basis: exercise.countBasis,
       load_direction: exercise.loadDirection,
       rate_metric: exercise.rateMetric,
       sort_order: exercise.sortOrder,
@@ -373,7 +379,7 @@ function validateWorkoutHeader(body: WorkoutCreatePayload): void {
   }
 }
 
-/** Final validation authority shared by pages and every workout write entry. */
+/** Final validation boundary shared by pages and every workout write entry. */
 export function validateWorkoutSet(
   set: WorkoutSetPayload,
   config: RecordingConfig,
@@ -414,6 +420,7 @@ function withoutUndefined<T extends object>(value: T): Partial<T> {
 function toMetricExercise(exercise: {
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   sets: Array<{
@@ -427,6 +434,7 @@ function toMetricExercise(exercise: {
   return {
     recordingMode: exercise.recording_mode,
     loadBasis: exercise.load_basis,
+    countBasis: exercise.count_basis,
     loadDirection: exercise.load_direction,
     rateMetric: exercise.rate_metric,
     sets: exercise.sets.map((set) => ({

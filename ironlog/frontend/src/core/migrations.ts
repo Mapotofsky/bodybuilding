@@ -233,16 +233,17 @@ function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | und
     if (!spec || record.unit !== spec.unit) throw new Error("成绩指标或单位与当前 schema 不兼容");
     validatePerformanceInput(record.input);
     return { ...record, sourceSetId: record.sourceSetId ?? null, rm: record.rm ?? null };
-  }).filter((record) => record.metricType !== "weight.max_input" || record.input.loadBasis === "per_hand");
+  });
 }
 
 function validatePerformanceInput(input: ExercisePerformanceRecordDoc["input"]): void {
   if (!input || typeof input !== "object") throw new Error("成绩输入上下文无效");
   const requiredKeys: Array<keyof ExercisePerformanceRecordDoc["input"]> = [
-    "enteredLoad", "enteredLoadUnit", "effectiveLoadKg", "loadBasis", "loadDirection", "reps", "rpe",
-    "effectiveReps", "distanceM", "durationSec", "workoutVolumeKgReps",
+    "recordingMode", "enteredLoad", "enteredLoadUnit", "loadBasis", "countBasis", "loadDirection", "rateMetric",
+    "reps", "rpe", "distanceM", "durationSec",
   ];
   if (requiredKeys.some((key) => !(key in input))) throw new Error("成绩输入上下文与当前 schema 不兼容");
+  validateRecordingConfig(recordingConfigOf(input));
 }
 
 function normalizeSettings(value: SettingsDoc | undefined, fallback: SettingsDoc): SettingsDoc {

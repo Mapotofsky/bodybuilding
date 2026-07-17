@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeEmptySnapshot } from "./migrations";
 import { resolveExerciseId } from "./exerciseRedirects";
+import { CURRENT_SCHEMA_VERSION } from "./models";
 
 describe("exercise replacement resolution", () => {
   it("resolves a directed multi-hop chain and protects against cycles and missing targets", () => {
@@ -22,5 +23,5 @@ describe("exercise replacement resolution", () => {
 });
 
 function custom(id: string, replacedByExerciseId: string | null) {
-  return { id, name: id, category: "core" as const, recordingMode: "reps" as const, loadBasis: null, loadDirection: null, rateMetric: "none" as const, equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "2026-01-02T00:00:00.000Z", schemaVersion: 4 };
+  return { id, name: id, category: "core" as const, recordingMode: "reps" as const, loadBasis: null, countBasis: "whole_set" as const, loadDirection: null, rateMetric: "none" as const, equipment: null, description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true, replacedByExerciseId, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "2026-01-02T00:00:00.000Z", schemaVersion: CURRENT_SCHEMA_VERSION };
 }

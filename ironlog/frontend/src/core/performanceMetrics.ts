@@ -9,8 +9,7 @@ export interface PerformanceMetricSpec {
 }
 
 export const PERFORMANCE_METRIC_SPECS = {
-  "weight.max_input": { unit: "kg", direction: "max", tieBreakerDirections: ["max", "max", "max"] },
-  "weight.max_effective": { unit: "kg", direction: "max", tieBreakerDirections: ["max", "max", "max"] },
+  "weight.max": { unit: "kg", direction: "max", tieBreakerDirections: ["max", "max", "max"] },
   "reps.max_set": { unit: "reps", direction: "max", tieBreakerDirections: ["max"] },
   "reps.max_workout": { unit: "reps", direction: "max", tieBreakerDirections: ["max"] },
   "volume.max_set": { unit: "kg_reps", direction: "max", tieBreakerDirections: ["max", "max"] },

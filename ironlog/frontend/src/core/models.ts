@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 export type DocId = string;
 export type ISODate = string;
@@ -14,6 +14,7 @@ export type RecordingMode =
   | "weight_duration"
   | "weight_distance_duration";
 export type LoadBasis = "total" | "per_hand";
+export type CountBasis = "whole_set" | "per_side";
 export type LoadDirection = "higher_better" | "lower_better";
 export type RateMetric = "none" | "distance_per_time" | "load_distance_per_time";
 export type ExerciseCategory =
@@ -60,6 +61,7 @@ export interface ExerciseDoc extends BaseDoc {
   category: ExerciseCategory;
   recordingMode: RecordingMode;
   loadBasis: LoadBasis | null;
+  countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
   equipment: EquipmentId | null;
@@ -84,6 +86,7 @@ export interface DefaultExerciseSeed {
   category: ExerciseCategory;
   recordingMode: RecordingMode;
   loadBasis: LoadBasis | null;
+  countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
   equipment: EquipmentId | null;
@@ -138,6 +141,7 @@ export interface WorkoutExerciseDoc {
   /** Immutable interpretation of the exercise at the time this workout was recorded. */
   recordingMode: RecordingMode;
   loadBasis: LoadBasis | null;
+  countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
   sortOrder: number;
@@ -186,8 +190,7 @@ export interface TimelineNoteDoc extends BaseDoc {
 export type PerformanceRecordKind = "true_pr" | "rpe_adjusted_rm";
 
 export type PerformanceMetricType =
-  | "weight.max_input"
-  | "weight.max_effective"
+  | "weight.max"
   | "reps.max_set"
   | "reps.max_workout"
   | "volume.max_set"
@@ -227,17 +230,17 @@ export interface RmFormulaResults {
 }
 
 export interface PerformanceInputSummary {
+  recordingMode: RecordingMode;
   enteredLoad: number | null;
   enteredLoadUnit: WeightUnit | null;
-  effectiveLoadKg: number | null;
   loadBasis: LoadBasis | null;
+  countBasis: CountBasis;
   loadDirection: LoadDirection | null;
+  rateMetric: RateMetric;
   reps: number | null;
   rpe: number | null;
-  effectiveReps: number | null;
   distanceM: number | null;
   durationSec: number | null;
-  workoutVolumeKgReps: number | null;
 }
 
 export interface ExercisePerformanceRecordDoc extends BaseDoc {

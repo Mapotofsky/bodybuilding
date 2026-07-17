@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { RecordingMode } from "./models";
 import {
-  effectiveLoadKg,
   getRecordingModeSpec,
-  KG_PER_LB,
+  isCountBasis,
   RECORDING_MODE_SPECS,
   validateRecordingConfig,
 } from "./recordingModes";
@@ -35,15 +34,22 @@ describe("recording mode registry", () => {
   });
 
   it("rejects incompatible load and rate combinations", () => {
-    expect(() => validateRecordingConfig({ recordingMode: "reps", loadBasis: "total", loadDirection: null, rateMetric: "none" })).toThrow();
-    expect(() => validateRecordingConfig({ recordingMode: "weight_reps", loadBasis: null, loadDirection: "higher_better", rateMetric: "none" })).toThrow();
-    expect(() => validateRecordingConfig({ recordingMode: "weight_duration", loadBasis: "total", loadDirection: "higher_better", rateMetric: "distance_per_time" })).toThrow();
-    expect(() => validateRecordingConfig({ recordingMode: "distance_duration", loadBasis: null, loadDirection: null, rateMetric: "load_distance_per_time" })).toThrow();
+    expect(() => validateRecordingConfig({ recordingMode: "reps", loadBasis: "total", countBasis: "whole_set", loadDirection: null, rateMetric: "none" })).toThrow();
+    expect(() => validateRecordingConfig({ recordingMode: "weight_reps", loadBasis: null, countBasis: "whole_set", loadDirection: "higher_better", rateMetric: "none" })).toThrow();
+    expect(() => validateRecordingConfig({ recordingMode: "weight_duration", loadBasis: "total", countBasis: "whole_set", loadDirection: "higher_better", rateMetric: "distance_per_time" })).toThrow();
+    expect(() => validateRecordingConfig({ recordingMode: "distance_duration", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "load_distance_per_time" })).toThrow();
   });
 
-  it("applies unit conversion before the explicit per-hand multiplier and ignores equipment", () => {
-    expect(effectiveLoadKg(20, "kg", "total")).toBe(20);
-    expect(effectiveLoadKg(20, "kg", "per_hand")).toBe(40);
-    expect(effectiveLoadKg(20 / KG_PER_LB, "lb", "per_hand")).toBeCloseTo(40, 8);
+  it("requires one explicit count basis for every recording mode", () => {
+    expect(isCountBasis("whole_set")).toBe(true);
+    expect(isCountBasis("per_side")).toBe(true);
+    expect(isCountBasis("per_hand")).toBe(false);
+    expect(() => validateRecordingConfig({
+      recordingMode: "weight_reps",
+      loadBasis: "per_hand",
+      countBasis: "per_hand" as never,
+      loadDirection: "higher_better",
+      rateMetric: "none",
+    })).toThrow("计数口径");
   });
 });

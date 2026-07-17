@@ -94,6 +94,7 @@ function strengthWorkout(id: string, date: string, volume: number, durationMinut
       exerciseId: "ex-bench-press",
       recordingMode: "weight_reps",
       loadBasis: "total",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "none",
       sortOrder: 0,
@@ -115,6 +116,6 @@ function strengthWorkout(id: string, date: string, volume: number, durationMinut
     createdAt: timestamp,
     updatedAt: timestamp,
     deletedAt: null,
-    schemaVersion: 4,
+    schemaVersion: 5,
   };
 }

@@ -5,12 +5,14 @@ import { draftCompletionTime, validateWorkoutSet } from "./workout";
 const strength: RecordingConfig = {
   recordingMode: "weight_reps",
   loadBasis: "total",
+  countBasis: "whole_set",
   loadDirection: "higher_better",
   rateMetric: "none",
 };
 const farmerWalk: RecordingConfig = {
   recordingMode: "weight_distance_duration",
   loadBasis: "per_hand",
+  countBasis: "whole_set",
   loadDirection: "higher_better",
   rateMetric: "load_distance_per_time",
 };

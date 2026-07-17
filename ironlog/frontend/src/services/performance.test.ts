@@ -1,52 +1,79 @@
 import { describe, expect, it } from "vitest";
+import { CURRENT_SCHEMA_VERSION, type ExerciseDoc, type LoadDirection, type WorkoutDoc } from "@/core/models";
 import { makeEmptySnapshot } from "@/core/migrations";
-import type { ExerciseDoc, LoadDirection, WorkoutDoc } from "@/core/models";
 import { calculateRpeAdjustedRm } from "@/core/rm";
 import { KG_PER_LB } from "@/core/workoutMetrics";
 import { buildExercisePerformanceTrend, buildPerformanceRecords, buildPerformanceRefreshRecordsForWorkout } from "./performance";
 
 describe("exercise performance records", () => {
-  it("uses effective per-hand load for volume and RPE-adjusted RM", () => {
+  it("uses the input weight for weight PR and RPE-adjusted 1RM, after converting lb", () => {
     const snapshot = makeEmptySnapshot("device-test");
     const enteredLb = 20 / KG_PER_LB;
     const recorded = workout("per-hand", "2026-06-01", [set("set-1", 1, enteredLb, 10, 8, false, "lb")], "per_hand");
 
     const records = buildPerformanceRecords([recorded], snapshot.exercises);
     expect(metric(records, "volume.max_set").value).toBeCloseTo(400, 5);
-    expect(metric(records, "weight.max_input").value).toBeCloseTo(20, 5);
-    expect(metric(records, "weight.max_effective").value).toBeCloseTo(40, 5);
+    expect(metric(records, "weight.max").value).toBeCloseTo(20, 5);
     expect(metric(records, "rm.rpe_adjusted_mean").value).toBeCloseTo(
-      calculateRpeAdjustedRm({ weightKg: 40, reps: 10, rpe: 8 })!.formulas.meanKg,
+      calculateRpeAdjustedRm({ weightKg: 20, reps: 10, rpe: 8 })!.formulas.meanKg,
       5
     );
     expect(metric(records, "rm.rpe_adjusted_mean").input).toMatchObject({
+      recordingMode: "weight_reps",
       enteredLoadUnit: "lb",
-      effectiveLoadKg: 40,
       loadBasis: "per_hand",
+      countBasis: "whole_set",
     });
     expect(metric(records, "rm.rpe_adjusted_mean").input.enteredLoad).toBeCloseTo(enteredLb, 5);
   });
 
-  it("generates farmer-walk load metrics with complete raw input context", () => {
+  it("keeps whole-set and per-side count aggregation independent from the weight PR", () => {
     const snapshot = makeEmptySnapshot("device-test");
-    const recorded = farmerWorkout("farmer", "2026-06-02", [
-      farmerSet("distance", 1, 32, 40, 28),
-      farmerSet("duration", 2, 32, null, 30),
-    ]);
+    const perHandWholeSet = buildPerformanceRecords([
+      workout("per-hand-whole", "2026-06-01", [set("set-1", 1, 20, 10, null, false)], "per_hand", "whole_set"),
+    ], snapshot.exercises);
+    const totalPerSide = buildPerformanceRecords([
+      workout("total-per-side", "2026-06-01", [set("set-1", 1, 20, 10, null, false)], "total", "per_side"),
+    ], snapshot.exercises);
+    const perHandPerSide = buildPerformanceRecords([
+      workout("per-hand-per-side", "2026-06-01", [set("set-1", 1, 20, 10, null, false)], "per_hand", "per_side"),
+    ], snapshot.exercises);
 
-    const records = buildPerformanceRecords([recorded], snapshot.exercises);
-    expect(metric(records, "weight.max_effective").value).toBe(64);
-    expect(metric(records, "load_distance.max").value).toBe(2560);
-    expect(metric(records, "load_distance_rate.max").value).toBeCloseTo(91.428571, 5);
-    expect(metric(records, "load_duration.max").value).toBe(1920);
-    expect(metric(records, "load_distance.max").input).toMatchObject({
+    expect(metric(perHandWholeSet, "volume.max_set").value).toBe(400);
+    expect(metric(totalPerSide, "volume.max_set").value).toBe(400);
+    expect(metric(perHandPerSide, "volume.max_set").value).toBe(800);
+    expect(metric(perHandPerSide, "weight.max").value).toBe(20);
+    expect(metric(perHandPerSide, "reps.max_set").value).toBe(10);
+    expect(metric(perHandPerSide, "reps.max_workout").value).toBe(20);
+  });
+
+  it("calculates farmer and suitcase carry load metrics without a side-specific set", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const farmer = carryWorkout("farmer", "2026-06-02", [
+      farmerSet("distance", 1, 32, 40, 20),
+      farmerSet("duration", 2, 32, null, 30),
+    ], "per_hand", "whole_set", "ex-farmer-walk");
+    const suitcase = carryWorkout("suitcase", "2026-06-03", [
+      farmerSet("distance", 1, 32, 40, 20),
+    ], "total", "per_side", "custom-suitcase-carry");
+
+    const farmerRecords = buildPerformanceRecords([farmer], snapshot.exercises);
+    const suitcaseRecords = buildPerformanceRecords([suitcase], snapshot.exercises);
+    expect(metric(farmerRecords, "weight.max").value).toBe(32);
+    expect(metric(farmerRecords, "load_distance.max").value).toBe(2560);
+    expect(metric(farmerRecords, "load_distance_rate.max").value).toBe(128);
+    expect(metric(farmerRecords, "load_duration.max").value).toBe(1920);
+    expect(metric(suitcaseRecords, "load_distance.max").value).toBe(2560);
+    expect(metric(suitcaseRecords, "load_distance_rate.max").value).toBe(64);
+    expect(metric(suitcaseRecords, "load_distance.max").input).toMatchObject({
       enteredLoad: 32,
       enteredLoadUnit: "kg",
-      effectiveLoadKg: 64,
+      loadBasis: "total",
+      countBasis: "per_side",
       distanceM: 40,
-      durationSec: 28,
+      durationSec: 20,
     });
-    expect(records.some((record) => record.unit === "kg_reps" || record.kind === "rpe_adjusted_rm")).toBe(false);
+    expect(farmerRecords.some((record) => record.unit === "kg_reps" || record.kind === "rpe_adjusted_rm")).toBe(false);
   });
 
   it("uses independent min/max directions for assisted weight-reps and emits no normal volume or RM", () => {
@@ -71,17 +98,59 @@ describe("exercise performance records", () => {
     snapshot.workouts = [
       workout("w1", "2026-06-01", [set("warmup", 1, 120, 1, 10, true), set("set-1", 2, 100, 5, 8, false)]),
       workout("w2", "2026-06-02", [set("set-2", 1, 105, 5, 8, false)]),
-      workout("draft", "2026-06-03", [set("draft-set", 1, 200, 1, 10, false)], "total", null),
+      workout("draft", "2026-06-03", [set("draft-set", 1, 200, 1, 10, false)], "total", "whole_set", null),
     ];
 
     const records = buildPerformanceRecords(snapshot.workouts, snapshot.exercises);
     expect(records.find((record) => record.sourceSetId === "warmup")).toBeUndefined();
     expect(records.find((record) => record.sourceWorkoutId === "draft")).toBeUndefined();
-    expect(records.filter((record) => record.metricType === "weight.max_effective").map((record) => record.sourceSetId)).toEqual(["set-1", "set-2"]);
+    expect(records.filter((record) => record.metricType === "weight.max").map((record) => record.sourceSetId)).toEqual(["set-1", "set-2"]);
 
     const trend = buildExercisePerformanceTrend(snapshot.workouts, snapshot.exercises, "ex-bench-press", "weight_reps");
     expect(trend.metric_type).toBe("rm.rpe_adjusted_mean");
     expect(trend.points.map((point) => point.date)).toEqual(["2026-06-01", "2026-06-02"]);
+  });
+
+  it("builds trends only from immutable snapshots matching the current load and count conventions", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const custom = exercise("custom-changing-convention", "higher_better");
+    snapshot.exercises.push(custom);
+    const perHandPerSide = workoutForExercise(
+      "old-per-hand-per-side",
+      "2026-06-01",
+      custom.id,
+      [set("old-set", 1, 20, 10, 8, false)],
+      "per_hand",
+      "per_side"
+    );
+    const totalWholeSet = workoutForExercise(
+      "current-total-whole",
+      "2026-06-02",
+      custom.id,
+      [set("current-set", 1, 20, 10, 8, false)],
+      "total",
+      "whole_set"
+    );
+
+    const totalTrend = buildExercisePerformanceTrend(
+      [perHandPerSide, totalWholeSet],
+      snapshot.exercises,
+      custom.id,
+      "weight_reps"
+    );
+    expect(totalTrend.metric_label).toBe("估算 1RM");
+    expect(totalTrend.points.map((point) => point.date)).toEqual(["2026-06-02"]);
+
+    custom.loadBasis = "per_hand";
+    custom.countBasis = "per_side";
+    const perHandTrend = buildExercisePerformanceTrend(
+      [perHandPerSide, totalWholeSet],
+      snapshot.exercises,
+      custom.id,
+      "weight_reps"
+    );
+    expect(perHandTrend.metric_label).toBe("每手估算 1RM");
+    expect(perHandTrend.points.map((point) => point.date)).toEqual(["2026-06-01"]);
   });
 
   it("emits incremental records only when a newly completed workout refreshes current bests", () => {
@@ -94,20 +163,24 @@ describe("exercise performance records", () => {
     expect(buildPerformanceRefreshRecordsForWorkout(lower, snapshot.exercises, existing)).toEqual([]);
     const refreshed = buildPerformanceRefreshRecordsForWorkout(better, snapshot.exercises, existing);
     expect(refreshed.map((record) => record.metricType)).toEqual(expect.arrayContaining([
-      "weight.max_effective", "volume.max_set", "volume.max_workout", "rm.rpe_adjusted_mean",
+      "weight.max", "volume.max_set", "volume.max_workout", "rm.rpe_adjusted_mean",
     ]));
-    expect(refreshed.some((record) => record.metricType === "weight.max_input")).toBe(false);
   });
 
   it("reassigns deleted-source PRs through a compatible redirect without rewriting workout history", () => {
     const snapshot = makeEmptySnapshot("device-test");
-    const source: ExerciseDoc = { ...exercise("custom-source", "higher_better"), deletedAt: "2026-06-02T00:00:00.000Z", replacedByExerciseId: "ex-bench-press" };
+    const source: ExerciseDoc = {
+      ...exercise("custom-source", "higher_better"),
+      deletedAt: "2026-06-02T00:00:00.000Z",
+      replacedByExerciseId: "ex-bench-press",
+    };
     snapshot.exercises.push(source);
     const historical = baseWorkout("history", "2026-06-01", "2026-06-01T11:00:00.000Z", [{
       id: "historical-exercise",
       exerciseId: source.id,
       recordingMode: "weight_reps",
       loadBasis: "total",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "none",
       sortOrder: 0,
@@ -118,7 +191,12 @@ describe("exercise performance records", () => {
     const records = buildPerformanceRecords([historical], snapshot.exercises);
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((record) => record.exerciseId === "ex-bench-press")).toBe(true);
-    expect(historical.exercises[0]).toMatchObject({ exerciseId: "custom-source", recordingMode: "weight_reps", loadBasis: "total" });
+    expect(historical.exercises[0]).toMatchObject({
+      exerciseId: "custom-source",
+      recordingMode: "weight_reps",
+      loadBasis: "total",
+      countBasis: "whole_set",
+    });
 
     source.replacedByExerciseId = null;
     expect(buildPerformanceRecords([historical], snapshot.exercises)).toEqual([]);
@@ -136,6 +214,7 @@ function workout(
   date: string,
   sets: WorkoutDoc["exercises"][number]["sets"],
   loadBasis: "total" | "per_hand" = "total",
+  countBasis: "whole_set" | "per_side" = "whole_set",
   endTime: string | null = `${date}T11:00:00.000Z`
 ): WorkoutDoc {
   return baseWorkout(id, date, endTime, [{
@@ -143,6 +222,7 @@ function workout(
     exerciseId: "ex-bench-press",
     recordingMode: "weight_reps",
     loadBasis,
+    countBasis,
     loadDirection: "higher_better",
     rateMetric: "none",
     sortOrder: 0,
@@ -151,12 +231,20 @@ function workout(
   }]);
 }
 
-function farmerWorkout(id: string, date: string, sets: WorkoutDoc["exercises"][number]["sets"]): WorkoutDoc {
+function carryWorkout(
+  id: string,
+  date: string,
+  sets: WorkoutDoc["exercises"][number]["sets"],
+  loadBasis: "total" | "per_hand",
+  countBasis: "whole_set" | "per_side",
+  exerciseId: string
+): WorkoutDoc {
   return baseWorkout(id, date, `${date}T11:00:00.000Z`, [{
     id: `${id}-exercise`,
-    exerciseId: "ex-farmer-walk",
+    exerciseId,
     recordingMode: "weight_distance_duration",
-    loadBasis: "per_hand",
+    loadBasis,
+    countBasis,
     loadDirection: "higher_better",
     rateMetric: "load_distance_per_time",
     sortOrder: 0,
@@ -165,9 +253,31 @@ function farmerWorkout(id: string, date: string, sets: WorkoutDoc["exercises"][n
   }]);
 }
 
+function workoutForExercise(
+  id: string,
+  date: string,
+  exerciseId: string,
+  sets: WorkoutDoc["exercises"][number]["sets"],
+  loadBasis: "total" | "per_hand",
+  countBasis: "whole_set" | "per_side"
+): WorkoutDoc {
+  return baseWorkout(id, date, `${date}T11:00:00.000Z`, [{
+    id: `${id}-exercise`,
+    exerciseId,
+    recordingMode: "weight_reps",
+    loadBasis,
+    countBasis,
+    loadDirection: "higher_better",
+    rateMetric: "none",
+    sortOrder: 0,
+    supersetGroup: null,
+    sets,
+  }]);
+}
+
 function assistedWorkout(id: string, date: string, weight: number, reps: number): WorkoutDoc {
   return baseWorkout(id, date, `${date}T11:00:00.000Z`, [{
-    id: `${id}-exercise`, exerciseId: "custom-assisted", recordingMode: "weight_reps", loadBasis: "total",
+    id: `${id}-exercise`, exerciseId: "custom-assisted", recordingMode: "weight_reps", loadBasis: "total", countBasis: "whole_set",
     loadDirection: "lower_better", rateMetric: "none", sortOrder: 0, supersetGroup: null,
     sets: [set(`${id}-set`, 1, weight, reps, null, false)],
   }]);
@@ -176,16 +286,16 @@ function assistedWorkout(id: string, date: string, weight: number, reps: number)
 function baseWorkout(id: string, date: string, endTime: string | null, exercises: WorkoutDoc["exercises"]): WorkoutDoc {
   return {
     id, date, startTime: `${date}T10:00:00.000Z`, endTime, planTemplateId: null, note: null, mood: null, exercises,
-    createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T11:00:00.000Z`, deletedAt: null, schemaVersion: 4,
+    createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T11:00:00.000Z`, deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
 
 function exercise(id: string, loadDirection: LoadDirection): ExerciseDoc {
   return {
-    id, name: id, category: "other", recordingMode: "weight_reps", loadBasis: "total", loadDirection, rateMetric: "none",
+    id, name: id, category: "other", recordingMode: "weight_reps", loadBasis: "total", countBasis: "whole_set", loadDirection, rateMetric: "none",
     equipment: "machine", description: null, primaryMuscleGroupIds: [], secondaryMuscleGroupIds: [], isCustom: true,
     replacedByExerciseId: null, createdAt: "2026-06-01T00:00:00.000Z", updatedAt: "2026-06-01T00:00:00.000Z",
-    deletedAt: null, schemaVersion: 4,
+    deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
 

@@ -46,6 +46,7 @@ const VALID_RECORDING_MODES = new Set([
 const WEIGHT_RECORDING_MODES = new Set(["weight_reps", "weight_duration", "weight_distance_duration"]);
 const DISTANCE_DURATION_RECORDING_MODES = new Set(["distance_duration", "weight_distance_duration"]);
 const VALID_LOAD_BASIS = new Set(["total", "per_hand"]);
+const VALID_COUNT_BASIS = new Set(["whole_set", "per_side"]);
 const VALID_LOAD_DIRECTIONS = new Set(["higher_better", "lower_better"]);
 const VALID_RATE_METRICS = new Set(["none", "distance_per_time", "load_distance_per_time"]);
 const VALID_MUSCLES = new Set([
@@ -93,12 +94,12 @@ function parseRow(line, rowNumber) {
   const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
   if (cells.length !== 6) throw new Error(`候选表第 ${rowNumber} 行列数无效`);
   const [grade, mapping, upstreamFacts, descriptionCell] = cells;
-  const mappingMatch = mapping.match(/^`(ex-[^`]+)`<br>([^<]+)<br>`([a-z_]+) · ([a-z_]+)`<br>`([a-z_]+|null) · ([a-z_]+|null) · ([a-z_]+)`<br>P `\[([^\]]*)\]`；S `\[([^\]]*)\]`$/);
+  const mappingMatch = mapping.match(/^`(ex-[^`]+)`<br>([^<]+)<br>`([a-z_]+) · ([a-z_]+)`<br>`([a-z_]+|null) · ([a-z_]+) · ([a-z_]+|null) · ([a-z_]+)`<br>P `\[([^\]]*)\]`；S `\[([^\]]*)\]`$/);
   if (!mappingMatch) throw new Error(`候选映射无法解析：${mapping}`);
   const upstreamMatch = upstreamFacts.match(/^\[([0-9]{4})\]\([^)]*\) `([^`]+)`<br>`([^/`]+)\/([^`]+)`；`([^`]+)`<br>target `([^`]+)`；group `([^`]+)`；secondary `\[([^\]]*)\]`$/);
   if (!upstreamMatch) throw new Error(`上游事实无法解析：${upstreamFacts}`);
 
-  const [, id, name, category, recordingMode, loadBasisValue, loadDirectionValue, rateMetric, primary, secondary] = mappingMatch;
+  const [, id, name, category, recordingMode, loadBasisValue, countBasis, loadDirectionValue, rateMetric, primary, secondary] = mappingMatch;
   const [, sourceId, upstreamName, upstreamCategory, upstreamBodyPart, upstreamEquipment, target, muscleGroup, upstreamSecondary] = upstreamMatch;
   const equipment = EQUIPMENT_MAP.get(upstreamEquipment);
   if (!equipment) throw new Error(`候选 ${id} 使用未映射器械：${upstreamEquipment}`);
@@ -110,6 +111,7 @@ function parseRow(line, rowNumber) {
       category,
       recordingMode,
       loadBasis: loadBasisValue === "null" ? null : loadBasisValue,
+      countBasis,
       loadDirection: loadDirectionValue === "null" ? null : loadDirectionValue,
       rateMetric,
       equipment,
@@ -160,14 +162,30 @@ function validateCatalog(catalog) {
   if (!farmerWalk || farmerWalk.provenance.sourceId !== "2133"
     || farmerWalk.recordingMode !== "weight_distance_duration"
     || farmerWalk.loadBasis !== "per_hand"
+    || farmerWalk.countBasis !== "whole_set"
     || farmerWalk.loadDirection !== "higher_better"
     || farmerWalk.rateMetric !== "load_distance_per_time") {
     throw new Error("ex-farmer-walk 的记录配置不符合已批准契约");
+  }
+  const perSideIds = catalog.filter((item) => item.seed.countBasis === "per_side").map((item) => item.seed.id).sort();
+  const expectedPerSideIds = [
+    "ex-band-pallof-press",
+    "ex-bodyweight-split-squat",
+    "ex-dead-bug",
+    "ex-dumbbell-bulgarian-split-squat",
+    "ex-dumbbell-lunge",
+    "ex-dumbbell-step-up",
+    "ex-one-arm-dumbbell-row",
+    "ex-side-plank",
+  ];
+  if (JSON.stringify(perSideIds) !== JSON.stringify(expectedPerSideIds)) {
+    throw new Error("默认目录的每侧计数动作不符合已批准契约");
   }
 }
 
 function validateRecordingConfiguration(seed) {
   if (!VALID_RECORDING_MODES.has(seed.recordingMode)) throw new Error(`${seed.id} 的 recordingMode 无效`);
+  if (!VALID_COUNT_BASIS.has(seed.countBasis)) throw new Error(`${seed.id} 的 countBasis 无效`);
   if (!VALID_RATE_METRICS.has(seed.rateMetric)) throw new Error(`${seed.id} 的 rateMetric 无效`);
   const usesWeight = WEIGHT_RECORDING_MODES.has(seed.recordingMode);
   if (usesWeight) {

@@ -5,11 +5,11 @@ import { Check, ChevronLeft, Dumbbell, Gauge, NotebookText, Pencil, Trash2, Tren
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
 import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
-import type { EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode } from "@/types";
+import type { CountBasis, EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
 import { getSettings } from "@/services/settings";
-import { CATEGORY_LABELS, EQUIPMENT_LABELS, LOAD_BASIS_LABELS, LOAD_DIRECTION_LABELS, MUSCLE_GROUP_LABELS, RATE_METRIC_LABELS, RECORDING_MODE_LABELS } from "@/types";
+import { CATEGORY_LABELS, COUNT_BASIS_LABELS, EQUIPMENT_LABELS, LOAD_BASIS_LABELS, LOAD_DIRECTION_LABELS, MUSCLE_GROUP_LABELS, RATE_METRIC_LABELS, RECORDING_MODE_LABELS } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
@@ -53,6 +53,7 @@ export default function ExerciseDetailPage() {
   const [category, setCategory] = useState<ExerciseCategory>("core");
   const [recordingMode, setRecordingMode] = useState<RecordingMode>("weight_reps");
   const [loadBasis, setLoadBasis] = useState<LoadBasis | null>("total");
+  const [countBasis, setCountBasis] = useState<CountBasis>("whole_set");
   const [loadDirection, setLoadDirection] = useState<LoadDirection | null>("higher_better");
   const [rateMetric, setRateMetric] = useState<RateMetric>("none");
   const [equipment, setEquipment] = useState<EquipmentId | null>(null);
@@ -107,10 +108,7 @@ export default function ExerciseDetailPage() {
     return byDate;
   }, [history]);
   const dates = Object.keys(groupedHistory).sort((a, b) => b.localeCompare(a));
-  const currentBestPerformance = useMemo(
-    () => currentBestByMetric(performance, detail?.load_basis ?? null),
-    [performance, detail?.load_basis]
-  );
+  const currentBestPerformance = useMemo(() => currentBestByMetric(performance), [performance]);
   const trendData = useMemo(
     () => trend?.points.map((point) => ({ ...point, display_value: displayPerformanceScalar(point.value, point.unit, displayUnit) })) ?? [],
     [trend, displayUnit]
@@ -122,6 +120,7 @@ export default function ExerciseDetailPage() {
     setCategory(nextDetail.category);
     setRecordingMode(nextDetail.recording_mode);
     setLoadBasis(nextDetail.load_basis);
+    setCountBasis(nextDetail.count_basis);
     setLoadDirection(nextDetail.load_direction);
     setRateMetric(nextDetail.rate_metric);
     setEquipment(nextDetail.equipment);
@@ -151,6 +150,7 @@ export default function ExerciseDetailPage() {
         category,
         recording_mode: recordingMode,
         load_basis: loadBasis,
+        count_basis: countBasis,
         load_direction: loadDirection,
         rate_metric: rateMetric,
         equipment,
@@ -249,6 +249,10 @@ export default function ExerciseDetailPage() {
                 <dd className="app-text font-medium">{LOAD_BASIS_LABELS[detail.load_basis]}</dd>
               </>
             )}
+            <>
+              <dt className="app-text-muted">计数口径</dt>
+              <dd className="app-text font-medium">{COUNT_BASIS_LABELS[detail.count_basis]}</dd>
+            </>
             {detail.rate_metric !== "none" && (
               <>
                 <dt className="app-text-muted">成绩摘要</dt>
@@ -375,6 +379,7 @@ export default function ExerciseDetailPage() {
           category={category}
           recordingMode={recordingMode}
           loadBasis={loadBasis}
+          countBasis={countBasis}
           loadDirection={loadDirection}
           rateMetric={rateMetric}
           equipment={equipment}
@@ -385,6 +390,7 @@ export default function ExerciseDetailPage() {
           onCategory={setCategory}
           onRecordingMode={setRecordingMode}
           onLoadBasis={setLoadBasis}
+          onCountBasis={setCountBasis}
           onLoadDirection={setLoadDirection}
           onRateMetric={setRateMetric}
           onEquipment={setEquipment}
@@ -434,6 +440,7 @@ function ExerciseEditor(props: {
   category: ExerciseCategory;
   recordingMode: RecordingMode;
   loadBasis: LoadBasis | null;
+  countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
   equipment: EquipmentId | null;
@@ -444,6 +451,7 @@ function ExerciseEditor(props: {
   onCategory: (value: ExerciseCategory) => void;
   onRecordingMode: (value: RecordingMode) => void;
   onLoadBasis: (value: LoadBasis | null) => void;
+  onCountBasis: (value: CountBasis) => void;
   onLoadDirection: (value: LoadDirection | null) => void;
   onRateMetric: (value: RateMetric) => void;
   onEquipment: (value: EquipmentId | null) => void;
@@ -458,6 +466,7 @@ function ExerciseEditor(props: {
     category: props.category,
     recording_mode: props.recordingMode,
     load_basis: props.loadBasis,
+    count_basis: props.countBasis,
     load_direction: props.loadDirection,
     rate_metric: props.rateMetric,
     equipment: props.equipment,
@@ -470,6 +479,7 @@ function ExerciseEditor(props: {
     props.onCategory(next.category);
     props.onRecordingMode(next.recording_mode);
     props.onLoadBasis(next.load_basis);
+    props.onCountBasis(next.count_basis);
     props.onLoadDirection(next.load_direction);
     props.onRateMetric(next.rate_metric);
     props.onEquipment(next.equipment);
@@ -526,28 +536,22 @@ function StatCard({ icon, label, value, unit }: { icon: ReactNode; label: string
 
 export function bestStatCards(stats: ExerciseDetail["stats"]["performance"]): Array<{ icon: ReactNode; label: string; value: string | number; unit?: string }> {
   const cards: Array<{ icon: ReactNode; label: string; value: string | number; unit?: string }> = [];
-  if (stats.load_basis === "per_hand" && stats.best_input_load != null) {
+  if (stats.best_load != null) {
     cards.push({
       icon: <TrendingUp size={14} />,
-      label: stats.load_direction === "lower_better" ? "最低输入辅助重量" : "最大输入重量",
-      value: round(stats.best_input_load),
-      unit: stats.display_unit,
-    });
-  }
-  if (stats.best_effective_load != null) {
-    cards.push({
-      icon: <TrendingUp size={14} />,
-      label: stats.load_direction === "lower_better" ? "最低有效辅助重量" : "最大有效负重",
-      value: round(stats.best_effective_load),
+      label: stats.load_direction === "lower_better"
+        ? (stats.load_basis === "per_hand" ? "每手最低辅助重量" : "最低辅助重量")
+        : (stats.load_basis === "per_hand" ? "每手最大重量" : "最大重量"),
+      value: round(stats.best_load),
       unit: stats.display_unit,
     });
   }
   if (stats.best_set_volume != null) {
     cards.push({ icon: <Gauge size={14} />, label: "最大单组容量", value: formatOneDecimal(stats.best_set_volume), unit: `${stats.display_unit}·次` });
   }
-  if (stats.best_reps != null) cards.push({ icon: <TrendingUp size={14} />, label: "最大次数", value: stats.best_reps, unit: "次" });
-  if (stats.best_distance_m != null) cards.push({ icon: <TrendingUp size={14} />, label: "最大距离", value: round(stats.best_distance_m), unit: "m" });
-  if (stats.best_duration_sec != null) cards.push({ icon: <TrendingUp size={14} />, label: "最长时间", value: formatDuration(stats.best_duration_sec) });
+  if (stats.best_reps != null) cards.push({ icon: <TrendingUp size={14} />, label: stats.count_basis === "per_side" ? "每侧最大次数" : "最大次数", value: stats.best_reps, unit: "次" });
+  if (stats.best_distance_m != null) cards.push({ icon: <TrendingUp size={14} />, label: stats.count_basis === "per_side" ? "每侧最大距离" : "最大距离", value: round(stats.best_distance_m), unit: "m" });
+  if (stats.best_duration_sec != null) cards.push({ icon: <TrendingUp size={14} />, label: stats.count_basis === "per_side" ? "每侧最长时间" : "最长时间", value: formatDuration(stats.best_duration_sec) });
   if (stats.best_speed_mps != null) cards.push({ icon: <TrendingUp size={14} />, label: "最快速度", value: round(stats.best_speed_mps), unit: "m/s" });
   if (stats.best_load_distance_kg_m != null) cards.push({ icon: <Gauge size={14} />, label: "最大距离负载", value: formatOneDecimal(convertWeight(stats.best_load_distance_kg_m, "kg", stats.display_unit)), unit: `${stats.display_unit}·m` });
   if (stats.best_load_duration_kg_sec != null) cards.push({ icon: <Gauge size={14} />, label: "最大持续负载", value: formatOneDecimal(convertWeight(stats.best_load_duration_kg_sec, "kg", stats.display_unit)), unit: `${stats.display_unit}·s` });
@@ -589,10 +593,9 @@ function formatDuration(seconds: number): string {
   return remain === 0 ? `${minutes} 分钟` : `${minutes} 分 ${remain} 秒`;
 }
 
-function currentBestByMetric(records: PerformanceRecord[], loadBasis: LoadBasis | null): PerformanceRecord[] {
+function currentBestByMetric(records: PerformanceRecord[]): PerformanceRecord[] {
   const best = new Map<string, PerformanceRecord>();
   for (const record of records) {
-    if (record.metric_type === "weight.max_input" && loadBasis !== "per_hand") continue;
     const previous = best.get(record.metric_type);
     const comparison = previous ? comparePerformanceValues({
       metricType: record.metric_type,
@@ -608,8 +611,7 @@ function currentBestByMetric(records: PerformanceRecord[], loadBasis: LoadBasis 
 
 function metricOrder(metricType: PerformanceRecord["metric_type"]): number {
   const order: PerformanceRecord["metric_type"][] = [
-    "weight.max_input",
-    "weight.max_effective",
+    "weight.max",
     "assistance.min_weight",
     "assistance.best_reps",
     "reps.max_set",

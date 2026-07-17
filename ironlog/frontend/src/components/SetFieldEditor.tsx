@@ -62,11 +62,11 @@ function RecordingFieldInput({ field, recording, weightUnit, value, onChange }: 
     case "weight":
       return <StepInput label={`${weightFieldLabel(recording)} (${weightUnit})`} value={value} onChange={onChange} step={weightUnit === "kg" ? 2.5 : 5} inputMode="decimal" />;
     case "reps":
-      return <StepInput label="次数" value={value} onChange={onChange} step={1} inputMode="numeric" />;
+      return <StepInput label={recording.count_basis === "per_side" ? "每侧次数" : "次数"} value={value} onChange={onChange} step={1} inputMode="numeric" />;
     case "distanceM":
-      return <StepInput label="距离 (m)" value={value} onChange={onChange} step={10} inputMode="decimal" />;
+      return <StepInput label={recording.count_basis === "per_side" ? "每侧距离 (m)" : "距离 (m)"} value={value} onChange={onChange} step={10} inputMode="decimal" />;
     case "durationSec":
-      return <StepInput label={recording.recording_mode === "duration" || recording.recording_mode === "weight_duration" ? "保持时间 (秒)" : "用时 (秒)"} value={value} onChange={onChange} step={10} inputMode="numeric" />;
+      return <StepInput label={durationLabel(recording)} value={value} onChange={onChange} step={10} inputMode="numeric" />;
   }
 }
 
@@ -95,6 +95,7 @@ export function validateSetFieldDraft(recording: RecordingSnapshot, value: SetFi
     }, {
       recordingMode: recording.recording_mode,
       loadBasis: recording.load_basis,
+      countBasis: recording.count_basis,
       loadDirection: recording.load_direction,
       rateMetric: recording.rate_metric,
     }, "draft");
@@ -102,4 +103,9 @@ export function validateSetFieldDraft(recording: RecordingSnapshot, value: SetFi
   } catch (error) {
     return error instanceof Error ? error.message : "请输入有效数值";
   }
+}
+
+function durationLabel(recording: RecordingSnapshot): string {
+  const base = recording.recording_mode === "duration" || recording.recording_mode === "weight_duration" ? "保持时间" : "用时";
+  return `${recording.count_basis === "per_side" ? "每侧" : ""}${base} (秒)`;
 }

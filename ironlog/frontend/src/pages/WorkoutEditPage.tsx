@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
 import { getSettings } from "@/services/settings";
-import type { Exercise, LoadBasis, LoadDirection, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
+import type { CountBasis, Exercise, LoadBasis, LoadDirection, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
@@ -27,6 +27,7 @@ interface LocalExercise {
   exercise_id: string;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   exercise_name: string;
@@ -78,6 +79,7 @@ export default function WorkoutEditPage() {
             exercise_id: ex.exercise_id,
             recording_mode: ex.recording_mode,
             load_basis: ex.load_basis,
+            count_basis: ex.count_basis,
             load_direction: ex.load_direction,
             rate_metric: ex.rate_metric,
             exercise_name: ex.exercise_name || `动作#${ex.exercise_id}`,
@@ -113,6 +115,7 @@ export default function WorkoutEditPage() {
         exercise_id: ex.id,
         recording_mode: ex.recording_mode,
         load_basis: ex.load_basis,
+        count_basis: ex.count_basis,
         load_direction: ex.load_direction,
         rate_metric: ex.rate_metric,
         exercise_name: ex.name,
@@ -198,6 +201,7 @@ export default function WorkoutEditPage() {
           exercise_id: e.exercise_id,
           recording_mode: e.recording_mode,
           load_basis: e.load_basis,
+          count_basis: e.count_basis,
           load_direction: e.load_direction,
           rate_metric: e.rate_metric,
           id: e.id,

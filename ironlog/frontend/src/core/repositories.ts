@@ -12,7 +12,7 @@ import type {
 export interface ExerciseRepository {
   list(params?: { category?: ExerciseCategory; equipment?: EquipmentId | null; q?: string; includeDeleted?: boolean }): Promise<ExerciseDoc[]>;
   get(id: string): Promise<ExerciseDoc | null>;
-  create(body: Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc>;
+  create(body: Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc>;
 }
 
 export interface PlanRepository {

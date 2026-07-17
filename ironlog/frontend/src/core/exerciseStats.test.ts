@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeEmptySnapshot } from "./migrations";
 import { buildExercisePersonalStats } from "./exerciseStats";
-import type { WorkoutDoc } from "./models";
+import { CURRENT_SCHEMA_VERSION, type WorkoutDoc } from "./models";
 
 describe("exercise personal stats", () => {
   it("uses completed local workouts, replacement resolution, warmup rules, and current weight unit", () => {
@@ -12,6 +12,7 @@ describe("exercise personal stats", () => {
       category: "core",
       recordingMode: "reps",
       loadBasis: null,
+      countBasis: "whole_set",
       loadDirection: null,
       rateMetric: "none",
       equipment: null,
@@ -23,7 +24,7 @@ describe("exercise personal stats", () => {
       createdAt: "2026-06-20T00:00:00.000Z",
       updatedAt: "2026-06-21T00:00:00.000Z",
       deletedAt: "2026-06-21T00:00:00.000Z",
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     });
     snapshot.workouts = [
       workout("done", "2026-06-21", "2026-06-21T11:00:00.000Z", [
@@ -55,12 +56,12 @@ describe("exercise personal stats", () => {
     expect(stats.workingSetCount).toBe(3);
     expect(stats.recent7DaySetCount).toBe(2);
     expect(stats.lastCompletedDate).toBe("2026-06-21");
-    expect(stats.performance.bestInputLoad).toBe(60);
-    expect(stats.performance.bestEffectiveLoad).toBe(60);
+    expect(stats.performance.bestLoad).toBe(60);
     expect(stats.performance.bestSetVolume).toBeCloseTo(226.796185);
     expect(stats.performance.bestWorkoutVolume).toBeCloseTo(226.796185);
     expect(stats.performance.displayUnit).toBe("kg");
     expect(stats.performance.loadBasis).toBe("total");
+    expect(stats.performance.countBasis).toBe("whole_set");
     expect(stats.performance.loadDirection).toBe("higher_better");
   });
 
@@ -80,9 +81,55 @@ describe("exercise personal stats", () => {
     const forward = buildExercisePersonalStats({ ...params, workouts: [total, perHand] });
     const reverse = buildExercisePersonalStats({ ...params, workouts: [perHand, total] });
 
-    expect(forward.performance).toMatchObject({ bestInputLoad: null, bestEffectiveLoad: null, loadBasis: null, loadDirection: null, bestSetVolume: 120 });
+    expect(forward.performance).toMatchObject({ bestLoad: null, loadBasis: null, countBasis: null, loadDirection: null, bestSetVolume: 120 });
     expect(reverse.performance).toEqual(forward.performance);
     expect(perHand.exercises[0]).toMatchObject({ loadBasis: "per_hand", recordingMode: "weight_reps" });
+  });
+
+  it("keeps a stable per-side input convention for non-weighted repetition and duration PRs", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const splitSquat = noLoadWorkout(
+      "split-squat",
+      "2026-06-21",
+      "ex-bodyweight-split-squat",
+      "reps",
+      "per_side",
+      { id: "split-squat-set", setNumber: 1, weight: null, reps: 12, unit: "kg", durationSec: null, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }
+    );
+    const sidePlank = noLoadWorkout(
+      "side-plank",
+      "2026-06-22",
+      "ex-side-plank",
+      "duration",
+      "per_side",
+      { id: "side-plank-set", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 45, distanceM: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }
+    );
+    const params = { exercises: snapshot.exercises, workouts: [splitSquat, sidePlank], weightUnit: "kg" as const, today: "2026-06-25" };
+
+    expect(buildExercisePersonalStats({ ...params, exerciseId: "ex-bodyweight-split-squat" }).performance).toMatchObject({
+      loadBasis: null,
+      countBasis: "per_side",
+      loadDirection: null,
+      bestReps: 12,
+    });
+    expect(buildExercisePersonalStats({ ...params, exerciseId: "ex-side-plank" }).performance).toMatchObject({
+      loadBasis: null,
+      countBasis: "per_side",
+      loadDirection: null,
+      bestDurationSec: 45,
+    });
+
+    const wholeSetSplitSquat = {
+      ...splitSquat,
+      id: "split-squat-whole-set",
+      exercises: splitSquat.exercises.map((exercise) => ({ ...exercise, id: "split-squat-whole-set-exercise", countBasis: "whole_set" as const })),
+    };
+    const mixed = buildExercisePersonalStats({
+      ...params,
+      exerciseId: "ex-bodyweight-split-squat",
+      workouts: [splitSquat, wholeSetSplitSquat],
+    });
+    expect(mixed.performance).toMatchObject({ countBasis: null, loadBasis: null, loadDirection: null, bestReps: 12 });
   });
 });
 
@@ -100,6 +147,7 @@ function workout(id: string, date: string, endTime: string | null, sets: Workout
       exerciseId: "custom-ex-old",
       recordingMode: "weight_reps",
       loadBasis: "total",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "none",
       sortOrder: 0,
@@ -109,6 +157,41 @@ function workout(id: string, date: string, endTime: string | null, sets: Workout
     createdAt: `${date}T10:00:00.000Z`,
     updatedAt: `${date}T10:00:00.000Z`,
     deletedAt: null,
-    schemaVersion: 4,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+  };
+}
+
+function noLoadWorkout(
+  id: string,
+  date: string,
+  exerciseId: string,
+  recordingMode: "reps" | "duration",
+  countBasis: "whole_set" | "per_side",
+  set: WorkoutDoc["exercises"][number]["sets"][number]
+): WorkoutDoc {
+  return {
+    id,
+    date,
+    startTime: `${date}T10:00:00.000Z`,
+    endTime: `${date}T11:00:00.000Z`,
+    planTemplateId: null,
+    note: null,
+    mood: null,
+    exercises: [{
+      id: `${id}-exercise`,
+      exerciseId,
+      recordingMode,
+      loadBasis: null,
+      countBasis,
+      loadDirection: null,
+      rateMetric: "none",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [set],
+    }],
+    createdAt: `${date}T10:00:00.000Z`,
+    updatedAt: `${date}T11:00:00.000Z`,
+    deletedAt: null,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }

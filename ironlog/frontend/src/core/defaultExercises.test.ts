@@ -6,13 +6,14 @@ const VALID_CATEGORIES = new Set(["chest", "back", "legs", "shoulders", "arms", 
 const VALID_RECORDING_MODES = new Set(["weight_reps", "reps", "duration", "distance_duration", "weight_duration", "weight_distance_duration"]);
 const WEIGHT_RECORDING_MODES = new Set(["weight_reps", "weight_duration", "weight_distance_duration"]);
 const VALID_LOAD_BASIS = new Set(["total", "per_hand"]);
+const VALID_COUNT_BASIS = new Set(["whole_set", "per_side"]);
 const VALID_LOAD_DIRECTIONS = new Set(["higher_better", "lower_better"]);
 const VALID_RATE_METRICS = new Set(["none", "distance_per_time", "load_distance_per_time"]);
 const VALID_EQUIPMENT = new Set(["body_weight", "barbell", "dumbbell", "cable", "machine", "band", "kettlebell", "ab_wheel", "stationary_bike", "jump_rope", "elliptical", "stepmill", "external_weight", "other"]);
 const RETIRED_DEFAULT_IDS = ["squat", "overhead-press", "face-pull", "plank", "cat-cow-stretch"].map((suffix) => `ex-${suffix}`);
 
 describe("generated default exercise catalog", () => {
-  it("contains 63 unique, valid, deterministic v4 documents", () => {
+  it("contains 63 unique, valid, deterministic current-schema documents", () => {
     expect(DEFAULT_EXERCISES).toHaveLength(63);
     expect(new Set(DEFAULT_EXERCISES.map((exercise) => exercise.id)).size).toBe(63);
     expect(new Set(DEFAULT_EXERCISES.map((exercise) => exercise.provenance?.sourceId)).size).toBe(63);
@@ -20,6 +21,7 @@ describe("generated default exercise catalog", () => {
     for (const exercise of DEFAULT_EXERCISES) {
       expect(VALID_CATEGORIES.has(exercise.category)).toBe(true);
       expect(VALID_RECORDING_MODES.has(exercise.recordingMode)).toBe(true);
+      expect(VALID_COUNT_BASIS.has(exercise.countBasis)).toBe(true);
       expect(VALID_RATE_METRICS.has(exercise.rateMetric)).toBe(true);
       if (WEIGHT_RECORDING_MODES.has(exercise.recordingMode)) {
         expect(VALID_LOAD_BASIS.has(exercise.loadBasis ?? "")).toBe(true);
@@ -77,6 +79,7 @@ describe("generated default exercise catalog", () => {
       name: "农夫行走",
       recordingMode: "weight_distance_duration",
       loadBasis: "per_hand",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "load_distance_per_time",
       equipment: "dumbbell",
@@ -87,6 +90,28 @@ describe("generated default exercise catalog", () => {
       loadBasis: "total",
       loadDirection: "lower_better",
       rateMetric: "none",
+    });
+  });
+
+  it("uses the audited count basis for every default action", () => {
+    const perSideIds = DEFAULT_EXERCISES
+      .filter((exercise) => exercise.countBasis === "per_side")
+      .map((exercise) => exercise.id)
+      .sort();
+
+    expect(perSideIds).toEqual([
+      "ex-band-pallof-press",
+      "ex-bodyweight-split-squat",
+      "ex-dead-bug",
+      "ex-dumbbell-bulgarian-split-squat",
+      "ex-dumbbell-lunge",
+      "ex-dumbbell-step-up",
+      "ex-one-arm-dumbbell-row",
+      "ex-side-plank",
+    ]);
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-one-arm-dumbbell-row")).toMatchObject({
+      loadBasis: "total",
+      countBasis: "per_side",
     });
   });
 

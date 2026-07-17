@@ -69,6 +69,7 @@ describe("document file serialization", () => {
       exerciseId: "ex-farmer-walk",
       recordingMode: "weight_distance_duration",
       loadBasis: "per_hand",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "load_distance_per_time",
       sortOrder: 0,
@@ -95,6 +96,7 @@ describe("document file serialization", () => {
 
     expect((files["workouts/2026-07.json"] as WorkoutDoc[])[0].exercises[0]).toEqual(farmerWorkout.exercises[0]);
     expect(imported.workouts?.[0].exercises[0]).toEqual(farmerWorkout.exercises[0]);
+    expect(imported.workouts?.[0].exercises[0]?.countBasis).toBe("whole_set");
   });
 
   it("writes exercise performance records to achieved month files", () => {
@@ -103,14 +105,26 @@ describe("document file serialization", () => {
       id: "performance-1",
       exerciseId: "ex-bench-press",
       kind: "true_pr" as const,
-      metricType: "weight.max_effective" as const,
-      value: 120,
+      metricType: "weight.max" as const,
+      value: 60,
       unit: "kg" as const,
       achievedAt: "2026-07-02T10:00:00.000Z",
       sourceWorkoutId: "workout-1",
       sourceWorkoutExerciseId: "workout-exercise-1",
       sourceSetId: "set-1",
-      input: { enteredLoad: 60, enteredLoadUnit: "kg" as const, effectiveLoadKg: 120, loadBasis: "per_hand" as const, loadDirection: "higher_better" as const, reps: 3, rpe: null, effectiveReps: null, distanceM: 40, durationSec: 28, workoutVolumeKgReps: null },
+      input: {
+        recordingMode: "weight_distance_duration" as const,
+        enteredLoad: 60,
+        enteredLoadUnit: "kg" as const,
+        loadBasis: "per_hand" as const,
+        countBasis: "whole_set" as const,
+        loadDirection: "higher_better" as const,
+        rateMetric: "load_distance_per_time" as const,
+        reps: null,
+        rpe: null,
+        distanceM: 40,
+        durationSec: 28,
+      },
       rm: null,
       createdAt: "2026-07-02T10:00:00.000Z",
       updatedAt: "2026-07-02T10:00:00.000Z",
@@ -125,6 +139,7 @@ describe("document file serialization", () => {
     expect(files["exercise-performance/2026-07.json"]).toEqual([record]);
     expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("exercise-performance/2026-07.json");
     expect(filesToSnapshot(files).exercisePerformanceRecords?.[0].input).toEqual(record.input);
+    expect(filesToSnapshot(files).exercisePerformanceRecords?.[0].input.countBasis).toBe("whole_set");
   });
 
   it("serializes avatar resources as separate files", () => {

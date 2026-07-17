@@ -115,6 +115,7 @@ export default function WorkoutDetailPage() {
   const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
     recordingMode: exercise.recording_mode,
     loadBasis: exercise.load_basis,
+    countBasis: exercise.count_basis,
     loadDirection: exercise.load_direction,
     rateMetric: exercise.rate_metric,
     sets: exercise.sets.map((set) => ({

@@ -6,7 +6,7 @@ describe("WorkoutEdit mobile set layout", () => {
   it("gives farmer-walk fields the full row below set controls", () => {
     const markup = renderToStaticMarkup(
       <WorkoutEditSetFieldBlock
-        recording={{ recording_mode: "weight_distance_duration", load_basis: "per_hand", load_direction: "higher_better", rate_metric: "load_distance_per_time" }}
+        recording={{ recording_mode: "weight_distance_duration", load_basis: "per_hand", count_basis: "whole_set", load_direction: "higher_better", rate_metric: "load_distance_per_time" }}
         setNumber={1}
         isWarmup={false}
         value={{ weight: "32", reps: "", distanceM: "40", durationSec: "28" }}

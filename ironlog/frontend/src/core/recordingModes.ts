@@ -1,4 +1,5 @@
 import type {
+  CountBasis,
   LoadBasis,
   LoadDirection,
   RateMetric,
@@ -22,6 +23,7 @@ export type CompoundPerformanceStrategy =
 export interface RecordingConfig {
   recordingMode: RecordingMode;
   loadBasis: LoadBasis | null;
+  countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
 }
@@ -128,6 +130,7 @@ export const RECORDING_MODE_SPECS = {
 
 const RECORDING_MODES = Object.keys(RECORDING_MODE_SPECS) as RecordingMode[];
 const LOAD_BASES: LoadBasis[] = ["total", "per_hand"];
+const COUNT_BASES: CountBasis[] = ["whole_set", "per_side"];
 const LOAD_DIRECTIONS: LoadDirection[] = ["higher_better", "lower_better"];
 const RATE_METRICS: RateMetric[] = ["none", "distance_per_time", "load_distance_per_time"];
 
@@ -137,6 +140,10 @@ export function isRecordingMode(value: unknown): value is RecordingMode {
 
 export function isLoadBasis(value: unknown): value is LoadBasis {
   return typeof value === "string" && LOAD_BASES.includes(value as LoadBasis);
+}
+
+export function isCountBasis(value: unknown): value is CountBasis {
+  return typeof value === "string" && COUNT_BASES.includes(value as CountBasis);
 }
 
 export function isLoadDirection(value: unknown): value is LoadDirection {
@@ -155,6 +162,7 @@ export function getRecordingModeSpec(mode: RecordingMode): RecordingModeSpec {
 
 export function validateRecordingConfig(config: RecordingConfig): RecordingConfig {
   if (!isRecordingMode(config.recordingMode)) throw new Error("动作记录方式无效");
+  if (!isCountBasis(config.countBasis)) throw new Error("必须选择有效的计数口径");
   const spec = getRecordingModeSpec(config.recordingMode);
   const hasWeight = spec.fields.includes("weight");
 
@@ -178,6 +186,7 @@ export function validateRecordingConfig(config: RecordingConfig): RecordingConfi
 export function recordingConfigEquals(left: RecordingConfig, right: RecordingConfig): boolean {
   return left.recordingMode === right.recordingMode
     && left.loadBasis === right.loadBasis
+    && left.countBasis === right.countBasis
     && left.loadDirection === right.loadDirection
     && left.rateMetric === right.rateMetric;
 }
@@ -218,16 +227,11 @@ export function convertWeight(value: number, from: WeightUnit, to: WeightUnit): 
   return from === "lb" ? value * KG_PER_LB : value / KG_PER_LB;
 }
 
-export function effectiveLoadKg(enteredLoad: number, unit: WeightUnit, loadBasis: LoadBasis): number {
-  if (!Number.isFinite(enteredLoad)) throw new Error("重量必须是有效数值");
-  if (!isLoadBasis(loadBasis)) throw new Error("重量口径无效");
-  return convertWeight(enteredLoad, unit, "kg") * (loadBasis === "per_hand" ? 2 : 1);
-}
-
 export function recordingConfigOf(value: RecordingConfig): RecordingConfig {
   return {
     recordingMode: value.recordingMode,
     loadBasis: value.loadBasis,
+    countBasis: value.countBasis,
     loadDirection: value.loadDirection,
     rateMetric: value.rateMetric,
   };

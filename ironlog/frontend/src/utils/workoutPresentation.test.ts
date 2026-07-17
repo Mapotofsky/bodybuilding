@@ -3,9 +3,9 @@ import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 import { completionTimestamp, formatExerciseCompletion, formatWorkoutPrimaryMetric, formatWorkoutSummaryPrimaryMetric, splitMetricValue } from "./workoutPresentation";
 
 const emptyStrengthFields = { weight: null, reps: null, unit: "kg" as const };
-const durationRecording = { recording_mode: "duration", load_basis: null, load_direction: null, rate_metric: "none" } as const;
-const repsRecording = { recording_mode: "reps", load_basis: null, load_direction: null, rate_metric: "none" } as const;
-const distanceRecording = { recording_mode: "distance_duration", load_basis: null, load_direction: null, rate_metric: "distance_per_time" } as const;
+const durationRecording = { recording_mode: "duration", load_basis: null, count_basis: "whole_set", load_direction: null, rate_metric: "none" } as const;
+const repsRecording = { recording_mode: "reps", load_basis: null, count_basis: "whole_set", load_direction: null, rate_metric: "none" } as const;
+const distanceRecording = { recording_mode: "distance_duration", load_basis: null, count_basis: "whole_set", load_direction: null, rate_metric: "distance_per_time" } as const;
 
 describe("workout completion presentation", () => {
   it("does not show kg or strength volume for the static-hold completion issue", () => {
@@ -19,10 +19,10 @@ describe("workout completion presentation", () => {
   });
 
   it("uses type-specific aggregate metrics for reps-only and cardio workouts", () => {
-    const repsMetrics = calculateWorkoutMetrics([{ recordingMode: "reps", loadBasis: null, loadDirection: null, rateMetric: "none", sets: [
+    const repsMetrics = calculateWorkoutMetrics([{ recordingMode: "reps", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "none", sets: [
       { ...emptyStrengthFields, reps: 12, durationSec: null, distanceM: null },
     ] }], "kg");
-    const cardioMetrics = calculateWorkoutMetrics([{ recordingMode: "distance_duration", loadBasis: null, loadDirection: null, rateMetric: "distance_per_time", sets: [
+    const cardioMetrics = calculateWorkoutMetrics([{ recordingMode: "distance_duration", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "distance_per_time", sets: [
       { ...emptyStrengthFields, durationSec: 600, distanceM: 1500 },
     ] }], "kg");
 
@@ -46,13 +46,13 @@ describe("workout completion presentation", () => {
   });
 
   it("compares lower-better assistance after mixed units are converted", () => {
-    const recording = { recording_mode: "weight_reps", load_basis: "total", load_direction: "lower_better", rate_metric: "none" } as const;
+    const recording = { recording_mode: "weight_reps", load_basis: "total", count_basis: "whole_set", load_direction: "lower_better", rate_metric: "none" } as const;
     const summary = formatExerciseCompletion(recording, [
       { weight: 50, reps: 8, unit: "lb", duration_sec: null, distance_m: null },
       { weight: 24, reps: 8, unit: "kg", duration_sec: null, distance_m: null },
     ], "kg");
 
-    expect(summary.detail).toBe("2 组 · 最低辅助 22.7 kg");
+    expect(summary.detail).toBe("2 组 · 最低辅助重量 22.7 kg");
   });
 
   it("uses farmer-walk distance load as the workout summary primary metric", () => {

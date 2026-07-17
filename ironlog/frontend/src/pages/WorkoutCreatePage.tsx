@@ -319,6 +319,7 @@ export default function WorkoutCreatePage() {
       exercise_id: se.exercise.id,
       recording_mode: se.exercise.recording_mode,
       load_basis: se.exercise.load_basis,
+      count_basis: se.exercise.count_basis,
       load_direction: se.exercise.load_direction,
       rate_metric: se.exercise.rate_metric,
       sort_order: idx,
@@ -410,6 +411,7 @@ export default function WorkoutCreatePage() {
       }, {
         recordingMode: currentExercise.recording_mode,
         loadBasis: currentExercise.load_basis,
+        countBasis: currentExercise.count_basis,
         loadDirection: currentExercise.load_direction,
         rateMetric: currentExercise.rate_metric,
       }, "complete");
@@ -1049,6 +1051,7 @@ export default function WorkoutCreatePage() {
     const metrics = calculateWorkoutMetrics(sessionExercises.map((se) => ({
       recordingMode: se.exercise.recording_mode,
       loadBasis: se.exercise.load_basis,
+      countBasis: se.exercise.count_basis,
       loadDirection: se.exercise.load_direction,
       rateMetric: se.exercise.rate_metric,
       sets: se.sets.map((set) => ({

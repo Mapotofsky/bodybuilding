@@ -1,4 +1,5 @@
 import type {
+  CountBasis,
   LoadBasis,
   LoadDirection,
   PerformanceInputSummary,
@@ -11,15 +12,12 @@ import type {
 } from "@/core/models";
 import { getRecordingModeSpec, type RecordingField } from "@/core/recordingModes";
 import {
-  calculateSetDistanceRateMps,
-  calculateSetLoadDistanceKgM,
-  calculateSetLoadDistanceRateKgMps,
-  calculateSetLoadDurationKgSec,
-  calculateSetVolumeKgReps,
   convertWeight,
   formatOneDecimal,
+  getSetLoadSemantics,
 } from "@/core/workoutMetrics";
 import {
+  COUNT_BASIS_LABELS,
   LOAD_BASIS_LABELS,
   LOAD_DIRECTION_LABELS,
   RATE_METRIC_LABELS,
@@ -29,6 +27,7 @@ import {
 export interface RecordingSnapshot {
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
 }
@@ -58,6 +57,7 @@ export function recordingSnapshot(value: RecordingSnapshot): RecordingSnapshot {
   return {
     recording_mode: value.recording_mode,
     load_basis: value.load_basis,
+    count_basis: value.count_basis,
     load_direction: value.load_direction,
     rate_metric: value.rate_metric,
   };
@@ -66,6 +66,7 @@ export function recordingSnapshot(value: RecordingSnapshot): RecordingSnapshot {
 export function recordingSnapshotEquals(left: RecordingSnapshot, right: RecordingSnapshot): boolean {
   return left.recording_mode === right.recording_mode
     && left.load_basis === right.load_basis
+    && left.count_basis === right.count_basis
     && left.load_direction === right.load_direction
     && left.rate_metric === right.rate_metric;
 }
@@ -89,6 +90,7 @@ export function formatSet(recording: RecordingSnapshot, set: PresentableSet): st
 export function formatRecordingDescription(recording: RecordingSnapshot): string {
   const parts = [RECORDING_MODE_LABELS[recording.recording_mode]];
   if (recording.load_basis) parts.push(LOAD_BASIS_LABELS[recording.load_basis]);
+  parts.push(COUNT_BASIS_LABELS[recording.count_basis]);
   if (recording.load_direction) parts.push(LOAD_DIRECTION_LABELS[recording.load_direction]);
   if (recording.rate_metric !== "none") parts.push(RATE_METRIC_LABELS[recording.rate_metric]);
   return parts.join(" · ");
@@ -103,35 +105,33 @@ export function formatSetMetrics(recording: RecordingSnapshot, set: PresentableS
     distanceM: set.distance_m,
     durationSec: set.duration_sec,
   };
+  const semantics = getSetLoadSemantics(toRecordingConfig(recording), metricSet);
   switch (recording.recording_mode) {
     case "weight_reps": {
-      if (!recording.load_basis) return [];
-      const value = calculateSetVolumeKgReps(metricSet, recording.load_basis);
+      const value = semantics.volumeKgReps;
       return value == null ? [] : [{ label: "容量", value: formatMassMetric(value, displayUnit, "次") }];
     }
     case "weight_duration": {
-      if (!recording.load_basis) return [];
-      const value = calculateSetLoadDurationKgSec(metricSet, recording.load_basis);
+      const value = semantics.loadDurationKgSec;
       return value == null ? [] : [{ label: "持续负载", value: formatMassMetric(value, displayUnit, "s") }];
     }
     case "weight_distance_duration": {
-      if (!recording.load_basis) return [];
       const values: FormattedSetMetric[] = [];
-      const distanceLoad = calculateSetLoadDistanceKgM(metricSet, recording.load_basis);
+      const distanceLoad = semantics.loadDistanceKgM;
       if (distanceLoad != null) values.push({ label: "距离负载", value: formatMassMetric(distanceLoad, displayUnit, "m") });
       if (set.distance_m == null) {
-        const durationLoad = calculateSetLoadDurationKgSec(metricSet, recording.load_basis);
+        const durationLoad = semantics.loadDurationKgSec;
         if (durationLoad != null) values.push({ label: "持续负载", value: formatMassMetric(durationLoad, displayUnit, "s") });
       }
       if (recording.rate_metric === "load_distance_per_time") {
-        const rate = calculateSetLoadDistanceRateKgMps(metricSet, recording.load_basis);
+        const rate = semantics.loadDistanceRateKgMps;
         if (rate != null) values.push({ label: "单位时间负载", value: formatMassMetric(rate, displayUnit, "m/s", 2) });
       }
       return values;
     }
     case "distance_duration": {
       if (recording.rate_metric !== "distance_per_time") return [];
-      const rate = calculateSetDistanceRateMps(metricSet);
+      const rate = semantics.distanceRateMps;
       return rate == null ? [] : [{ label: "速度", value: `${formatTwoDecimals(rate)} m/s` }];
     }
     case "reps":
@@ -168,12 +168,11 @@ export function formatPerformanceInput(input: PerformanceInputSummary, displayUn
       ? "辅助"
       : input.loadBasis === "per_hand" ? "每手" : "";
     parts.push(`${prefix ? `${prefix} ` : ""}${formatNumber(input.enteredLoad)} ${input.enteredLoadUnit}`);
-  } else if (input.effectiveLoadKg != null) {
-    parts.push(`${formatOneDecimal(convertWeight(input.effectiveLoadKg, "kg", displayUnit))} ${displayUnit}`);
   }
-  if (input.reps != null) parts.push(`${formatNumber(input.reps)} 次`);
-  if (input.distanceM != null) parts.push(`${formatNumber(input.distanceM)} m`);
-  if (input.durationSec != null) parts.push(formatCompactDuration(input.durationSec));
+  const countPrefix = input.countBasis === "per_side" ? "每侧 " : "";
+  if (input.reps != null) parts.push(`${countPrefix}${formatNumber(input.reps)} 次`);
+  if (input.distanceM != null) parts.push(`${countPrefix}${formatNumber(input.distanceM)} m`);
+  if (input.durationSec != null) parts.push(`${countPrefix}${formatCompactDuration(input.durationSec)}`);
   if (input.rpe != null) parts.push(`RPE ${formatNumber(input.rpe)}`);
   return parts.join(" · ");
 }
@@ -229,10 +228,20 @@ function formatSetField(field: RecordingField, recording: RecordingSnapshot, set
         : recording.load_basis === "per_hand" ? "每手" : "";
       return `${prefix ? `${prefix} ` : ""}${formatNumber(set.weight)} ${set.unit}`;
     }
-    case "reps": return set.reps == null ? null : `${formatNumber(set.reps)} 次`;
-    case "distanceM": return set.distance_m == null ? null : `${formatNumber(set.distance_m)} m`;
-    case "durationSec": return set.duration_sec == null ? null : formatCompactDuration(set.duration_sec);
+    case "reps": return set.reps == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatNumber(set.reps)} 次`;
+    case "distanceM": return set.distance_m == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatNumber(set.distance_m)} m`;
+    case "durationSec": return set.duration_sec == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatCompactDuration(set.duration_sec)}`;
   }
+}
+
+function toRecordingConfig(recording: RecordingSnapshot) {
+  return {
+    recordingMode: recording.recording_mode,
+    loadBasis: recording.load_basis,
+    countBasis: recording.count_basis,
+    loadDirection: recording.load_direction,
+    rateMetric: recording.rate_metric,
+  };
 }
 
 function formatMassMetric(valueKg: number, displayUnit: WeightUnit, suffix: "次" | "s" | "m" | "m/s", decimals = 1): string {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TemplateDoc } from "@/core/models";
+import { CURRENT_SCHEMA_VERSION, type TemplateDoc } from "@/core/models";
 
 const template: TemplateDoc = {
   id: "template-1",
@@ -12,7 +12,7 @@ const template: TemplateDoc = {
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   deletedAt: null,
-  schemaVersion: 4,
+  schemaVersion: CURRENT_SCHEMA_VERSION,
 };
 
 const localRepository = vi.hoisted(() => ({

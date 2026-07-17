@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { CURRENT_SCHEMA_VERSION } from "../src/core/models";
 
 const viewports = [
   { name: "360px", width: 360, height: 800 },
@@ -217,7 +218,7 @@ test("URL 与页内选择模板都使用同一真实动作过滤", async ({ page
 });
 
 async function seedFarmerTemplate(page: Page) {
-  await page.evaluate(async () => {
+  await page.evaluate(async (schemaVersion) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("ironlog-local", 1);
       request.onerror = () => reject(request.error);
@@ -244,7 +245,7 @@ async function seedFarmerTemplate(page: Page) {
           createdAt: timestamp,
           updatedAt: timestamp,
           deletedAt: null,
-          schemaVersion: 4,
+          schemaVersion,
         }],
         templates: [{
           id: "template-e2e-farmer",
@@ -257,7 +258,7 @@ async function seedFarmerTemplate(page: Page) {
           createdAt: timestamp,
           updatedAt: timestamp,
           deletedAt: null,
-          schemaVersion: 4,
+          schemaVersion,
         }],
       }, "templates.json"));
       await new Promise<void>((resolve, reject) => {
@@ -269,5 +270,5 @@ async function seedFarmerTemplate(page: Page) {
     } finally {
       db.close();
     }
-  });
+  }, CURRENT_SCHEMA_VERSION);
 }

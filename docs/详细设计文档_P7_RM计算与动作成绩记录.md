@@ -1,7 +1,7 @@
 # P7 详细设计文档：RM 计算与动作成绩记录
 
 > 对应概要设计：P4.1 RM 计算、动作成绩记录和动作详情增强
-> 状态：已部分落地；RM 计算器、RPE 说明页、ExercisePerformanceRecordDoc、performance service、PR/RM 统计消费和 exercise-performance 分片已接入
+> 状态：当前 v5 实现基线；RM 计算器、RPE 说明页、ExercisePerformanceRecordDoc、performance service、PR/RM 统计消费和 exercise-performance 分片已接入
 > 前置依赖：P0 WorkoutDoc 聚合与训练完成/编辑/删除流程、P1 动作引用解析、P2 分片与 migration、P3 同步、P4.1 统计和分享图消费入口
 
 ---
@@ -54,12 +54,12 @@ Lombardi: weight * effectiveReps ^ 0.10
 Wathen:   100 * weight / (48.8 + 53.8 * exp(-0.075 * effectiveReps))
 ```
 
-公式输入重量先转换为规范 kg，再按历史 `loadBasis` 计算有效负重：`total × 1`、`per_hand × 2`。展示时保留原始输入重量与口径，并按 `SettingsDoc.weightUnit` 转换。RM 主比较口径为四公式均值，同时保存四公式明细和标准差或范围。
+公式输入重量先转换为规范 kg；重量 PR 与 RPE 1RM 始终使用该输入重量，不应用 `loadBasis` 的每手倍率或 `countBasis` 的每侧倍率。`loadBasis="total"` 显示“最大重量”“估算 1RM”，`loadBasis="per_hand"` 显示“每手最大重量”“每手估算 1RM”。展示时保留原始输入重量与双口径，并按 `SettingsDoc.weightUnit` 转换。RM 主比较口径为四公式均值，同时保存四公式明细和标准差或范围。
 
 并列候选排序：
 
 1. 四公式均值更高。
-2. 有效负重更高。
+2. 输入重量换算后的 kg 更高。
 3. 原始 reps 更高。
 4. `achievedAt` 较新。
 
@@ -75,35 +75,29 @@ Wathen:   100 * weight / (48.8 + 53.8 * exp(-0.075 * effectiveReps))
 type PerformanceRecordKind = "true_pr" | "rpe_adjusted_rm";
 
 type PerformanceMetricType =
-  | "weight_reps.max_entered_weight"
-  | "weight_reps.max_effective_load"
-  | "weight_reps.max_reps"
-  | "weight_reps.max_set_volume"
-  | "weight_reps.max_workout_volume"
-  | "weight_reps.rpe_adjusted_rm_mean"
-  | "assistance.max_reps"
-  | "assistance.min_load"
-  | "reps.max_set_reps"
-  | "reps.max_workout_reps"
-  | "duration.max_set_duration"
-  | "duration.max_workout_duration"
-  | "distance_duration.max_distance"
-  | "distance_duration.max_duration"
-  | "distance_duration.best_speed"
-  | "weight_duration.max_effective_load"
-  | "weight_duration.max_duration"
-  | "weight_duration.max_load_duration"
-  | "weight_distance_duration.max_effective_load"
-  | "weight_distance_duration.max_distance_load"
-  | "weight_distance_duration.max_duration_load"
-  | "weight_distance_duration.max_load_distance_rate";
+  | "weight.max"
+  | "reps.max_set"
+  | "reps.max_workout"
+  | "volume.max_set"
+  | "volume.max_workout"
+  | "rm.rpe_adjusted_mean"
+  | "assistance.best_reps"
+  | "assistance.min_weight"
+  | "distance.max_set"
+  | "distance.max_workout"
+  | "duration.max_set"
+  | "duration.max_workout"
+  | "speed.max"
+  | "load_duration.max"
+  | "load_distance.max"
+  | "load_distance_rate.max";
 
 type PerformanceUnit =
   | "kg"
   | "kg_reps"
-  | "kg_m"
-  | "kg_sec"
-  | "kg_m_per_sec"
+  | "kg_seconds"
+  | "kg_meters"
+  | "kg_meters_per_second"
   | "m"
   | "sec"
   | "m_per_sec"
@@ -121,16 +115,17 @@ interface RmFormulaResults {
 }
 
 interface PerformanceInputSummary {
-  enteredWeight: number | null;
-  enteredWeightUnit: "kg" | "lb" | null;
+  recordingMode: RecordingMode;
+  enteredLoad: number | null;
+  enteredLoadUnit: "kg" | "lb" | null;
   loadBasis: LoadBasis | null;
-  effectiveLoadKg: number | null;
+  countBasis: CountBasis;
+  loadDirection: LoadDirection | null;
+  rateMetric: RateMetric;
   reps: number | null;
   rpe: number | null;
-  effectiveReps: number | null;
   distanceM: number | null;
   durationSec: number | null;
-  workoutVolumeKgReps: number | null;
 }
 
 interface ExercisePerformanceRecordDoc extends BaseDoc {
@@ -182,14 +177,14 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 
 | 快照配置 | 指标与比较规则 |
 |---|---|
-| `higher_better + weight_reps` | 总重量动作记录最大有效负重；每手重量动作同时记录最大输入重量和最大有效负重；另记录最大次数、最大单组/训练容量。容量为有效负重 × 次数，RM 使用有效负重。 |
+| `higher_better + weight_reps` | 只记录单一 `weight.max`，值为输入重量换算后的 kg；`total` 显示“最大重量”，`per_hand` 显示“每手最大重量”。另记录最大次数、最大单组/训练容量；容量按聚合倍率计算，RM 使用输入重量。 |
 | `lower_better + weight_reps` | 最大次数（同次数辅助重量更小者胜）与最低辅助重量（同重量次数更多者胜）；不生成普通容量或 RM。 |
-| `reps` / `duration` | 最大单组/训练次数，或最长单组/训练时间。 |
-| `distance_duration` | 最大距离、最长时间；两项齐全且 `rateMetric=distance_per_time` 时生成速度。 |
-| `weight_duration` | 最大有效负重、最长时间、最大负重时长负载（kg·s）；不生成 kg·次或 RM。 |
-| `weight_distance_duration` | 最大有效负重；有距离生成距离负载（kg·m）；只有时间生成持续负载（kg·s）；三项齐全且启用竞速时生成单位时间负载（kg·m/s）。 |
+| `reps` / `duration` | 单组 PR 保持输入次数/时长；训练总次数/总时长按 `countBasis` 聚合。 |
+| `distance_duration` | 单组 PR 保持输入距离/时长；训练总距离/总时长按 `countBasis` 聚合。两项齐全且 `rateMetric=distance_per_time` 时生成速度，分子和分母同口径，`per_side` 倍率抵消。 |
+| `weight_duration` | `weight.max` 使用输入重量，最长时间保持输入值，持续负载按聚合倍率计算（kg·s）；不生成 kg·次或 RM。 |
+| `weight_distance_duration` | `weight.max` 使用输入重量；有距离生成距离负载（kg·m），只有时间生成持续负载（kg·s）；三项齐全且启用竞速时生成单位时间负载（kg·m/s），速率分子和分母同口径，`per_side` 倍率抵消。 |
 
-比较器必须为主值及每个 tie-breaker 分别声明 `min` 或 `max`，禁止假定全部数值越大越好。所有成绩保留输入重量、单位、负重口径、有效负重、次数、距离、时间和 RPE 上下文。kg·m 只称“距离负载”，kg·m/s 只称“单位时间负载”。
+比较器必须为主值及每个 tie-breaker 分别声明 `min` 或 `max`，禁止假定全部数值越大越好。所有成绩输入摘要保留 `recordingMode`、原始重量及单位、`loadBasis`、`countBasis`、`loadDirection`、`rateMetric`、次数、距离、时间和 RPE；任何可由这些值重算的倍率、聚合值、换算重量和有效次数均不持久化。kg·m 只称“距离负载”，kg·m/s 只称“单位时间负载”。
 
 ---
 
@@ -202,7 +197,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 生成时按 `achievedAt` 升序扫描有效已完成训练：
 
 1. 过滤 `deletedAt != null` 和 `endTime == null` 的训练。
-2. 按 `WorkoutExerciseDoc` 四项记录快照解释历史数据，不按当前 ExerciseDoc 配置重解释。
+2. 按 `WorkoutExerciseDoc` 五项记录快照解释历史数据，不按当前 ExerciseDoc 配置重解释。
 3. 对每个动作、指标生成候选。
 4. 与该动作该指标此前历史最佳比较。
 5. 只有刷新时写入成绩事件。
@@ -315,7 +310,7 @@ P2 已新增：
 | `value/unit` | 当前最佳、摘要、排序 | 规范单位计算；展示单位转换 | 固定单位 | 月分片 |
 | `achievedAt` | 排序、周期归属 | 来源训练日期/时间派生 | 决定分片 | 月分片 |
 | 来源 workout/exercise/set ID | 跳转来源 | 重算和清理 | 保留引用 | 月分片 |
-| `input` | 摘要和调试 | 保存必要输入，不保存 RIR | 固定字段 | 月分片 |
+| `input` | 摘要和调试 | 保存原始重量及单位、五项记录快照、次数、距离、时长和 RPE；不保存可推导的倍率、聚合值、换算重量、有效次数或 RIR | 固定字段 | 月分片 |
 | `rm` | RM 摘要和公式展开 | 四公式明细、均值、离散程度 | RM 事件必填，真实 PR 为 null | 月分片 |
 
 ---
@@ -327,8 +322,8 @@ P2 已新增：
 - 没有 RPE 的普通负重次数组不生成 RM 估算事件。
 - reps 或 effectiveReps 超出 `1..12` 不生成 RM 估算事件。
 - 四个公式均使用 `effectiveReps`，主比较口径为均值。
-- `20 kg/手 × 10 次` 先得到 40 kg 有效负重，再生成 400 kg·次容量；lb 先换算 kg 再应用每手倍率，RM 同样使用有效负重。
-- 农夫行走 `32 kg/手 × 40 m` 生成 2560 kg·m；再除以 28 s 得约 91.43 kg·m/s；只有 30 s 时生成 1920 kg·s。每项均保留“每手 32 kg、40 m、28 s”等完整上下文。
+- `20 kg/手 × 10、whole_set` 为 400 kg·次；`20 kg × 每侧 10、per_side` 为 400 kg·次；两者均为 `per_hand + per_side` 时为 800 kg·次。lb 必须先换算 kg 再应用聚合倍率；重量 PR 和 RM 始终使用输入重量换算后的 kg。
+- 农夫行走 `32 kg/手 × 40 m、whole_set` 生成 2560 kg·m；手提箱行走语义 `32 kg × 每侧 40 m、per_side` 也生成 2560 kg·m。两种每侧输入在速度和单位时间负载中均不得因左右倍率而被错误翻倍。
 - 辅助重量相同次数时更小重量胜、相同重量时更多次数胜，且不生成普通容量或 RM。
 - RIR 不进入 WorkoutDoc 或成绩事件。
 - 热身组不生成 PR/RM；训练总容量仍按 P0 口径。
@@ -336,7 +331,7 @@ P2 已新增：
 - 只保存刷新历史最佳事件，不保存每次训练候选点。
 - 训练完成、编辑、删除均触发相关动作重算；草稿不触发。
 - 手动重算不会产生重复事件。
-- 成绩事件按月分片进入 manifest、DocumentStore export/import、WebDAV pull/merge/push、backup、tmp/MOVE。
+- 成绩事件按月分片进入 manifest、DocumentStore export/import、WebDAV pull/merge/push、backup、tmp/MOVE；五项记录快照和非冗余输入摘要往返不丢失。
 - 动作详情、统计页、分享图只读消费成绩事件摘要，不直接生成或修补事件。
 - 切换 `SettingsDoc.weightUnit` 只影响展示，不改写规范 kg / kg_reps 事件值。
 - kg·m 和 kg·m/s 分别显示为“距离负载”和“单位时间负载”，不使用“功”或“功率”。

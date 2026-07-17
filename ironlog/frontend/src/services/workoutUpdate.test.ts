@@ -94,6 +94,7 @@ describe("updateWorkout merge semantics", () => {
       id: "workout-exercise-1",
       recordingMode: "weight_reps",
       loadBasis: "total",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "none",
       supersetGroup: 7,
@@ -119,6 +120,7 @@ describe("updateWorkout merge semantics", () => {
         exercise_id: "ex-bench-press",
         recording_mode: "weight_reps",
         load_basis: "per_hand",
+        count_basis: "per_side",
         load_direction: "higher_better",
         rate_metric: "none",
         sort_order: 0,
@@ -135,6 +137,7 @@ describe("updateWorkout merge semantics", () => {
       exerciseId: "ex-farmer-walk",
       recordingMode: "weight_distance_duration",
       loadBasis: "per_hand",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "load_distance_per_time",
       sets: [{
@@ -158,7 +161,7 @@ describe("updateWorkout merge semantics", () => {
       createdAt: "2026-06-24T10:00:00.000Z",
       updatedAt: "2026-06-24T10:00:00.000Z",
       deletedAt: null,
-      schemaVersion: 4,
+      schemaVersion: 5,
     }));
 
     const copied = await copyWorkout(existing.id, "2026-06-24");
@@ -173,6 +176,7 @@ describe("updateWorkout merge semantics", () => {
         exerciseId: "ex-farmer-walk",
         recordingMode: "weight_distance_duration",
         loadBasis: "per_hand",
+        countBasis: "whole_set",
         loadDirection: "higher_better",
         rateMetric: "load_distance_per_time",
         supersetGroup: 3,
@@ -183,6 +187,7 @@ describe("updateWorkout merge semantics", () => {
       id: "workout-exercise-copy",
       recording_mode: "weight_distance_duration",
       load_basis: "per_hand",
+      count_basis: "whole_set",
       load_direction: "higher_better",
       rate_metric: "load_distance_per_time",
       superset_group: 3,
@@ -207,6 +212,7 @@ function workoutDoc(options: { planTemplateId: string | null; note: string | nul
       exerciseId: "ex-bench-press",
       recordingMode: "weight_reps",
       loadBasis: "total",
+      countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "none",
       sortOrder: 0,
@@ -228,6 +234,6 @@ function workoutDoc(options: { planTemplateId: string | null; note: string | nul
     createdAt: "2026-06-22T10:00:00.000Z",
     updatedAt: "2026-06-22T10:30:00.000Z",
     deletedAt: null,
-    schemaVersion: 4,
+    schemaVersion: 5,
   };
 }

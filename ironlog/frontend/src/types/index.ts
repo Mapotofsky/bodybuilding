@@ -1,4 +1,5 @@
 import type {
+  CountBasis,
   EquipmentId,
   ExerciseCategory,
   LoadBasis,
@@ -29,7 +30,12 @@ export const RECORDING_MODE_LABELS: Record<RecordingMode, string> = {
 
 export const LOAD_BASIS_LABELS: Record<LoadBasis, string> = {
   total: "总重量",
-  per_hand: "单手重量",
+  per_hand: "每手重量",
+};
+
+export const COUNT_BASIS_LABELS: Record<CountBasis, string> = {
+  whole_set: "整组填写",
+  per_side: "每侧填写",
 };
 
 export const LOAD_DIRECTION_LABELS: Record<LoadDirection, string> = {
@@ -54,6 +60,7 @@ export interface Exercise {
   category: ExerciseCategory;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   equipment: EquipmentId | null;
@@ -82,6 +89,7 @@ export interface WorkoutExercise {
   exercise_id: string;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   exercise_name?: string;
@@ -278,6 +286,7 @@ export interface ExerciseDetail {
   category: ExerciseCategory;
   recording_mode: RecordingMode;
   load_basis: LoadBasis | null;
+  count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
   equipment: EquipmentId | null;
@@ -298,9 +307,9 @@ export interface ExercisePersonalStats {
   last_completed_date: string | null;
   performance: {
     load_basis: LoadBasis | null;
+    count_basis: CountBasis | null;
     load_direction: LoadDirection | null;
-    best_input_load: number | null;
-    best_effective_load: number | null;
+    best_load: number | null;
     best_set_volume: number | null;
     best_workout_volume: number | null;
     best_reps: number | null;
@@ -314,6 +323,7 @@ export interface ExercisePersonalStats {
   };
 }
 export type {
+  CountBasis,
   EquipmentId,
   ExerciseCategory,
   LoadBasis,

@@ -29,6 +29,7 @@ export function toExercise(doc: ExerciseDoc): Exercise {
     category: doc.category,
     recording_mode: doc.recordingMode,
     load_basis: doc.loadBasis,
+    count_basis: doc.countBasis,
     load_direction: doc.loadDirection,
     rate_metric: doc.rateMetric,
     equipment: doc.equipment,
@@ -58,6 +59,7 @@ export async function toExerciseDetail(doc: ExerciseDoc): Promise<ExerciseDetail
     category: doc.category,
     recording_mode: doc.recordingMode,
     load_basis: doc.loadBasis,
+    count_basis: doc.countBasis,
     load_direction: doc.loadDirection,
     rate_metric: doc.rateMetric,
     equipment: doc.equipment,
@@ -84,8 +86,7 @@ function toExercisePersonalStats(stats: CoreExercisePersonalStats): ExerciseDeta
     recent_7_day_set_count: stats.recent7DaySetCount,
     last_completed_date: stats.lastCompletedDate,
     performance: {
-      best_input_load: stats.performance.bestInputLoad,
-      best_effective_load: stats.performance.bestEffectiveLoad,
+      best_load: stats.performance.bestLoad,
       best_set_volume: stats.performance.bestSetVolume,
       best_workout_volume: stats.performance.bestWorkoutVolume,
       best_reps: stats.performance.bestReps,
@@ -97,6 +98,7 @@ function toExercisePersonalStats(stats: CoreExercisePersonalStats): ExerciseDeta
       best_load_distance_rate_kg_mps: stats.performance.bestLoadDistanceRateKgMps,
       display_unit: stats.performance.displayUnit,
       load_basis: stats.performance.loadBasis,
+      count_basis: stats.performance.countBasis,
       load_direction: stats.performance.loadDirection,
     },
   };
@@ -190,6 +192,7 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
   const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
     recordingMode: exercise.recording_mode,
     loadBasis: exercise.load_basis,
+    countBasis: exercise.count_basis,
     loadDirection: exercise.load_direction,
     rateMetric: exercise.rate_metric,
     sets: exercise.sets.map((set) => ({
@@ -236,6 +239,7 @@ async function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExerci
     exercise_id: doc.exerciseId,
     recording_mode: doc.recordingMode,
     load_basis: doc.loadBasis,
+    count_basis: doc.countBasis,
     load_direction: doc.loadDirection,
     rate_metric: doc.rateMetric,
     exercise_name: exercise?.name,

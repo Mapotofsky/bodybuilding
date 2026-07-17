@@ -101,6 +101,7 @@ export async function getCalendarOverview(params: { from: string; to: string }):
       const metrics = calculateWorkoutMetrics(workout.exercises.map((exercise) => ({
         recordingMode: exercise.recordingMode,
         loadBasis: exercise.loadBasis,
+        countBasis: exercise.countBasis,
         loadDirection: exercise.loadDirection,
         rateMetric: exercise.rateMetric,
         sets: exercise.sets,
@@ -232,6 +233,7 @@ function aggregateWorkoutKpis(workouts: WorkoutDoc[], weightUnit: "kg" | "lb") {
   const metrics = calculateWorkoutMetrics(workouts.flatMap((workout) => workout.exercises.map((exercise) => ({
     recordingMode: exercise.recordingMode,
     loadBasis: exercise.loadBasis,
+    countBasis: exercise.countBasis,
     loadDirection: exercise.loadDirection,
     rateMetric: exercise.rateMetric,
     sets: exercise.sets,
