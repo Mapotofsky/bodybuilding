@@ -311,6 +311,8 @@ npm test
 npm run android:sync
 ```
 
+默认将上述三条全量命令留到全部实现完成后的最终验收批次，仅执行一次。若其中某条失败，定位和修复阶段只运行受影响范围的定向测试或命令；不得为同一失败重复整套全量验证。
+
 如 Android APK 构建相关，需要额外尝试：
 
 ```bash
@@ -333,6 +335,8 @@ rg -n "axios|auth|token|access_token|refresh_token|/api|services/api|Bearer" src
 纯文档交付无需执行本节 grep；仅在文档引用了这些代码约束时，核对描述是否准确。
 
 ### V3. 人工走查
+
+浏览器或 Android AVD 人工走查仅在本次修改 UI、CSS 或输入控件时执行；纯 core、service、存储、同步或文档修改不得触发该走查。
 
 核心训练相关修改必须走查：
 
