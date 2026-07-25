@@ -55,7 +55,7 @@
 | plan | name、description、color、mode、cycleLength。不得提供 id、isActive、createdAt、updatedAt、deletedAt、schemaVersion。 |
 | template | clientKey、name、sortOrder、color、scheduleRule、exercises。不得提供 planId、持久化 ID 或元字段。 |
 | template exercise | clientKey、exerciseRef、note、sortOrder。不得提供持久化 ID。 |
-| exerciseRef | kind=existing 时仅 exerciseId；kind=unknown 时仅 name、category、五项记录配置、description。 |
+| exerciseRef | kind=existing 时仅 exerciseId；kind=unknown 时仅 name、category、完整记录配置、description。 |
 | source | url、title、publishedAt（可空）、accessedAt、sourceType、claimSummary。不得保存网页全文、API key 或用户未同意的个人数据。 |
 | warnings | code、message、path；仅提示用途，不绕过验证。 |
 
@@ -73,7 +73,7 @@ error 阻止预览确认与导入；warning 必须在预览中可见并经用户
 
 1. existing exerciseRef 的 exerciseId 必须解析为当前有效动作，或依据 P1 的有向替代链解析为有效目标；循环、tombstone 无替代、缺失目标均为 error。
 2. unknown exerciseRef 逐项由用户选择：映射现有动作、创建候选自定义动作、或拒绝导入。拒绝后如模板没有动作或不再满足产品规则，必须重新校验。
-3. 创建候选自定义动作时，名称、分类、五项记录配置、description 复用现有 exercise service 的校验；真实 custom-ex ID 只在批准导入时由 repository 分配。
+3. 创建候选自定义动作时，名称、分类、完整记录配置、description 复用现有 exercise service 的校验；真实 custom-ex ID 只在批准导入时由 repository 分配。
 4. 预览必须显示计划/模板/动作、每个映射决定、待创建动作、排程、warnings、来源、数据将写入本地的范围及“不覆盖现有计划”的默认策略。
 5. 用户取消、关闭页面、网络中断或来源不可核验时，候选只作为临时 state；不得留下部分持久化文档。
 
