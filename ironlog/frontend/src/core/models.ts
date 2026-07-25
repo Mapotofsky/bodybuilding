@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
 
 export type DocId = string;
 export type ISODate = string;
@@ -23,7 +23,7 @@ export type ExerciseCategory =
   | "chest" | "back" | "legs" | "shoulders" | "arms"
   | "core" | "cardio" | "stretch" | "other";
 export type EquipmentId =
-  | "body_weight" | "barbell" | "dumbbell" | "cable" | "machine"
+  | "body_weight" | "barbell" | "trap_bar" | "dumbbell" | "cable" | "machine"
   | "band" | "kettlebell" | "ab_wheel" | "stationary_bike"
   | "jump_rope" | "elliptical" | "stepmill" | "external_weight" | "other";
 export type MuscleGroupId =
@@ -97,7 +97,7 @@ export interface DefaultExerciseSeed {
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
   secondaryMuscleGroupIds: MuscleGroupId[];
-  provenance: ExerciseProvenance;
+  provenance?: ExerciseProvenance;
 }
 
 export interface TemplateExerciseDoc {

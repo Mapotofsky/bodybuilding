@@ -13,6 +13,7 @@ const DATA_URL = `https://raw.githubusercontent.com/${UPSTREAM_SOURCE}/${UPSTREA
 const EQUIPMENT_MAP = new Map([
   ["body weight", "body_weight"],
   ["barbell", "barbell"],
+  ["trap bar", "trap_bar"],
   ["dumbbell", "dumbbell"],
   ["cable", "cable"],
   ["leverage machine", "machine"],
@@ -95,7 +96,7 @@ function parseRow(line, rowNumber) {
   const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
   if (cells.length !== 14) throw new Error(`候选表第 ${rowNumber} 行列数无效`);
   const [id, sourceId, name, category, recordingMode, loadBasisValue, countBasis, loadDirectionValue, rateMetric, contextKind, equipment, primary, secondary, descriptionValue] = cells;
-  if (!/^ex-[a-z0-9-]+$/.test(id) || !/^[0-9]{4}$/.test(sourceId)) throw new Error(`候选表第 ${rowNumber} 行 ID 无效`);
+  if (!/^ex-[a-z0-9-]+$/.test(id) || !/^(?:[0-9]{4}|-)$/.test(sourceId)) throw new Error(`候选表第 ${rowNumber} 行 ID 无效`);
   const description = descriptionValue.replaceAll("↵↵", "\n\n").replaceAll("↵", "\n");
   return {
     id,
@@ -111,7 +112,9 @@ function parseRow(line, rowNumber) {
     description,
     primaryMuscleGroupIds: parseList(primary),
     secondaryMuscleGroupIds: parseList(secondary),
-    provenance: { source: UPSTREAM_SOURCE, sourceId, sourceRevision: UPSTREAM_SHA },
+    ...(sourceId === "-" ? {} : {
+      provenance: { source: UPSTREAM_SOURCE, sourceId, sourceRevision: UPSTREAM_SHA },
+    }),
   };
 }
 
@@ -120,11 +123,11 @@ function parseList(value) {
 }
 
 function validateCatalog(catalog) {
-  if (catalog.length !== 63) {
+  if (catalog.length !== 87) {
     throw new Error(`候选数量错误：总数=${catalog.length}`);
   }
   assertUnique(catalog.map((seed) => seed.id), "IronLog ID");
-  assertUnique(catalog.map((seed) => seed.provenance.sourceId), "upstream id");
+  assertUnique(catalog.flatMap((seed) => seed.provenance ? [seed.provenance.sourceId] : []), "upstream id");
   for (const seed of catalog) {
     if (![...EQUIPMENT_MAP.values()].includes(seed.equipment)) throw new Error(`${seed.id} 的 equipment 无效`);
     validateRecordingConfiguration(seed);
@@ -133,7 +136,7 @@ function validateCatalog(catalog) {
     }
     validateMuscles(seed.id, seed.primaryMuscleGroupIds, seed.secondaryMuscleGroupIds);
   }
-  if (catalog.some((seed) => seed.provenance.sourceId === "0684")) throw new Error("0684 不得进入目录");
+  if (catalog.some((seed) => seed.provenance?.sourceId === "0684")) throw new Error("0684 不得进入目录");
   const running = catalog.find((seed) => seed.id === "ex-running");
   if (!running || running.provenance.sourceId !== "0685" || running.description.includes("原地") || !running.description.includes("\n")) {
     throw new Error("ex-running 的人工语义扩展不符合已批准契约");
@@ -151,12 +154,18 @@ function validateCatalog(catalog) {
   const expectedPerSideIds = [
     "ex-band-pallof-press",
     "ex-bodyweight-split-squat",
+    "ex-cable-one-arm-lateral-raise",
+    "ex-copenhagen-side-plank",
     "ex-dead-bug",
     "ex-dumbbell-bulgarian-split-squat",
     "ex-dumbbell-lunge",
+    "ex-dumbbell-reverse-lunge",
+    "ex-dumbbell-single-leg-deadlift",
     "ex-dumbbell-step-up",
+    "ex-kettlebell-renegade-row",
     "ex-one-arm-dumbbell-row",
     "ex-side-plank",
+    "ex-single-arm-farmer-walk",
   ];
   if (JSON.stringify(perSideIds) !== JSON.stringify(expectedPerSideIds)) {
     throw new Error("默认目录的每侧计数动作不符合已批准契约");
@@ -210,6 +219,7 @@ async function loadUpstream() {
 
 function validateUpstream(catalog, upstream) {
   for (const seed of catalog) {
+    if (!seed.provenance) continue;
     const sourceId = seed.provenance.sourceId;
     const raw = upstream.get(sourceId);
     if (!raw) throw new Error(`固定上游不存在候选 id：${sourceId}`);

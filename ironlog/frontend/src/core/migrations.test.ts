@@ -4,15 +4,15 @@ import { CURRENT_SCHEMA_VERSION, type DataSnapshot, type ExercisePerformanceReco
 import { buildShardList, makeEmptySnapshot, migrateSnapshot } from "./migrations";
 
 describe("local-first schema migration", () => {
-  it("creates a new current-schema snapshot with the exact 63-item catalog", () => {
+  it("creates a new current-schema snapshot with the exact 87-item catalog", () => {
     const snapshot = makeEmptySnapshot("device-test");
 
     expect(snapshot.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
-    expect(snapshot.exercises).toHaveLength(63);
+    expect(snapshot.exercises).toHaveLength(87);
     expect(snapshot.exercises).toEqual(DEFAULT_EXERCISES);
-    expect(new Set(snapshot.exercises.map((exercise) => exercise.id)).size).toBe(63);
+    expect(new Set(snapshot.exercises.map((exercise) => exercise.id)).size).toBe(87);
     expect(snapshot.exercises.every((exercise) => exercise.schemaVersion === CURRENT_SCHEMA_VERSION)).toBe(true);
-    const retiredIds = ["squat", "overhead-press", "face-pull", "plank", "cat-cow-stretch"].map((suffix) => `ex-${suffix}`);
+    const retiredIds = ["squat", "plank", "cat-cow-stretch"].map((suffix) => `ex-${suffix}`);
     expect(snapshot.exercises.some((exercise) => retiredIds.includes(exercise.id))).toBe(false);
   });
 
@@ -23,7 +23,7 @@ describe("local-first schema migration", () => {
 
     expect(() => migrateSnapshot(v4, "device-test")).toThrow("不兼容快照");
     expect(v4.manifest.schemaVersion).toBe(4);
-    expect(v4.exercises).toHaveLength(empty ? 0 : 63);
+    expect(v4.exercises).toHaveLength(empty ? 0 : 87);
   });
 
   it("rejects a v4 document inside a v6 manifest without mutating the source snapshot", () => {
@@ -163,6 +163,84 @@ describe("local-first schema migration", () => {
     });
     expect(migrateSnapshot(structuredClone(migrated), "device-test")).toEqual(migrated);
     expect(raw).toEqual(original);
+  });
+
+  it("migrates a non-empty v7 snapshot to the 87-item catalog without clearing local records or tombstones", () => {
+    const v7 = makeEmptySnapshot("device-test");
+    const addedIds = new Set([
+      "ex-dumbbell-bench-press",
+      "ex-dumbbell-fly",
+      "ex-machine-chest-fly",
+      "ex-machine-reverse-fly",
+      "ex-dumbbell-reverse-lunge",
+      "ex-barbell-zercher-squat",
+      "ex-dumbbell-arnold-press",
+      "ex-dumbbell-front-raise",
+      "ex-cable-one-arm-lateral-raise",
+      "ex-floor-crunch",
+      "ex-hanging-straight-leg-raise",
+      "ex-machine-hack-squat",
+      "ex-dumbbell-single-leg-deadlift",
+      "ex-trap-bar-deadlift",
+      "ex-barbell-preacher-curl",
+      "ex-barbell-lying-triceps-extension",
+      "ex-incline-treadmill-walk",
+      "ex-standing-cable-chest-press",
+      "ex-kettlebell-renegade-row",
+      "ex-overhead-press",
+      "ex-face-pull",
+      "ex-trap-bar-farmer-walk",
+      "ex-single-arm-farmer-walk",
+      "ex-copenhagen-side-plank",
+    ]);
+    v7.manifest.schemaVersion = 7;
+    v7.exercises = v7.exercises
+      .filter((exercise) => !addedIds.has(exercise.id))
+      .map((exercise) => ({ ...exercise, schemaVersion: 7 }));
+    const bench = v7.exercises.find((exercise) => exercise.id === "ex-bench-press")!;
+    bench.description = "旧版单段说明";
+    bench.deletedAt = "2026-07-24T12:00:00.000Z";
+    v7.exercises.push({
+      ...v7.exercises[0],
+      id: "custom-ex-v7-preserved",
+      name: "保留的 v7 自定义动作",
+      isCustom: true,
+      deletedAt: null,
+      schemaVersion: 7,
+      syncImportedMarker: "keep-custom",
+    } as (typeof v7.exercises)[number]);
+    v7.exercises.push({
+      ...v7.exercises[0],
+      id: "unknown-ex-v7-preserved",
+      name: "保留的 v7 未知动作",
+      isCustom: false,
+      deletedAt: "2026-07-23T12:00:00.000Z",
+      schemaVersion: 7,
+      syncImportedMarker: "keep-unknown",
+    } as (typeof v7.exercises)[number]);
+
+    const migrated = migrateSnapshot(v7, "device-test");
+
+    expect(migrated.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.exercises).toHaveLength(89);
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-bench-press")).toMatchObject({
+      deletedAt: "2026-07-24T12:00:00.000Z",
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-bench-press")?.description).toContain("\n\n");
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-trap-bar-deadlift")).toMatchObject({
+      equipment: "trap_bar",
+      provenance: { sourceId: "0811" },
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-overhead-press")?.provenance).toBeUndefined();
+    expect(migrated.exercises.find((exercise) => exercise.id === "custom-ex-v7-preserved")).toMatchObject({
+      name: "保留的 v7 自定义动作",
+      syncImportedMarker: "keep-custom",
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "unknown-ex-v7-preserved")).toMatchObject({
+      deletedAt: "2026-07-23T12:00:00.000Z",
+      syncImportedMarker: "keep-unknown",
+    });
   });
 
   it("preserves current-schema count basis, unknown fields, provenance, and nested ids", () => {

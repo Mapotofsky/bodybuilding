@@ -9,14 +9,16 @@ const VALID_LOAD_BASIS = new Set(["total", "per_hand"]);
 const VALID_COUNT_BASIS = new Set(["whole_set", "per_side"]);
 const VALID_LOAD_DIRECTIONS = new Set(["higher_better", "lower_better"]);
 const VALID_RATE_METRICS = new Set(["none", "reps_per_time", "distance_per_time", "load_distance_per_time"]);
-const VALID_EQUIPMENT = new Set(["body_weight", "barbell", "dumbbell", "cable", "machine", "band", "kettlebell", "ab_wheel", "stationary_bike", "jump_rope", "elliptical", "stepmill", "external_weight", "other"]);
-const RETIRED_DEFAULT_IDS = ["squat", "overhead-press", "face-pull", "plank", "cat-cow-stretch"].map((suffix) => `ex-${suffix}`);
+const VALID_EQUIPMENT = new Set(["body_weight", "barbell", "trap_bar", "dumbbell", "cable", "machine", "band", "kettlebell", "ab_wheel", "stationary_bike", "jump_rope", "elliptical", "stepmill", "external_weight", "other"]);
+const RETIRED_DEFAULT_IDS = ["squat", "plank", "cat-cow-stretch"].map((suffix) => `ex-${suffix}`);
 
 describe("generated default exercise catalog", () => {
-  it("contains 63 unique, valid, deterministic current-schema documents", () => {
-    expect(DEFAULT_EXERCISES).toHaveLength(63);
-    expect(new Set(DEFAULT_EXERCISES.map((exercise) => exercise.id)).size).toBe(63);
-    expect(new Set(DEFAULT_EXERCISES.map((exercise) => exercise.provenance?.sourceId)).size).toBe(63);
+  it("contains 87 unique, valid, deterministic current-schema documents", () => {
+    expect(DEFAULT_EXERCISES).toHaveLength(87);
+    expect(new Set(DEFAULT_EXERCISES.map((exercise) => exercise.id)).size).toBe(87);
+    const sourced = DEFAULT_EXERCISES.filter((exercise) => exercise.provenance);
+    expect(sourced).toHaveLength(82);
+    expect(new Set(sourced.map((exercise) => exercise.provenance?.sourceId)).size).toBe(82);
 
     for (const exercise of DEFAULT_EXERCISES) {
       expect(VALID_CATEGORIES.has(exercise.category)).toBe(true);
@@ -35,11 +37,13 @@ describe("generated default exercise catalog", () => {
       expect(new Set(exercise.primaryMuscleGroupIds).size).toBe(exercise.primaryMuscleGroupIds.length);
       expect(new Set(exercise.secondaryMuscleGroupIds).size).toBe(exercise.secondaryMuscleGroupIds.length);
       expect(exercise.secondaryMuscleGroupIds.some((muscle) => exercise.primaryMuscleGroupIds.includes(muscle))).toBe(false);
-      expect(exercise.provenance).toEqual({
-        source: "hasaneyldrm/exercises-dataset",
-        sourceId: expect.stringMatching(/^[0-9]{4}$/),
-        sourceRevision: "118e4bd6b14da6df0e36605d7169b65db18389a4",
-      });
+      if (exercise.provenance) {
+        expect(exercise.provenance).toEqual({
+          source: "hasaneyldrm/exercises-dataset",
+          sourceId: expect.stringMatching(/^[0-9]{4}$/),
+          sourceRevision: "118e4bd6b14da6df0e36605d7169b65db18389a4",
+        });
+      }
       expect(exercise).toMatchObject({
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
@@ -70,6 +74,7 @@ describe("generated default exercise catalog", () => {
 
     expect(cardioIds).toEqual([
       "ex-elliptical-trainer",
+      "ex-incline-treadmill-walk",
       "ex-running",
       "ex-stationary-bike",
     ]);
@@ -82,6 +87,11 @@ describe("generated default exercise catalog", () => {
     });
     expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-stationary-bike")).toMatchObject({ contextKind: "resistance_level", rateMetric: "none" });
     expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-elliptical-trainer")).toMatchObject({ contextKind: "resistance_level", rateMetric: "none" });
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-incline-treadmill-walk")).toMatchObject({
+      contextKind: "incline_percent",
+      rateMetric: "distance_per_time",
+      equipment: "machine",
+    });
     expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-farmer-walk")).toMatchObject({
       name: "农夫行走",
       recordingMode: "weight_distance_duration",
@@ -109,17 +119,30 @@ describe("generated default exercise catalog", () => {
     expect(perSideIds).toEqual([
       "ex-band-pallof-press",
       "ex-bodyweight-split-squat",
+      "ex-cable-one-arm-lateral-raise",
+      "ex-copenhagen-side-plank",
       "ex-dead-bug",
       "ex-dumbbell-bulgarian-split-squat",
       "ex-dumbbell-lunge",
+      "ex-dumbbell-reverse-lunge",
+      "ex-dumbbell-single-leg-deadlift",
       "ex-dumbbell-step-up",
+      "ex-kettlebell-renegade-row",
       "ex-one-arm-dumbbell-row",
       "ex-side-plank",
+      "ex-single-arm-farmer-walk",
     ]);
     expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-one-arm-dumbbell-row")).toMatchObject({
       loadBasis: "total",
       countBasis: "per_side",
     });
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-trap-bar-deadlift")).toMatchObject({
+      equipment: "trap_bar",
+      provenance: { sourceId: "0811" },
+    });
+    const overheadPress = DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-overhead-press");
+    expect(overheadPress).toMatchObject({ equipment: "barbell" });
+    expect(overheadPress?.provenance).toBeUndefined();
   });
 
   it("does not include media, attribution, grades, or instruction arrays", () => {

@@ -167,6 +167,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 export const EQUIPMENT_LABELS: Record<EquipmentId, string> = {
   body_weight: "自重",
   barbell: "杠铃",
+  trap_bar: "六角杠",
   dumbbell: "哑铃",
   cable: "绳索",
   machine: "固定器械",

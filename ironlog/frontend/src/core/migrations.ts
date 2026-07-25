@@ -29,7 +29,7 @@ export const STATIC_SHARD_PATHS = [
   "timeline-notes.json",
 ] as const;
 export const AVATAR_RESOURCE_PREFIX = "assets/avatar/";
-const COMPATIBLE_SCHEMA_VERSIONS = new Set([5, 6, CURRENT_SCHEMA_VERSION]);
+const COMPATIBLE_SCHEMA_VERSIONS = new Set([5, 6, 7, CURRENT_SCHEMA_VERSION]);
 const RESISTANCE_EXERCISE_IDS = new Set(["ex-elliptical-trainer", "ex-stationary-bike"]);
 
 export function workoutShardPath(date: string): string {
