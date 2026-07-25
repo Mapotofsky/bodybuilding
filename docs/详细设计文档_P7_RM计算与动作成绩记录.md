@@ -1,7 +1,7 @@
 # P7 详细设计文档：RM 计算与动作成绩记录
 
 > 对应概要设计：P4.1 RM 计算、动作成绩记录和动作详情增强
-> 状态：当前 v5 实现基线；RM 计算器、RPE 说明页、ExercisePerformanceRecordDoc、performance service、PR/RM 统计消费和 exercise-performance 分片已接入
+> 状态：当前 v6 实现基线；新增爬楼机频率，并将阻力上下文完全排除出自动成绩事件
 > 前置依赖：P0 WorkoutDoc 聚合与训练完成/编辑/删除流程、P1 动作引用解析、P2 分片与 migration、P3 同步、P4.1 统计和分享图消费入口
 
 ---
@@ -87,6 +87,7 @@ type PerformanceMetricType =
   | "distance.max_workout"
   | "duration.max_set"
   | "duration.max_workout"
+  | "frequency.max"
   | "speed.max"
   | "load_duration.max"
   | "load_distance.max"
@@ -122,6 +123,8 @@ interface PerformanceInputSummary {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind: ContextKind;
+  contextValue: number | null;
   reps: number | null;
   rpe: number | null;
   distanceM: number | null;
@@ -180,11 +183,14 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 | `higher_better + weight_reps` | 只记录单一 `weight.max`，值为输入重量换算后的 kg；`total` 显示“最大重量”，`per_hand` 显示“每手最大重量”。另记录最大次数、最大单组/训练容量；容量按聚合倍率计算，RM 使用输入重量。 |
 | `lower_better + weight_reps` | 最大次数（同次数辅助重量更小者胜）与最低辅助重量（同重量次数更多者胜）；不生成普通容量或 RM。 |
 | `reps` / `duration` | 单组 PR 保持输入次数/时长；训练总次数/总时长按 `countBasis` 聚合。 |
+| `reps_duration` | 时间必填、次数可选；有次数时生成次数与时间事实型 PR，并仅在次数和时间同时存在时派生 `frequency.max`，规范单位为 reps/min，爬楼机页面显示为步频。 |
 | `distance_duration` | 单组 PR 保持输入距离/时长；训练总距离/总时长按 `countBasis` 聚合。两项齐全且 `rateMetric=distance_per_time` 时生成速度，分子和分母同口径，`per_side` 倍率抵消。 |
 | `weight_duration` | `weight.max` 使用输入重量，最长时间保持输入值，持续负载按聚合倍率计算（kg·s）；不生成 kg·次或 RM。 |
 | `weight_distance_duration` | `weight.max` 使用输入重量；有距离生成距离负载（kg·m），只有时间生成持续负载（kg·s）；三项齐全且启用竞速时生成单位时间负载（kg·m/s），速率分子和分母同口径，`per_side` 倍率抵消。 |
 
 比较器必须为主值及每个 tie-breaker 分别声明 `min` 或 `max`，禁止假定全部数值越大越好。所有成绩输入摘要保留 `recordingMode`、原始重量及单位、`loadBasis`、`countBasis`、`loadDirection`、`rateMetric`、次数、距离、时间和 RPE；任何可由这些值重算的倍率、聚合值、换算重量和有效次数均不持久化。kg·m 只称“距离负载”，kg·m/s 只称“单位时间负载”。
+
+`contextKind=resistance_level` 是成绩生成的硬排除条件：不生成最快速度、最远距离、最长时间、最高阻力、同档位最佳或任何其他自动 PR/RM，也不新增事实事件。原始时间、距离、阻力档位保留在 WorkoutDoc，速度只由距离/时间派生；动作详情只从 WorkoutDoc 展示历史列表、趋势和本次上下文。重建时删除椭圆机、固定自行车的既有派生成绩事件，但不删除或改写训练历史。坡度动作仍可生成速度；速度相同时坡度较高者胜。
 
 ---
 
@@ -197,7 +203,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 生成时按 `achievedAt` 升序扫描有效已完成训练：
 
 1. 过滤 `deletedAt != null` 和 `endTime == null` 的训练。
-2. 按 `WorkoutExerciseDoc` 五项记录快照解释历史数据，不按当前 ExerciseDoc 配置重解释。
+2. 按 `WorkoutExerciseDoc` 六项记录快照解释历史数据，不按当前 ExerciseDoc 配置重解释。
 3. 对每个动作、指标生成候选。
 4. 与该动作该指标此前历史最佳比较。
 5. 只有刷新时写入成绩事件。
@@ -310,7 +316,7 @@ P2 已新增：
 | `value/unit` | 当前最佳、摘要、排序 | 规范单位计算；展示单位转换 | 固定单位 | 月分片 |
 | `achievedAt` | 排序、周期归属 | 来源训练日期/时间派生 | 决定分片 | 月分片 |
 | 来源 workout/exercise/set ID | 跳转来源 | 重算和清理 | 保留引用 | 月分片 |
-| `input` | 摘要和调试 | 保存原始重量及单位、五项记录快照、次数、距离、时长和 RPE；不保存可推导的倍率、聚合值、换算重量、有效次数或 RIR | 固定字段 | 月分片 |
+| `input` | 摘要和调试 | 保存原始重量及单位、六项记录快照、次数、距离、时长、上下文和 RPE；不保存可推导的倍率、聚合值、换算重量、有效次数或 RIR | 固定字段 | 月分片 |
 | `rm` | RM 摘要和公式展开 | 四公式明细、均值、离散程度 | RM 事件必填，真实 PR 为 null | 月分片 |
 
 ---
@@ -327,11 +333,11 @@ P2 已新增：
 - 辅助重量相同次数时更小重量胜、相同重量时更多次数胜，且不生成普通容量或 RM。
 - RIR 不进入 WorkoutDoc 或成绩事件。
 - 热身组不生成 PR/RM；训练总容量仍按 P0 口径。
-- 六种记录方式的合法真实 PR 指标均可生成刷新事件，未注册组合不得生成。
+- 七种记录方式按注册策略生成；阻力上下文无论原始字段如何都不得生成自动 PR/RM。
 - 只保存刷新历史最佳事件，不保存每次训练候选点。
 - 训练完成、编辑、删除均触发相关动作重算；草稿不触发。
 - 手动重算不会产生重复事件。
-- 成绩事件按月分片进入 manifest、DocumentStore export/import、WebDAV pull/merge/push、backup、tmp/MOVE；五项记录快照和非冗余输入摘要往返不丢失。
+- 成绩事件按月分片进入 manifest、DocumentStore export/import、WebDAV pull/merge/push、backup、tmp/MOVE；六项记录快照和非冗余输入摘要往返不丢失。阻力上下文动作不生成成绩事件。
 - 动作详情、统计页、分享图只读消费成绩事件摘要，不直接生成或修补事件。
 - 切换 `SettingsDoc.weightUnit` 只影响展示，不改写规范 kg / kg_reps 事件值。
 - kg·m 和 kg·m/s 分别显示为“距离负载”和“单位时间负载”，不使用“功”或“功率”。

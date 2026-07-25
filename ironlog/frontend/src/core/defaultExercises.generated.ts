@@ -1,5 +1,5 @@
 // 此文件由 scripts/exerciseCatalog.mjs 生成，禁止手改。
-// candidates sha256: 82e8121c8d21a07bf6cd5a442afcf62f4dce03a99f1d034990d6bcae7033dd09
+// candidates sha256: 49ef876165e786565a768dffbbbf3589ab1f18f31237fcbdf840b1a469e707ef
 // upstream revision: 118e4bd6b14da6df0e36605d7169b65db18389a4
 import type { DefaultExerciseSeed } from "./models";
 
@@ -13,6 +13,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "仰卧稳住肩胛和双脚，正握杠铃下放至胸部，再伸肘推回；全程控制下放。",
     "primaryMuscleGroupIds": [
@@ -37,6 +38,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "将长凳调至上斜位，背部贴垫，哑铃从上胸两侧向上推起，再受控下放。",
     "primaryMuscleGroupIds": [
@@ -61,6 +63,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "双手略宽于肩，身体保持直线；屈肘下降至胸部接近地面，再推回起始位。",
     "primaryMuscleGroupIds": [
@@ -86,6 +89,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "调好座椅，使把手与胸部大致同高；背部贴垫向前推至手臂接近伸直，再受控返回。",
     "primaryMuscleGroupIds": [
@@ -110,6 +114,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "双臂支撑双杠，躯干略前倾；屈肘受控下降至肩部可控深度，再推起。",
     "primaryMuscleGroupIds": [
@@ -134,6 +139,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "坐姿背部稳定，哑铃由肩侧向上推至手臂接近伸直，再受控回到肩侧。",
     "primaryMuscleGroupIds": [
@@ -158,6 +164,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "保持躯干稳定，手臂微屈，将哑铃向两侧抬至肩高附近，再缓慢下放。",
     "primaryMuscleGroupIds": [
@@ -181,6 +188,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "髋部折叠并保持背部中立，双臂微屈，将哑铃向两侧打开，再缓慢回落。",
     "primaryMuscleGroupIds": [
@@ -204,6 +212,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "屈髋俯身并保持背部中立，将杠铃拉向下胸或上腹，再受控下放。",
     "primaryMuscleGroupIds": [
@@ -228,6 +237,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "一手支撑并保持躯干稳定，另一手将哑铃拉向髋侧，再缓慢下放至手臂伸展；完成一侧后换侧，每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -252,6 +262,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "坐稳并保持躯干中立，将把手拉向腹部，肩胛向后收，再受控伸臂返回。",
     "primaryMuscleGroupIds": [
@@ -276,6 +287,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "正握悬垂，先稳定肩胛，再将身体拉至下巴接近横杠，随后受控下降。",
     "primaryMuscleGroupIds": [
@@ -300,6 +312,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "坐稳并固定大腿，将横杆下拉至上胸附近，保持躯干稳定，再缓慢回到手臂伸展位。",
     "primaryMuscleGroupIds": [
@@ -324,6 +337,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "杠铃位于足中上方，屈髋屈膝握杠，保持背部中立，伸膝伸髋站起，再受控回落。",
     "primaryMuscleGroupIds": [
@@ -348,6 +362,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "膝盖微屈，保持背部中立并将髋部后移，让杠铃贴近腿部下放，再伸髋站起。",
     "primaryMuscleGroupIds": [
@@ -372,6 +387,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "杠铃稳定置于上背，脚距自然；屈髋屈膝下蹲至可控深度，膝盖与脚尖方向一致，再站起。",
     "primaryMuscleGroupIds": [
@@ -398,6 +414,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "双手托住哑铃置于胸前，保持躯干稳定，屈髋屈膝下蹲至可控深度，再蹬地站起。",
     "primaryMuscleGroupIds": [
@@ -423,6 +440,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "背部贴稳靠垫，双脚置于踏板；屈膝受控下放，再推至双腿接近伸直，避免锁死膝盖。",
     "primaryMuscleGroupIds": [
@@ -448,6 +466,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "调好座椅和滚垫，使膝关节对齐机器转轴；伸膝抬起负重，再缓慢回到起始位。",
     "primaryMuscleGroupIds": [
@@ -469,6 +488,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "调好座椅和腿垫，固定大腿；屈膝拉动负重至可控范围，再缓慢伸膝返回。",
     "primaryMuscleGroupIds": [
@@ -492,6 +512,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "双手持哑铃站立，一脚向前迈出并屈膝下降，前膝与脚尖方向一致，再由前脚发力返回；完成一侧后换侧，每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -517,6 +538,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "后脚放在长凳或台阶上，前脚稳定；屈髋屈膝下降至可控深度，再由前脚发力站起；完成一侧后换侧，每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -542,6 +564,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "双手持哑铃，一脚踏稳台阶，主要由踏台腿发力站上平台，再受控下台并换侧；每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -567,6 +590,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "前后分腿站立，保持躯干稳定；屈膝下降至后膝接近地面，再由前脚发力站起并换侧；每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -592,6 +616,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "仰卧屈膝，杠铃稳放在髋部；收紧核心并伸髋至躯干与大腿接近一线，再受控下放。",
     "primaryMuscleGroupIds": [
@@ -616,6 +641,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "kettlebell",
     "description": "双手握壶铃，屈髋后摆，随后快速伸髋让壶铃摆至胸前附近；手臂保持放松并控制回摆。",
     "primaryMuscleGroupIds": [
@@ -640,6 +666,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "前脚掌稳踩踏板，膝盖保持自然；抬高脚跟至小腿充分收缩，再缓慢下降。",
     "primaryMuscleGroupIds": [
@@ -661,6 +688,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "双脚自然站立，可扶住稳定物保持平衡；抬高脚跟至小腿收缩，再缓慢下降。",
     "primaryMuscleGroupIds": [
@@ -682,6 +710,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "load_distance_per_time",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "站直，双手各持一只哑铃，收紧核心并保持躯干稳定；以可控步幅完成计划距离或时间，避免身体左右倾斜，结束后受控放下哑铃。",
     "primaryMuscleGroupIds": [
@@ -707,6 +736,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "站姿保持上臂相对固定，屈肘将杠铃举至可控高度，再缓慢下放。",
     "primaryMuscleGroupIds": [
@@ -730,6 +760,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "双手掌心相对各握一只哑铃，保持上臂稳定，双臂同时屈肘举起哑铃，再受控下放；按整组次数记录。",
     "primaryMuscleGroupIds": [
@@ -753,6 +784,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "将绳索连接高位滑轮，肘部贴近身体，伸肘向下压并在底部展开绳端，再受控返回。",
     "primaryMuscleGroupIds": [
@@ -776,6 +808,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "背对高位滑轮，双手握绳并保持上臂稳定；伸肘将绳索推向前上方，再受控屈肘返回。",
     "primaryMuscleGroupIds": [
@@ -799,6 +832,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "坐稳后双手托住哑铃置于头后，保持上臂靠近耳侧，伸肘举起，再受控下放。",
     "primaryMuscleGroupIds": [
@@ -822,6 +856,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "仰卧抬起双腿和双臂，保持腰背稳定；交替伸展对侧手臂和腿，再回到起始位；每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -845,6 +880,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "band",
     "description": "将弹力带固定在身体侧方，双手置于胸前；保持躯干不旋转，将双手向前推出再收回；完成一侧后换侧，每侧填写次数。",
     "primaryMuscleGroupIds": [
@@ -868,6 +904,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "跪在高位滑轮前，绳索置于头侧；保持髋部相对稳定，收腹使躯干向下卷曲，再受控还原。",
     "primaryMuscleGroupIds": [
@@ -889,6 +926,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "ab_wheel",
     "description": "跪姿双手握轮，收紧核心并缓慢向前滚至可控范围，再用核心带动回到起始位。",
     "primaryMuscleGroupIds": [
@@ -912,6 +950,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "per_side",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "侧卧并以前臂支撑，抬起臀部使身体从头到脚接近一条直线，按计划时间保持后换侧；每侧填写保持时间。",
     "primaryMuscleGroupIds": [
@@ -935,6 +974,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "distance_per_time",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "选择安全路线或跑步区域。\n保持躯干放松和稳定，以自然步幅完成计划距离或时间。\n结束前逐步减速。",
     "primaryMuscleGroupIds": [
@@ -959,9 +999,10 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "loadBasis": null,
     "countBasis": "whole_set",
     "loadDirection": null,
-    "rateMetric": "distance_per_time",
+    "rateMetric": "none",
+    "contextKind": "resistance_level",
     "equipment": "stationary_bike",
-    "description": "调好座椅并固定双脚，以计划阻力和节奏踩踏；记录持续时间，逐步减速后结束。",
+    "description": "调好座椅并固定双脚，选择合适阻力，以稳定节奏踩踏；训练结束前逐步减速。",
     "primaryMuscleGroupIds": [
       "full_body"
     ],
@@ -985,6 +1026,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "jump_rope",
     "description": "双手握绳，膝盖微屈，以脚掌轻柔落地并保持稳定节奏；按计划次数完成。",
     "primaryMuscleGroupIds": [
@@ -1010,9 +1052,10 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "loadBasis": null,
     "countBasis": "whole_set",
     "loadDirection": null,
-    "rateMetric": "distance_per_time",
+    "rateMetric": "none",
+    "contextKind": "resistance_level",
     "equipment": "elliptical",
-    "description": "调好阻力和坡度，双脚稳踩踏板并配合推拉手柄，以稳定节奏完成计划时间。",
+    "description": "双脚稳踩踏板并配合推拉手柄，选择合适阻力，以稳定节奏完成计划时间。",
     "primaryMuscleGroupIds": [
       "full_body"
     ],
@@ -1037,6 +1080,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "双侧滑轮调至合适高度，躯干稳定，双臂保持微屈向胸前合拢，再缓慢打开。",
     "primaryMuscleGroupIds": [
@@ -1061,6 +1105,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "lower_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "在辅助器械上选定合适辅助量，稳定肩胛后向上拉至下巴接近横杠，再受控下降。",
     "primaryMuscleGroupIds": [
@@ -1085,6 +1130,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "躺在上斜凳上，正握杠铃下放至上胸附近，再伸肘推回；保持双脚和上背稳定。",
     "primaryMuscleGroupIds": [
@@ -1109,6 +1155,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "坐姿稳定躯干，将杠铃由肩前向上推至手臂接近伸直，再受控下放。",
     "primaryMuscleGroupIds": [
@@ -1133,6 +1180,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "调好座椅，使把手位于肩侧；背部贴垫向上推至手臂接近伸直，再缓慢返回。",
     "primaryMuscleGroupIds": [
@@ -1157,6 +1205,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "反握悬垂，稳定肩胛后将身体向上拉至下巴接近横杠，再受控下降。",
     "primaryMuscleGroupIds": [
@@ -1181,6 +1230,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "身体在低杠下保持直线，脚跟支撑；将胸部拉向横杠，再受控伸臂返回。",
     "primaryMuscleGroupIds": [
@@ -1205,6 +1255,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "cable",
     "description": "面对高位滑轮，手臂保持接近伸直，将把手沿弧线下压至大腿前，再受控回到上方。",
     "primaryMuscleGroupIds": [
@@ -1229,6 +1280,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "杠铃稳定置于肩前，保持肘部抬起和躯干直立；下蹲至可控深度，再蹬地站起。",
     "primaryMuscleGroupIds": [
@@ -1255,6 +1307,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "dumbbell",
     "description": "双手持哑铃，膝盖微屈并将髋部后移，保持背部中立，下放至后侧链有拉伸感后伸髋站起。",
     "primaryMuscleGroupIds": [
@@ -1279,6 +1332,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "俯卧固定髋部，小腿置于滚垫下；屈膝拉起负重至可控范围，再缓慢伸膝返回。",
     "primaryMuscleGroupIds": [
@@ -1302,6 +1356,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "坐稳并让前脚掌踩住踏板，膝上垫固定；抬高脚跟至小腿收缩，再缓慢下降。",
     "primaryMuscleGroupIds": [
@@ -1323,6 +1378,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "调好座椅和腿垫，坐稳并保持躯干稳定；向外打开双腿至可控范围，再缓慢合回。",
     "primaryMuscleGroupIds": [
@@ -1347,6 +1403,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "machine",
     "description": "调好座椅和腿垫，坐稳并保持躯干稳定；将双腿向内合拢至可控范围，再缓慢打开。",
     "primaryMuscleGroupIds": [
@@ -1371,6 +1428,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "barbell",
     "description": "坐姿让前臂稳定支撑在大腿上，掌心向上握杠，屈腕将杠铃卷起，再缓慢下放。",
     "primaryMuscleGroupIds": [
@@ -1394,6 +1452,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": "higher_better",
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "external_weight",
     "description": "坐姿双手持重物，躯干略后倾并保持稳定，在可控范围内交替向两侧转动；左右各转一次算 1 次。",
     "primaryMuscleGroupIds": [
@@ -1417,6 +1476,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "在罗马椅上固定双脚，保持脊柱中立并从髋部俯身，再伸髋回到身体接近一线。",
     "primaryMuscleGroupIds": [
@@ -1441,6 +1501,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "由站姿下蹲撑地，双脚跳至俯卧撑位，完成俯卧撑后收腿并向上跳起；按次数记录。",
     "primaryMuscleGroupIds": [
@@ -1468,6 +1529,7 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
     "countBasis": "whole_set",
     "loadDirection": null,
     "rateMetric": "none",
+    "contextKind": "none",
     "equipment": "body_weight",
     "description": "从高位平板支撑开始，保持臀部稳定，快速交替将膝盖向胸部收回；左右各收膝一次算 1 次，按整组次数记录。",
     "primaryMuscleGroupIds": [
@@ -1486,15 +1548,16 @@ export const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = [
   },
   {
     "id": "ex-stepmill",
-    "name": "踏步机",
+    "name": "爬楼机",
     "category": "cardio",
-    "recordingMode": "duration",
+    "recordingMode": "reps_duration",
     "loadBasis": null,
     "countBasis": "whole_set",
     "loadDirection": null,
-    "rateMetric": "none",
+    "rateMetric": "reps_per_time",
+    "contextKind": "none",
     "equipment": "stepmill",
-    "description": "调好踏步机速度或阻力，保持身体直立并交替踏步，按计划持续时间完成。",
+    "description": "踏上连续循环的阶梯，保持身体直立并稳定交替登阶；按计划记录训练时间，可同时记录步数。",
     "primaryMuscleGroupIds": [
       "full_body"
     ],

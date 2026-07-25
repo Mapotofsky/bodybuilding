@@ -12,5 +12,6 @@ export function makeEmptySet(num: number, unit: "kg" | "lb" = "kg"): WorkoutSet 
     is_warmup: false,
     is_failure: false,
     rest_seconds: null,
+    context_value: null,
   };
 }

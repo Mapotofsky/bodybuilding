@@ -54,6 +54,19 @@ describe("workout service validation", () => {
     }, strength)).not.toThrow();
   });
 
+  it("accepts blank or zero resistance values on completion", () => {
+    const resistance: RecordingConfig = {
+      recordingMode: "distance_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "none",
+      contextKind: "resistance_level",
+    };
+    expect(() => validateWorkoutSet({ set_number: 1, duration_sec: 600, context_value: null }, resistance)).not.toThrow();
+    expect(() => validateWorkoutSet({ set_number: 1, duration_sec: 600, context_value: 0 }, resistance)).not.toThrow();
+  });
+
   it("ends a discarded draft at its last recorded activity instead of the selection time", () => {
     expect(draftCompletionTime({ createdAt: "2026-06-22T10:00:00.000Z", updatedAt: "2026-06-22T10:18:00.000Z" })).toBe("2026-06-22T10:18:00.000Z");
   });

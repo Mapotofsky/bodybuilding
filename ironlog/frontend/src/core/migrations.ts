@@ -29,6 +29,8 @@ export const STATIC_SHARD_PATHS = [
   "timeline-notes.json",
 ] as const;
 export const AVATAR_RESOURCE_PREFIX = "assets/avatar/";
+const COMPATIBLE_SCHEMA_VERSIONS = new Set([5, 6, CURRENT_SCHEMA_VERSION]);
+const RESISTANCE_EXERCISE_IDS = new Set(["ex-elliptical-trainer", "ex-stationary-bike"]);
 
 export function workoutShardPath(date: string): string {
   return `workouts/${date.slice(0, 7)}.json`;
@@ -57,8 +59,8 @@ export function exercisePerformanceShardPathsFromManifest(manifest: Pick<IronLog
 function doc<T extends { id?: string; createdAt?: string; updatedAt?: string; deletedAt?: string | null; schemaVersion?: number }>(
   value: T
 ): T & { id: string; createdAt: string; updatedAt: string; deletedAt: string | null; schemaVersion: number } {
-  if (value.schemaVersion != null && value.schemaVersion !== CURRENT_SCHEMA_VERSION) {
-    throw new Error(`不兼容开发快照（schemaVersion=${value.schemaVersion}）；请按运行指南人工清理隔离测试存储后重试`);
+  if (value.schemaVersion != null && !COMPATIBLE_SCHEMA_VERSIONS.has(value.schemaVersion)) {
+    throw new Error(`不兼容快照（schemaVersion=${value.schemaVersion}）；请升级应用或从备份恢复`);
   }
   const t = nowIso();
   return {
@@ -120,8 +122,9 @@ export function makeEmptySnapshot(deviceId: string): DataSnapshot {
 }
 
 export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): DataSnapshot {
-  if (raw.manifest?.schemaVersion !== CURRENT_SCHEMA_VERSION) {
-    throw new Error(`不兼容开发快照（schemaVersion=${raw.manifest?.schemaVersion ?? "未知"}）；请按运行指南人工清理隔离测试存储后重试`);
+  const sourceSchemaVersion = raw.manifest?.schemaVersion;
+  if (sourceSchemaVersion == null || !COMPATIBLE_SCHEMA_VERSIONS.has(sourceSchemaVersion)) {
+    throw new Error(`不兼容快照（schemaVersion=${sourceSchemaVersion ?? "未知"}）；请升级应用或从备份恢复`);
   }
   const base = makeEmptySnapshot(deviceId);
   const snapshot: DataSnapshot = {
@@ -133,13 +136,13 @@ export function migrateSnapshot(raw: Partial<DataSnapshot>, deviceId: string): D
     },
     profile: normalizeProfile(raw.profile, base.profile),
     settings: normalizeSettings(raw.settings, base.settings),
-    exercises: normalizeExercises(raw.exercises),
+    exercises: normalizeExercises(raw.exercises, sourceSchemaVersion),
     plans: normalizeArray<TrainingPlanDoc>(raw.plans, []),
     templates: normalizeArray<TemplateDoc>(raw.templates, []),
-    workouts: normalizeWorkouts(raw.workouts, []),
+    workouts: normalizeWorkouts(raw.workouts, [], sourceSchemaVersion),
     bodyMetrics: normalizeBodyMetrics(raw.bodyMetrics),
     timelineNotes: normalizeTimelineNotes(raw.timelineNotes),
-    exercisePerformanceRecords: normalizePerformanceRecords(raw.exercisePerformanceRecords),
+    exercisePerformanceRecords: normalizePerformanceRecords(raw.exercisePerformanceRecords, sourceSchemaVersion),
     resources: normalizeResources(raw.resources),
   };
   snapshot.manifest.shards = buildShardList(snapshot);
@@ -160,16 +163,16 @@ function normalizeProfile(value: ProfileDoc | undefined, fallback: ProfileDoc): 
   });
 }
 
-function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[]): WorkoutDoc[] {
+function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[], sourceSchemaVersion: number): WorkoutDoc[] {
   return normalizeArray<WorkoutDoc>(value, fallback).map((workout) => ({
     ...workout,
     exercises: workout.exercises.map((exercise) => {
-      const config = validateRecordingConfig(recordingConfigOf(exercise));
+      const config = normalizeRecordingConfig(exercise, sourceSchemaVersion);
       return {
         ...exercise,
         ...config,
         sets: exercise.sets.map((rawSet) => {
-          const set = normalizeWorkoutSet(rawSet);
+          const set = normalizeWorkoutSet(rawSet, sourceSchemaVersion);
           validateWorkoutSetForMode(set, config, workout.endTime == null ? "draft" : "complete");
           return set;
         }),
@@ -178,11 +181,36 @@ function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc
   }));
 }
 
-function normalizeExercises(value: ExerciseDoc[] | undefined): ExerciseDoc[] {
-  return normalizeArray<ExerciseDoc>(value, []).map((exercise) => ({
-    ...exercise,
-    ...validateRecordingConfig(recordingConfigOf(exercise)),
-  }));
+function normalizeExercises(value: ExerciseDoc[] | undefined, sourceSchemaVersion: number): ExerciseDoc[] {
+  const existing = normalizeArray<ExerciseDoc>(value, []);
+  const byId = new Map(existing.map((exercise) => [exercise.id, exercise]));
+  const mergedDefaults = DEFAULT_EXERCISES.map((current) => {
+    const previous = byId.get(current.id);
+    byId.delete(current.id);
+    if (!previous) return current;
+    const merged = sourceSchemaVersion < CURRENT_SCHEMA_VERSION
+      ? {
+          ...previous,
+          ...current,
+          createdAt: previous.createdAt,
+          deletedAt: previous.deletedAt,
+          replacedByExerciseId: previous.replacedByExerciseId,
+        }
+      : previous;
+    return {
+      ...merged,
+      ...normalizeRecordingConfig(merged, CURRENT_SCHEMA_VERSION),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
+  });
+  const preserved = [...byId.values()].map((exercise) => {
+    return {
+      ...exercise,
+      ...normalizeRecordingConfig(exercise, sourceSchemaVersion),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
+  });
+  return [...mergedDefaults, ...preserved];
 }
 
 export const BODY_MEASUREMENT_KEYS = [
@@ -227,12 +255,25 @@ function normalizeTimelineNotes(value: TimelineNoteDoc[] | undefined): TimelineN
   }));
 }
 
-function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | undefined): ExercisePerformanceRecordDoc[] {
+function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | undefined, sourceSchemaVersion: number): ExercisePerformanceRecordDoc[] {
   return normalizeArray<ExercisePerformanceRecordDoc>(value, []).map((record) => {
     const spec = getPerformanceMetricSpec(record.metricType);
     if (!spec || record.unit !== spec.unit) throw new Error("成绩指标或单位与当前 schema 不兼容");
-    validatePerformanceInput(record.input);
-    return { ...record, sourceSetId: record.sourceSetId ?? null, rm: record.rm ?? null };
+    if (!record.input || typeof record.input !== "object") throw new Error("成绩输入上下文无效");
+    const input = sourceSchemaVersion < CURRENT_SCHEMA_VERSION
+      ? {
+          ...record.input,
+          ...normalizeRecordingConfig(record.input, sourceSchemaVersion),
+          contextValue: sourceSchemaVersion === 5 ? null : record.input.contextValue ?? null,
+        }
+      : record.input;
+    validatePerformanceInput(input);
+    const migrated = { ...record, input, sourceSetId: record.sourceSetId ?? null, rm: record.rm ?? null };
+    if (sourceSchemaVersion < CURRENT_SCHEMA_VERSION && RESISTANCE_EXERCISE_IDS.has(record.exerciseId) && migrated.deletedAt == null) {
+      const deletedAt = nowIso();
+      return { ...migrated, deletedAt, updatedAt: deletedAt };
+    }
+    return migrated;
   });
 }
 
@@ -240,7 +281,7 @@ function validatePerformanceInput(input: ExercisePerformanceRecordDoc["input"]):
   if (!input || typeof input !== "object") throw new Error("成绩输入上下文无效");
   const requiredKeys: Array<keyof ExercisePerformanceRecordDoc["input"]> = [
     "recordingMode", "enteredLoad", "enteredLoadUnit", "loadBasis", "countBasis", "loadDirection", "rateMetric",
-    "reps", "rpe", "distanceM", "durationSec",
+    "contextKind", "contextValue", "reps", "rpe", "distanceM", "durationSec",
   ];
   if (requiredKeys.some((key) => !(key in input))) throw new Error("成绩输入上下文与当前 schema 不兼容");
   validateRecordingConfig(recordingConfigOf(input));
@@ -275,7 +316,7 @@ function normalizeResources(value: unknown): Record<string, string> {
     .filter(([path, body]) => isResourceShardPath(path) && typeof body === "string"));
 }
 
-function normalizeWorkoutSet(set: WorkoutSetDoc): WorkoutSetDoc {
+function normalizeWorkoutSet(set: WorkoutSetDoc, sourceSchemaVersion: number): WorkoutSetDoc {
   const legacyFlagKey = "is" + "Drop" + "set";
   const raw = { ...(set as WorkoutSetDoc & Record<string, unknown>) };
   delete raw[legacyFlagKey];
@@ -292,7 +333,26 @@ function normalizeWorkoutSet(set: WorkoutSetDoc): WorkoutSetDoc {
     isWarmup: raw.isWarmup === true,
     isFailure: raw.isFailure === true,
     restSeconds: (raw.restSeconds as number | null | undefined) ?? null,
+    contextValue: sourceSchemaVersion === 5 ? null : (raw.contextValue as number | null | undefined) ?? null,
   };
+}
+
+function normalizeRecordingConfig(
+  value: Parameters<typeof recordingConfigOf>[0],
+  sourceSchemaVersion: number
+) {
+  const config = recordingConfigOf(value);
+  const raw = value as unknown as { recordingMode?: unknown; rateMetric?: unknown };
+  return validateRecordingConfig({
+    ...config,
+    recordingMode: sourceSchemaVersion <= 6 && raw.recordingMode === "step_count_duration"
+      ? "reps_duration"
+      : config.recordingMode,
+    rateMetric: sourceSchemaVersion <= 6 && raw.rateMetric === "steps_per_time"
+      ? "reps_per_time"
+      : config.rateMetric,
+    contextKind: config.contextKind ?? "none",
+  });
 }
 
 function normalizeNullableNumber(value: unknown): number | null {

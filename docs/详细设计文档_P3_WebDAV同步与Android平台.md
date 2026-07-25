@@ -1,7 +1,7 @@
 # P3 详细设计文档：WebDAV 同步与 Android 平台
 
 > 对应概要设计：M3 同步部分、M4 Android 平台；M5/M6 设置同步与秘密隔离
-> 状态：当前 v5 实现基线，包含明确的安全和冲突限制；themeId 作为非秘密设置同步，AI 同步影响为规划中
+> 状态：当前 v6 实现基线；v5 远端分片可迁移融合，安全和冲突限制保持不变
 > 前置依赖：P2 本地文档存储与数据迁移。
 
 ---
@@ -164,7 +164,7 @@ backups/<ISO timestamp>-<path 中 / 替换为 ->
 
 settings 特殊处理：只合并可同步偏好并强制保留本地 `lastSyncAt`。WebDAV 端点配置不在 SettingsDoc 中，不能被远端覆盖。
 
-CountBasis 与单一重量 PR 的开发期直接替换不使用旧远端数据做兼容输入。只有 manifest 和文档均符合当前 v5 契约的隔离测试数据才参加 LWW；v4、缺少 `countBasis` 或其他不兼容形状会在合并前明确拒绝，不会被当作较新的文档拉回，也不会触发自动清理或 migration。因此目录导入验收必须使用全新或已定向清空的隔离测试目录，从无远端 manifest 的首次上传开始。不得用这一规则清空日常真机或正式远端目录。
+远端 v5 manifest 与文档在 LWW 合并前通过 P2 的同一 v5→v6 migration，保留用户训练、自定义/未知动作和 tombstone，并按稳定 ID 融合内置目录。v4、未来版本或非法形状明确拒绝，不会触发自动清理。不得要求日常真机或正式远端目录清空后同步。
 
 ### 5.2 当前不足
 
@@ -237,8 +237,8 @@ cd android
 | 有差异合并 | 产生 LWW 日志，页面显示冲突日志区域。 |
 | Android WebDAV | PROPFIND/MOVE/MKCOL 走原生插件，不被 WebView 限制。 |
 | 分片删除 | 本地不再有的训练月分片从远端删除，不删除静态分片。 |
-| 动作详情元数据 | category、五项记录配置（含 `countBasis`）、equipment、保留换行的 description、肌群与只读 provenance 均随 `exercises.json` 完整往返；训练月分片另保存五项历史记录快照。provenance 不进入页面 DTO；Media、媒体 URL、`media_id` 与非中文 instructions 不进入远端 JSON。个人统计不写入动作分片。 |
-| v5 记录口径往返 | `exercises.json`、`workouts/YYYY-MM.json` 与 `exercise-performance/YYYY-MM.json` 经过 DocumentStore export/import、pull/merge、backup、tmp/MOVE 后均不丢 `countBasis`、原始输入重量、次数、距离、时长或嵌套 ID；v4 快照明确拒绝且不迁移。 |
+| 动作详情元数据 | category、六项记录配置（含 `contextKind`）、equipment、description、肌群与 provenance 随 `exercises.json` 往返；训练月分片另保存六项历史快照和 `contextValue`。 |
+| v5→v6 记录口径往返 | 三类业务分片经过 migration、DocumentStore、pull/merge、backup、tmp/MOVE 后不丢训练事实、自定义/未知动作、tombstone、嵌套 ID 或上下文；v4 快照明确拒绝。 |
 | 头像资源 | `profile.avatarUrl` 引用资源路径；头像资源随 manifest、backup、tmp/MOVE 往返；清除后远端过期头像资源被删除。 |
 | 主题与 AI 规划字段 | themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 

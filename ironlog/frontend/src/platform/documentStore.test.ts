@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildShardList, makeEmptySnapshot } from "@/core/migrations";
-import { CURRENT_SCHEMA_VERSION, type WorkoutDoc } from "@/core/models";
-import { filesToSnapshot, snapshotToFiles } from "./documentStore";
+import { buildShardList, makeEmptySnapshot, migrateSnapshot } from "@/core/migrations";
+import { CURRENT_SCHEMA_VERSION, type DataSnapshot, type WorkoutDoc } from "@/core/models";
+import {
+  assertManagedDocumentsPresent,
+  filesToSnapshot,
+  isMissingDocumentError,
+  parseDocumentJson,
+  snapshotToFiles,
+} from "./documentStore";
 
 function workout(id: string, date: string): WorkoutDoc {
   return {
@@ -154,4 +160,92 @@ describe("document file serialization", () => {
     expect(files["assets/avatar/profile-local.txt"]).toBe("data:image/png;base64,AAA");
     expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("assets/avatar/profile-local.txt");
   });
+
+  it("round-trips the migrated AVD v6 stepmill shape through JSON/WebDAV shard serialization", () => {
+    const migrated = migrateSnapshot(legacyV6FileSnapshot(), "device-avd");
+    const files = JSON.parse(JSON.stringify(snapshotToFiles(migrated))) as Record<string, unknown>;
+    const reloaded = migrateSnapshot(filesToSnapshot(files), "device-avd");
+
+    expect(reloaded.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(reloaded.exercises.find((exercise) => exercise.id === "ex-stepmill")).toMatchObject({
+      recordingMode: "reps_duration",
+      rateMetric: "reps_per_time",
+      contextKind: "none",
+    });
+    expect(reloaded.workouts[0]).toMatchObject({ id: "workout-avd", endTime: null });
+    expect(reloaded.workouts[0].exercises[0]).toMatchObject({ id: "workout-exercise-avd", recordingMode: "reps_duration" });
+    expect(reloaded.workouts[0].exercises[0].sets[0]).toMatchObject({ id: "set-avd", reps: 300, durationSec: 240 });
+    expect(snapshotToFiles(reloaded)).toEqual(files);
+  });
+
+  it("rejects malformed JSON with its document path instead of treating it as missing", () => {
+    expect(() => parseDocumentJson("exercises.json", "{broken"))
+      .toThrow("文档 JSON 无效：exercises.json");
+  });
+
+  it("treats only the Capacitor does-not-exist error as a missing file", () => {
+    expect(isMissingDocumentError({ code: "OS-PLUG-FILE-0008" })).toBe(true);
+    expect(isMissingDocumentError({ code: "OS-PLUG-FILE-0013" })).toBe(false);
+    expect(isMissingDocumentError(new Error("permission denied"))).toBe(false);
+  });
+
+  it("rejects a manifest-referenced missing shard instead of silently dropping its records", () => {
+    expect(() => assertManagedDocumentsPresent(
+      ["workouts/2026-07.json"],
+      { "manifest.json": { schemaVersion: CURRENT_SCHEMA_VERSION } },
+    )).toThrow("清单引用的文档缺失：workouts/2026-07.json");
+  });
 });
+
+function legacyV6FileSnapshot(): DataSnapshot {
+  const raw = makeEmptySnapshot("device-avd");
+  raw.manifest.schemaVersion = 6;
+  raw.profile.schemaVersion = 6;
+  raw.settings.schemaVersion = 6;
+  raw.exercises.forEach((exercise) => {
+    exercise.schemaVersion = 6;
+    delete exercise.contextKind;
+  });
+  const stepmill = raw.exercises.find((exercise) => exercise.id === "ex-stepmill") as unknown as Record<string, unknown>;
+  stepmill.recordingMode = "step_count_duration";
+  stepmill.rateMetric = "steps_per_time";
+  raw.workouts = [{
+    id: "workout-avd",
+    date: "2026-07-17",
+    startTime: "2026-07-17T04:40:00.000Z",
+    endTime: null,
+    planTemplateId: null,
+    note: null,
+    mood: null,
+    exercises: [{
+      id: "workout-exercise-avd",
+      exerciseId: "ex-stepmill",
+      recordingMode: "step_count_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "steps_per_time",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [{
+        id: "set-avd",
+        setNumber: 1,
+        weight: null,
+        reps: 300,
+        unit: "kg",
+        durationSec: 240,
+        distanceM: null,
+        rpe: null,
+        isWarmup: false,
+        isFailure: false,
+        restSeconds: null,
+      }],
+    }],
+    createdAt: "2026-07-17T04:40:00.000Z",
+    updatedAt: "2026-07-17T04:50:00.000Z",
+    deletedAt: null,
+    schemaVersion: 6,
+  }] as unknown as DataSnapshot["workouts"];
+  raw.manifest.shards = buildShardList(raw);
+  return raw;
+}

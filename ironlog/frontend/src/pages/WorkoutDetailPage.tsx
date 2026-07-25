@@ -118,6 +118,7 @@ export default function WorkoutDetailPage() {
     countBasis: exercise.count_basis,
     loadDirection: exercise.load_direction,
     rateMetric: exercise.rate_metric,
+    contextKind: exercise.context_kind ?? "none",
     sets: exercise.sets.map((set) => ({
       weight: set.weight,
       reps: set.reps,

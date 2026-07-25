@@ -44,11 +44,13 @@ class IndexedDbDocumentStore implements DocumentStore {
     const manifest = await this.readDocument<IronLogManifest>(MANIFEST_PATH);
     if (!manifest) return null;
 
+    const managedPaths = managedPathsFromManifest(manifest);
     const files = await this.readDocuments([
       MANIFEST_PATH,
       ...STATIC_SHARD_PATHS,
-      ...managedPathsFromManifest(manifest),
+      ...managedPaths,
     ]);
+    assertManagedDocumentsPresent(managedPaths, files);
     return filesToSnapshot(files);
   }
 
@@ -137,11 +139,13 @@ class CapacitorDocumentStore implements DocumentStore {
     const manifest = await this.readJson(MANIFEST_PATH) as IronLogManifest | null;
     if (!manifest) return null;
 
+    const managedPaths = managedPathsFromManifest(manifest);
     const files: Record<string, unknown> = { [MANIFEST_PATH]: manifest };
-    for (const path of [...STATIC_SHARD_PATHS, ...managedPathsFromManifest(manifest)]) {
+    for (const path of [...STATIC_SHARD_PATHS, ...managedPaths]) {
       const value = await this.readJson(path);
       if (value != null) files[path] = value;
     }
+    assertManagedDocumentsPresent(managedPaths, files);
     return filesToSnapshot(files);
   }
 
@@ -201,16 +205,21 @@ class CapacitorDocumentStore implements DocumentStore {
 
   private async readJson(path: string): Promise<unknown | null> {
     const { Filesystem, Directory, Encoding } = await import("@capacitor/filesystem");
+    let data: string;
     try {
       const result = await Filesystem.readFile({
         path: `${this.baseDir}/${path}`,
         directory: Directory.Data,
         encoding: Encoding.UTF8,
       });
-      return JSON.parse(String(result.data));
-    } catch {
-      return null;
+      data = String(result.data);
+    } catch (cause) {
+      if (isMissingDocumentError(cause)) return null;
+      const error = new Error(`文档读取失败：${path}`) as Error & { cause?: unknown };
+      error.cause = cause;
+      throw error;
     }
+    return parseDocumentJson(path, data);
   }
 
   private async writeJson(path: string, value: unknown): Promise<void> {
@@ -330,6 +339,32 @@ function managedPathsFromManifest(manifest: Pick<IronLogManifest, "shards"> | nu
     .map((shard) => shard.path)
     .filter((path) => workoutShardPathsFromManifest(manifest).includes(path) || isExercisePerformanceShardPath(path) || isResourceShardPath(path)))]
     .sort();
+}
+
+export function parseDocumentJson(path: string, data: string): unknown {
+  try {
+    return JSON.parse(data);
+  } catch (cause) {
+    const error = new Error(`文档 JSON 无效：${path}`) as Error & { cause?: unknown };
+    error.cause = cause;
+    throw error;
+  }
+}
+
+export function isMissingDocumentError(cause: unknown): boolean {
+  return Boolean(
+    cause
+    && typeof cause === "object"
+    && "code" in cause
+    && (cause as { code?: unknown }).code === "OS-PLUG-FILE-0008",
+  );
+}
+
+export function assertManagedDocumentsPresent(paths: string[], files: Record<string, unknown>): void {
+  const missingPath = paths.find((path) => !(path in files));
+  if (missingPath) {
+    throw new Error(`清单引用的文档缺失：${missingPath}`);
+  }
 }
 
 function normalizeSyncEndpoint(value: unknown): SyncEndpointConfig {

@@ -32,6 +32,7 @@ export function toExercise(doc: ExerciseDoc): Exercise {
     count_basis: doc.countBasis,
     load_direction: doc.loadDirection,
     rate_metric: doc.rateMetric,
+    context_kind: doc.contextKind ?? "none",
     equipment: doc.equipment,
     description: doc.description,
     primary_muscle_group_ids: doc.primaryMuscleGroupIds ?? [],
@@ -62,6 +63,7 @@ export async function toExerciseDetail(doc: ExerciseDoc): Promise<ExerciseDetail
     count_basis: doc.countBasis,
     load_direction: doc.loadDirection,
     rate_metric: doc.rateMetric,
+    context_kind: doc.contextKind ?? "none",
     equipment: doc.equipment,
     description: doc.description,
     primary_muscle_group_ids: doc.primaryMuscleGroupIds ?? [],
@@ -195,6 +197,7 @@ export async function toWorkoutSummary(doc: WorkoutDoc): Promise<WorkoutSummary>
     countBasis: exercise.count_basis,
     loadDirection: exercise.load_direction,
     rateMetric: exercise.rate_metric,
+    contextKind: exercise.context_kind ?? "none",
     sets: exercise.sets.map((set) => ({
       weight: set.weight,
       reps: set.reps,
@@ -242,6 +245,7 @@ async function toWorkoutExercise(doc: WorkoutExerciseDoc): Promise<WorkoutExerci
     count_basis: doc.countBasis,
     load_direction: doc.loadDirection,
     rate_metric: doc.rateMetric,
+    context_kind: doc.contextKind ?? "none",
     exercise_name: exercise?.name,
     exercise_category: exercise?.category,
     sort_order: doc.sortOrder,
@@ -269,5 +273,6 @@ function toWorkoutSet(doc: WorkoutSetDoc): WorkoutSet {
     is_warmup: doc.isWarmup,
     is_failure: doc.isFailure,
     rest_seconds: doc.restSeconds,
+    context_value: doc.contextValue ?? null,
   };
 }

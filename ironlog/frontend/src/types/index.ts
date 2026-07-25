@@ -1,5 +1,6 @@
 import type {
   CountBasis,
+  ContextKind,
   EquipmentId,
   ExerciseCategory,
   LoadBasis,
@@ -22,6 +23,7 @@ export interface User {
 export const RECORDING_MODE_LABELS: Record<RecordingMode, string> = {
   weight_reps: "负重 + 次数",
   reps: "仅次数",
+  reps_duration: "次数 + 时间",
   duration: "保持时间",
   distance_duration: "距离 / 时间",
   weight_duration: "负重 + 时间",
@@ -45,8 +47,15 @@ export const LOAD_DIRECTION_LABELS: Record<LoadDirection, string> = {
 
 export const RATE_METRIC_LABELS: Record<RateMetric, string> = {
   none: "不计算竞速指标",
+  reps_per_time: "计算频率",
   distance_per_time: "计算速度",
   load_distance_per_time: "计算单位时间负载",
+};
+
+export const CONTEXT_KIND_LABELS: Record<ContextKind, string> = {
+  none: "不记录额外信息",
+  resistance_level: "阻力档位",
+  incline_percent: "坡度",
 };
 
 export type MuscleGroupId =
@@ -63,6 +72,7 @@ export interface Exercise {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind?: ContextKind;
   equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
@@ -82,6 +92,7 @@ export interface WorkoutSet {
   is_warmup: boolean;
   is_failure: boolean;
   rest_seconds: number | null;
+  context_value: number | null;
 }
 
 export interface WorkoutExercise {
@@ -92,6 +103,7 @@ export interface WorkoutExercise {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind?: ContextKind;
   exercise_name?: string;
   exercise_category?: string;
   sort_order: number;
@@ -164,7 +176,7 @@ export const EQUIPMENT_LABELS: Record<EquipmentId, string> = {
   stationary_bike: "固定自行车",
   jump_rope: "跳绳",
   elliptical: "椭圆机",
-  stepmill: "踏步机",
+  stepmill: "爬楼机",
   external_weight: "外部负重",
   other: "其他",
 };
@@ -289,6 +301,7 @@ export interface ExerciseDetail {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind: ContextKind;
   equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
@@ -330,4 +343,5 @@ export type {
   LoadDirection,
   RateMetric,
   RecordingMode,
+  ContextKind,
 } from "@/core/models";

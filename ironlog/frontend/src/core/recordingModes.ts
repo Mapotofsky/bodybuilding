@@ -1,5 +1,6 @@
 import type {
   CountBasis,
+  ContextKind,
   LoadBasis,
   LoadDirection,
   RateMetric,
@@ -14,6 +15,7 @@ export type BasePerformanceStrategy = "load" | "reps" | "distance" | "duration";
 export type CompoundPerformanceStrategy =
   | "volume"
   | "rpe_adjusted_rm"
+  | "reps_rate"
   | "distance_rate"
   | "load_duration"
   | "load_duration_without_distance"
@@ -26,6 +28,7 @@ export interface RecordingConfig {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind?: ContextKind;
 }
 
 export interface RecordingModeSpec {
@@ -46,6 +49,7 @@ export interface RecordingSetInput {
   reps?: number | null;
   distanceM?: number | null;
   durationSec?: number | null;
+  contextValue?: number | null;
 }
 
 export interface RecordingFieldSpec {
@@ -59,6 +63,8 @@ export const RECORDING_LIMITS = {
   maxReps: 10_000,
   maxDurationSeconds: 86_400,
   maxDistanceMeters: 1_000_000,
+  maxResistanceLevel: 200,
+  maxInclinePercent: 100,
 } as const;
 
 export const RECORDING_FIELD_SPECS: Record<RecordingField, RecordingFieldSpec> = {
@@ -86,6 +92,15 @@ export const RECORDING_MODE_SPECS = {
     allowedLoadDirections: [],
     supportedRateMetrics: ["none"],
     performance: { base: ["reps"], compound: [] },
+  },
+  reps_duration: {
+    fields: ["reps", "durationSec"],
+    requiredAll: ["durationSec"],
+    requiredOneOf: [],
+    allowedLoadBases: [],
+    allowedLoadDirections: [],
+    supportedRateMetrics: ["none", "reps_per_time"],
+    performance: { base: ["reps", "duration"], compound: ["reps_rate"] },
   },
   duration: {
     fields: ["durationSec"],
@@ -132,7 +147,8 @@ const RECORDING_MODES = Object.keys(RECORDING_MODE_SPECS) as RecordingMode[];
 const LOAD_BASES: LoadBasis[] = ["total", "per_hand"];
 const COUNT_BASES: CountBasis[] = ["whole_set", "per_side"];
 const LOAD_DIRECTIONS: LoadDirection[] = ["higher_better", "lower_better"];
-const RATE_METRICS: RateMetric[] = ["none", "distance_per_time", "load_distance_per_time"];
+const RATE_METRICS: RateMetric[] = ["none", "reps_per_time", "distance_per_time", "load_distance_per_time"];
+const CONTEXT_KINDS: ContextKind[] = ["none", "resistance_level", "incline_percent"];
 
 export function isRecordingMode(value: unknown): value is RecordingMode {
   return typeof value === "string" && RECORDING_MODES.includes(value as RecordingMode);
@@ -152,6 +168,10 @@ export function isLoadDirection(value: unknown): value is LoadDirection {
 
 export function isRateMetric(value: unknown): value is RateMetric {
   return typeof value === "string" && RATE_METRICS.includes(value as RateMetric);
+}
+
+export function isContextKind(value: unknown): value is ContextKind {
+  return typeof value === "string" && CONTEXT_KINDS.includes(value as ContextKind);
 }
 
 export function getRecordingModeSpec(mode: RecordingMode): RecordingModeSpec {
@@ -180,7 +200,15 @@ export function validateRecordingConfig(config: RecordingConfig): RecordingConfi
   if (!isRateMetric(config.rateMetric) || !spec.supportedRateMetrics.includes(config.rateMetric)) {
     throw new Error("竞速指标与记录方式不兼容");
   }
-  return config;
+  const contextKind = config.contextKind ?? "none";
+  if (!isContextKind(contextKind)) throw new Error("设备信息类型无效");
+  if (contextKind !== "none" && config.recordingMode !== "distance_duration") {
+    throw new Error("阻力或坡度上下文只适用于距离 / 时间记录");
+  }
+  if (contextKind === "resistance_level" && config.rateMetric !== "none") {
+    throw new Error("记录阻力档位的动作不能启用竞速指标");
+  }
+  return { ...config, contextKind };
 }
 
 export function recordingConfigEquals(left: RecordingConfig, right: RecordingConfig): boolean {
@@ -188,7 +216,8 @@ export function recordingConfigEquals(left: RecordingConfig, right: RecordingCon
     && left.loadBasis === right.loadBasis
     && left.countBasis === right.countBasis
     && left.loadDirection === right.loadDirection
-    && left.rateMetric === right.rateMetric;
+    && left.rateMetric === right.rateMetric
+    && left.contextKind === right.contextKind;
 }
 
 export function validateWorkoutSetForMode(
@@ -207,6 +236,7 @@ export function validateWorkoutSetForMode(
     }
     validateField(field, value);
   }
+  validateContextValue(set.contextValue, validated.contextKind ?? "none");
 
   if (phase === "draft") return;
   for (const field of spec.requiredAll) {
@@ -234,7 +264,21 @@ export function recordingConfigOf(value: RecordingConfig): RecordingConfig {
     countBasis: value.countBasis,
     loadDirection: value.loadDirection,
     rateMetric: value.rateMetric,
+    contextKind: value.contextKind ?? "none",
   };
+}
+
+function validateContextValue(value: number | null | undefined, kind: ContextKind): void {
+  if (kind === "none") {
+    if (value != null) throw new Error("当前动作不能记录阻力或坡度");
+    return;
+  }
+  if (value == null) return;
+  if (!Number.isFinite(value)) throw new Error(kind === "resistance_level" ? "阻力档位必须是有效数值" : "坡度必须是有效数值");
+  const max = kind === "resistance_level" ? RECORDING_LIMITS.maxResistanceLevel : RECORDING_LIMITS.maxInclinePercent;
+  if (value < 0 || value > max) {
+    throw new Error(kind === "resistance_level" ? "阻力档位必须在 0 到 200 之间" : "坡度必须在 0% 到 100% 之间");
+  }
 }
 
 function validateField(field: RecordingField, value: number | null | undefined): void {

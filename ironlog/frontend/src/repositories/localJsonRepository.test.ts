@@ -96,8 +96,34 @@ describe("workout aggregate persistence", () => {
     const save = vi.spyOn(store, "save");
     const repository = new LocalJsonRepository(Promise.resolve(store));
 
-    await expect(repository.getSnapshot()).rejects.toThrow("不兼容开发快照");
+    await expect(repository.getSnapshot()).rejects.toThrow("不兼容快照");
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it("loads the AVD v6 exercise catalog and unfinished draft, then writes a stable current snapshot", async () => {
+    const store = memoryStore(legacyV6RepositorySnapshot());
+    const save = vi.spyOn(store, "save");
+    const repository = new LocalJsonRepository(Promise.resolve(store));
+
+    const exercises = await repository.list();
+    const draft = await repository.getLatestWorkoutDraft();
+
+    expect(exercises.find((exercise) => exercise.id === "ex-stepmill")).toMatchObject({
+      recordingMode: "reps_duration",
+      rateMetric: "reps_per_time",
+      contextKind: "none",
+    });
+    expect(draft).toMatchObject({ id: "workout-avd-draft", endTime: null });
+    expect(draft?.exercises[0]).toMatchObject({ id: "workout-exercise-avd", recordingMode: "reps_duration" });
+    expect(draft?.exercises[0].sets[0]).toMatchObject({ id: "set-avd", reps: 720, durationSec: 600 });
+    expect(save).toHaveBeenCalledTimes(1);
+
+    const firstWrite = structuredClone(save.mock.calls[0][0]);
+    const reloaded = new LocalJsonRepository(Promise.resolve(store));
+    expect((await reloaded.list()).some((exercise) => exercise.id === "ex-stepmill")).toBe(true);
+    expect((await reloaded.getLatestWorkoutDraft())?.id).toBe("workout-avd-draft");
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1][0]).toEqual(firstWrite);
   });
 
   it("requires every recording snapshot field to match when replacing history", async () => {
@@ -272,6 +298,58 @@ function performanceInput() {
     distanceM: null,
     durationSec: null,
   };
+}
+
+function legacyV6RepositorySnapshot(): DataSnapshot {
+  const raw = makeEmptySnapshot("device-avd");
+  raw.manifest.schemaVersion = 6;
+  raw.profile.schemaVersion = 6;
+  raw.settings.schemaVersion = 6;
+  raw.exercises.forEach((exercise) => {
+    exercise.schemaVersion = 6;
+    delete exercise.contextKind;
+  });
+  const stepmill = raw.exercises.find((exercise) => exercise.id === "ex-stepmill") as unknown as Record<string, unknown>;
+  stepmill.recordingMode = "step_count_duration";
+  stepmill.rateMetric = "steps_per_time";
+  raw.workouts = [{
+    id: "workout-avd-draft",
+    date: "2026-07-17",
+    startTime: "2026-07-17T04:40:00.000Z",
+    endTime: null,
+    planTemplateId: null,
+    note: "保留草稿",
+    mood: null,
+    exercises: [{
+      id: "workout-exercise-avd",
+      exerciseId: "ex-stepmill",
+      recordingMode: "step_count_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "steps_per_time",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [{
+        id: "set-avd",
+        setNumber: 1,
+        weight: null,
+        reps: 720,
+        unit: "kg",
+        durationSec: 600,
+        distanceM: null,
+        rpe: null,
+        isWarmup: false,
+        isFailure: false,
+        restSeconds: null,
+      }],
+    }],
+    createdAt: "2026-07-17T04:40:00.000Z",
+    updatedAt: "2026-07-17T04:50:00.000Z",
+    deletedAt: null,
+    schemaVersion: 6,
+  }] as unknown as DataSnapshot["workouts"];
+  return raw;
 }
 
 function memoryStore(initial: DataSnapshot): DocumentStore {

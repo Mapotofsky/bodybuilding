@@ -32,6 +32,7 @@ export function formatExerciseCompletion(
     countBasis: recording.count_basis,
     loadDirection: recording.load_direction,
     rateMetric: recording.rate_metric,
+    contextKind: recording.context_kind ?? "none",
     sets: sets.map(toMetricSet),
   }], displayUnit);
   const count = sets.length;
@@ -55,6 +56,13 @@ export function formatExerciseCompletion(
     case "reps": {
       const maxReps = max(sets.map((set) => set.reps));
       return { detail: `${count} 组 · 共 ${metrics.totalReps} 次`, value: maxReps == null ? "最多 —" : `最多 ${maxReps} 次` };
+    }
+    case "reps_duration": {
+      const maxReps = max(sets.map((set) => set.reps));
+      return {
+        detail: `${count} 组 · 共 ${formatDuration(metrics.totalDurationSec)}`,
+        value: maxReps == null ? "未记录步数" : `最多 ${maxReps} 步`,
+      };
     }
     case "duration": {
       const maxDuration = max(sets.map((set) => set.duration_sec));

@@ -8,6 +8,7 @@ describe("exercise service contract", () => {
     const valid = {
       name: " 自定义动作 ", category: "core" as const, recording_mode: "reps" as const,
       load_basis: null, count_basis: "whole_set" as const, load_direction: null, rate_metric: "none" as const,
+      context_kind: "none" as const,
       equipment: null, description: null, primary_muscle_group_ids: ["core" as const], secondary_muscle_group_ids: [],
       provenance: { source: "forbidden", sourceId: "1", sourceRevision: "1" },
     };

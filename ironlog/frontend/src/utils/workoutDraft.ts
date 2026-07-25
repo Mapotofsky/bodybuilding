@@ -25,6 +25,7 @@ export function exerciseForDraftResume(item: WorkoutExercise, linked?: Exercise)
       count_basis: item.count_basis,
       load_direction: item.load_direction,
       rate_metric: item.rate_metric,
+      context_kind: item.context_kind ?? "none",
     };
   }
   return {
@@ -36,6 +37,7 @@ export function exerciseForDraftResume(item: WorkoutExercise, linked?: Exercise)
     count_basis: item.count_basis,
     load_direction: item.load_direction,
     rate_metric: item.rate_metric,
+    context_kind: item.context_kind ?? "none",
     equipment: null,
     description: null,
     primary_muscle_group_ids: [],

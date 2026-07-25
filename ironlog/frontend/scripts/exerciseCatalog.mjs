@@ -40,7 +40,7 @@ const CATEGORY_MAP = new Map([
 ]);
 
 const VALID_RECORDING_MODES = new Set([
-  "weight_reps", "reps", "duration", "distance_duration",
+  "weight_reps", "reps", "reps_duration", "duration", "distance_duration",
   "weight_duration", "weight_distance_duration",
 ]);
 const WEIGHT_RECORDING_MODES = new Set(["weight_reps", "weight_duration", "weight_distance_duration"]);
@@ -48,7 +48,8 @@ const DISTANCE_DURATION_RECORDING_MODES = new Set(["distance_duration", "weight_
 const VALID_LOAD_BASIS = new Set(["total", "per_hand"]);
 const VALID_COUNT_BASIS = new Set(["whole_set", "per_side"]);
 const VALID_LOAD_DIRECTIONS = new Set(["higher_better", "lower_better"]);
-const VALID_RATE_METRICS = new Set(["none", "distance_per_time", "load_distance_per_time"]);
+const VALID_RATE_METRICS = new Set(["none", "reps_per_time", "distance_per_time", "load_distance_per_time"]);
+const VALID_CONTEXT_KINDS = new Set(["none", "resistance_level", "incline_percent"]);
 const VALID_MUSCLES = new Set([
   "chest", "back", "shoulders", "biceps", "triceps", "forearms",
   "core", "glutes", "quadriceps", "hamstrings", "calves",
@@ -73,7 +74,7 @@ async function main() {
   const output = renderCatalog(catalog, sha256(markdown));
   if (mode === "generate") {
     await writeFile(OUTPUT_PATH, output, "utf8");
-    console.log(`已生成 ${catalog.length} 条默认动作（A=${countGrade(catalog, "A")}，B=${countGrade(catalog, "B")}）`);
+    console.log(`已生成 ${catalog.length} 条默认动作`);
     return;
   }
 
@@ -81,55 +82,36 @@ async function main() {
   if (committed !== output) {
     throw new Error("默认动作生成产物与 candidates.md 不一致；请运行 npm run catalog:generate");
   }
-  console.log(`离线目录校验通过：A=${countGrade(catalog, "A")}，B=${countGrade(catalog, "B")}，共 ${catalog.length} 条`);
+  console.log(`离线目录校验通过：共 ${catalog.length} 条`);
 }
 
 function parseCatalog(markdown) {
   return markdown.split(/\r?\n/)
-    .filter((line) => /^\| [AB] \|/.test(line))
+    .filter((line) => /^\| ex-[^|]+ \|/.test(line))
     .map((line, index) => parseRow(line, index + 1));
 }
 
 function parseRow(line, rowNumber) {
   const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
-  if (cells.length !== 6) throw new Error(`候选表第 ${rowNumber} 行列数无效`);
-  const [grade, mapping, upstreamFacts, descriptionCell] = cells;
-  const mappingMatch = mapping.match(/^`(ex-[^`]+)`<br>([^<]+)<br>`([a-z_]+) · ([a-z_]+)`<br>`([a-z_]+|null) · ([a-z_]+) · ([a-z_]+|null) · ([a-z_]+)`<br>P `\[([^\]]*)\]`；S `\[([^\]]*)\]`$/);
-  if (!mappingMatch) throw new Error(`候选映射无法解析：${mapping}`);
-  const upstreamMatch = upstreamFacts.match(/^\[([0-9]{4})\]\([^)]*\) `([^`]+)`<br>`([^/`]+)\/([^`]+)`；`([^`]+)`<br>target `([^`]+)`；group `([^`]+)`；secondary `\[([^\]]*)\]`$/);
-  if (!upstreamMatch) throw new Error(`上游事实无法解析：${upstreamFacts}`);
-
-  const [, id, name, category, recordingMode, loadBasisValue, countBasis, loadDirectionValue, rateMetric, primary, secondary] = mappingMatch;
-  const [, sourceId, upstreamName, upstreamCategory, upstreamBodyPart, upstreamEquipment, target, muscleGroup, upstreamSecondary] = upstreamMatch;
-  const equipment = EQUIPMENT_MAP.get(upstreamEquipment);
-  if (!equipment) throw new Error(`候选 ${id} 使用未映射器械：${upstreamEquipment}`);
+  if (cells.length !== 14) throw new Error(`候选表第 ${rowNumber} 行列数无效`);
+  const [id, sourceId, name, category, recordingMode, loadBasisValue, countBasis, loadDirectionValue, rateMetric, contextKind, equipment, primary, secondary, descriptionValue] = cells;
+  if (!/^ex-[a-z0-9-]+$/.test(id) || !/^[0-9]{4}$/.test(sourceId)) throw new Error(`候选表第 ${rowNumber} 行 ID 无效`);
+  const description = descriptionValue.replaceAll("↵↵", "\n\n").replaceAll("↵", "\n");
   return {
-    grade,
-    seed: {
-      id,
-      name,
-      category,
-      recordingMode,
-      loadBasis: loadBasisValue === "null" ? null : loadBasisValue,
-      countBasis,
-      loadDirection: loadDirectionValue === "null" ? null : loadDirectionValue,
-      rateMetric,
-      equipment,
-      description: descriptionCell.split("<br>")[0].replaceAll("↵↵", "\n\n").replaceAll("↵", "\n"),
-      primaryMuscleGroupIds: parseList(primary),
-      secondaryMuscleGroupIds: parseList(secondary),
-      provenance: { source: UPSTREAM_SOURCE, sourceId, sourceRevision: UPSTREAM_SHA },
-    },
-    upstream: {
-      id: sourceId,
-      name: upstreamName,
-      category: upstreamCategory,
-      body_part: upstreamBodyPart,
-      equipment: upstreamEquipment,
-      target,
-      muscle_group: muscleGroup,
-      secondary_muscles: parseList(upstreamSecondary),
-    },
+    id,
+    name,
+    category,
+    recordingMode,
+    loadBasis: loadBasisValue === "null" ? null : loadBasisValue,
+    countBasis,
+    loadDirection: loadDirectionValue === "null" ? null : loadDirectionValue,
+    rateMetric,
+    contextKind,
+    equipment,
+    description,
+    primaryMuscleGroupIds: parseList(primary),
+    secondaryMuscleGroupIds: parseList(secondary),
+    provenance: { source: UPSTREAM_SOURCE, sourceId, sourceRevision: UPSTREAM_SHA },
   };
 }
 
@@ -138,27 +120,25 @@ function parseList(value) {
 }
 
 function validateCatalog(catalog) {
-  if (countGrade(catalog, "A") !== 43 || countGrade(catalog, "B") !== 20 || catalog.length !== 63) {
-    throw new Error(`候选数量错误：A=${countGrade(catalog, "A")}，B=${countGrade(catalog, "B")}，总数=${catalog.length}`);
+  if (catalog.length !== 63) {
+    throw new Error(`候选数量错误：总数=${catalog.length}`);
   }
-  assertUnique(catalog.map((item) => item.seed.id), "IronLog ID");
-  assertUnique(catalog.map((item) => item.seed.provenance.sourceId), "upstream id");
-  for (const { seed, upstream } of catalog) {
-    if (!CATEGORY_MAP.has(upstream.body_part) || CATEGORY_MAP.get(upstream.body_part) !== seed.category) {
-      throw new Error(`${seed.id} 的 category 与候选映射规则不一致`);
-    }
+  assertUnique(catalog.map((seed) => seed.id), "IronLog ID");
+  assertUnique(catalog.map((seed) => seed.provenance.sourceId), "upstream id");
+  for (const seed of catalog) {
+    if (![...EQUIPMENT_MAP.values()].includes(seed.equipment)) throw new Error(`${seed.id} 的 equipment 无效`);
     validateRecordingConfiguration(seed);
     if (seed.description.trim().length < 1 || seed.description.length > 500 || seed.description.includes("↵")) {
       throw new Error(`${seed.id} 的 description 长度或换行标记无效`);
     }
     validateMuscles(seed.id, seed.primaryMuscleGroupIds, seed.secondaryMuscleGroupIds);
   }
-  if (catalog.some((item) => item.seed.provenance.sourceId === "0684")) throw new Error("0684 不得进入目录");
-  const running = catalog.find((item) => item.seed.id === "ex-running")?.seed;
+  if (catalog.some((seed) => seed.provenance.sourceId === "0684")) throw new Error("0684 不得进入目录");
+  const running = catalog.find((seed) => seed.id === "ex-running");
   if (!running || running.provenance.sourceId !== "0685" || running.description.includes("原地") || !running.description.includes("\n")) {
     throw new Error("ex-running 的人工语义扩展不符合已批准契约");
   }
-  const farmerWalk = catalog.find((item) => item.seed.id === "ex-farmer-walk")?.seed;
+  const farmerWalk = catalog.find((seed) => seed.id === "ex-farmer-walk");
   if (!farmerWalk || farmerWalk.provenance.sourceId !== "2133"
     || farmerWalk.recordingMode !== "weight_distance_duration"
     || farmerWalk.loadBasis !== "per_hand"
@@ -167,7 +147,7 @@ function validateCatalog(catalog) {
     || farmerWalk.rateMetric !== "load_distance_per_time") {
     throw new Error("ex-farmer-walk 的记录配置不符合已批准契约");
   }
-  const perSideIds = catalog.filter((item) => item.seed.countBasis === "per_side").map((item) => item.seed.id).sort();
+  const perSideIds = catalog.filter((seed) => seed.countBasis === "per_side").map((seed) => seed.id).sort();
   const expectedPerSideIds = [
     "ex-band-pallof-press",
     "ex-bodyweight-split-squat",
@@ -187,6 +167,7 @@ function validateRecordingConfiguration(seed) {
   if (!VALID_RECORDING_MODES.has(seed.recordingMode)) throw new Error(`${seed.id} 的 recordingMode 无效`);
   if (!VALID_COUNT_BASIS.has(seed.countBasis)) throw new Error(`${seed.id} 的 countBasis 无效`);
   if (!VALID_RATE_METRICS.has(seed.rateMetric)) throw new Error(`${seed.id} 的 rateMetric 无效`);
+  if (!VALID_CONTEXT_KINDS.has(seed.contextKind)) throw new Error(`${seed.id} 的 contextKind 无效`);
   const usesWeight = WEIGHT_RECORDING_MODES.has(seed.recordingMode);
   if (usesWeight) {
     if (!VALID_LOAD_BASIS.has(seed.loadBasis)) throw new Error(`${seed.id} 的 loadBasis 无效`);
@@ -200,7 +181,13 @@ function validateRecordingConfiguration(seed) {
   if (seed.rateMetric === "load_distance_per_time" && seed.recordingMode !== "weight_distance_duration") {
     throw new Error(`${seed.id} 的 load_distance_per_time 与记录模式不兼容`);
   }
-  if (seed.rateMetric !== "none" && !DISTANCE_DURATION_RECORDING_MODES.has(seed.recordingMode)) {
+  if (seed.rateMetric === "reps_per_time" && seed.recordingMode !== "reps_duration") {
+    throw new Error(`${seed.id} 的 reps_per_time 与记录模式不兼容`);
+  }
+  if (seed.contextKind === "resistance_level" && seed.rateMetric !== "none") {
+    throw new Error(`${seed.id} 记录阻力时不得启用竞速指标`);
+  }
+  if (seed.rateMetric !== "none" && seed.rateMetric !== "reps_per_time" && !DISTANCE_DURATION_RECORDING_MODES.has(seed.recordingMode)) {
     throw new Error(`${seed.id} 的 rateMetric 与记录模式不兼容`);
   }
 }
@@ -222,29 +209,25 @@ async function loadUpstream() {
 }
 
 function validateUpstream(catalog, upstream) {
-  for (const item of catalog) {
-    const raw = upstream.get(item.upstream.id);
-    if (!raw) throw new Error(`固定上游不存在候选 id：${item.upstream.id}`);
-    for (const key of ["id", "name", "category", "body_part", "equipment", "target", "muscle_group"]) {
-      if (raw[key] !== item.upstream[key]) throw new Error(`${item.upstream.id}.${key} 与固定上游不一致`);
+  for (const seed of catalog) {
+    const sourceId = seed.provenance.sourceId;
+    const raw = upstream.get(sourceId);
+    if (!raw) throw new Error(`固定上游不存在候选 id：${sourceId}`);
+    if (!CATEGORY_MAP.has(raw.body_part) || CATEGORY_MAP.get(raw.body_part) !== seed.category) {
+      throw new Error(`${seed.id} 的 category 与固定上游不一致`);
     }
-    if (JSON.stringify(raw.secondary_muscles) !== JSON.stringify(item.upstream.secondary_muscles)) {
-      throw new Error(`${item.upstream.id}.secondary_muscles 与固定上游不一致`);
+    if (EQUIPMENT_MAP.get(raw.equipment) !== seed.equipment) {
+      throw new Error(`${seed.id} 的 equipment 与固定上游不一致`);
     }
   }
 }
 
 function renderCatalog(catalog, candidateHash) {
-  const seeds = catalog.map((item) => item.seed);
-  return `// 此文件由 scripts/exerciseCatalog.mjs 生成，禁止手改。\n// candidates sha256: ${candidateHash}\n// upstream revision: ${UPSTREAM_SHA}\nimport type { DefaultExerciseSeed } from "./models";\n\nexport const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = ${JSON.stringify(seeds, null, 2)};\n`;
+  return `// 此文件由 scripts/exerciseCatalog.mjs 生成，禁止手改。\n// candidates sha256: ${candidateHash}\n// upstream revision: ${UPSTREAM_SHA}\nimport type { DefaultExerciseSeed } from "./models";\n\nexport const DEFAULT_EXERCISE_SEEDS: DefaultExerciseSeed[] = ${JSON.stringify(catalog, null, 2)};\n`;
 }
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
-}
-
-function countGrade(catalog, grade) {
-  return catalog.filter((item) => item.grade === grade).length;
 }
 
 function assertUnique(values, label) {

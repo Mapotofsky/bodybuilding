@@ -1,5 +1,6 @@
 import type {
   CountBasis,
+  ContextKind,
   LoadBasis,
   LoadDirection,
   RateMetric,
@@ -42,6 +43,7 @@ export interface WorkoutSetPayload {
   is_warmup?: boolean;
   is_failure?: boolean;
   rest_seconds?: number | null;
+  context_value?: number | null;
 }
 
 export interface WorkoutExercisePayload {
@@ -53,6 +55,7 @@ export interface WorkoutExercisePayload {
   count_basis?: CountBasis;
   load_direction?: LoadDirection | null;
   rate_metric?: RateMetric;
+  context_kind?: ContextKind;
   sort_order: number;
   superset_group?: number | null;
   sets: WorkoutSetPayload[];
@@ -156,6 +159,7 @@ export interface WorkoutShareData {
     count_basis: CountBasis;
     load_direction: LoadDirection | null;
     rate_metric: RateMetric;
+    context_kind: ContextKind;
     sets: number;
     volume: number;
     distance_m: number;
@@ -180,6 +184,7 @@ export async function shareWorkout(id: string): Promise<WorkoutShareData> {
       count_basis: exercise.count_basis,
       load_direction: exercise.load_direction,
       rate_metric: exercise.rate_metric,
+      context_kind: exercise.context_kind ?? "none",
       sets: exercise.sets.length,
       volume: metrics.totalVolume,
       distance_m: metrics.totalDistanceM,
@@ -237,7 +242,7 @@ async function normalizeWorkoutPayload(body: WorkoutCreatePayload): Promise<Omit
 }
 
 function resolveRecordingSnapshot(exercise: WorkoutExercisePayload, linked: RecordingConfig | null): RecordingConfig {
-  const values = [exercise.recording_mode, exercise.load_basis, exercise.count_basis, exercise.load_direction, exercise.rate_metric];
+  const values = [exercise.recording_mode, exercise.load_basis, exercise.count_basis, exercise.load_direction, exercise.rate_metric, exercise.context_kind];
   const hasAny = values.some((value) => value !== undefined);
   const hasAll = values.every((value) => value !== undefined);
   if (hasAny && !hasAll) throw new Error("训练动作必须完整提交记录方式快照");
@@ -248,6 +253,7 @@ function resolveRecordingSnapshot(exercise: WorkoutExercisePayload, linked: Reco
       countBasis: exercise.count_basis!,
       loadDirection: exercise.load_direction!,
       rateMetric: exercise.rate_metric!,
+      contextKind: exercise.context_kind!,
     });
   }
   if (!linked) throw new Error("动作不存在，且缺少记录方式快照");
@@ -284,8 +290,8 @@ function mergeExercisePayload(existing: WorkoutExercisePayload[], incoming: Work
 }
 
 function assertRecordingSnapshotImmutable(current: WorkoutExercisePayload, incoming: WorkoutExercisePayload): void {
-  const fields: Array<keyof Pick<WorkoutExercisePayload, "recording_mode" | "load_basis" | "count_basis" | "load_direction" | "rate_metric">> = [
-    "recording_mode", "load_basis", "count_basis", "load_direction", "rate_metric",
+  const fields: Array<keyof Pick<WorkoutExercisePayload, "recording_mode" | "load_basis" | "count_basis" | "load_direction" | "rate_metric" | "context_kind">> = [
+    "recording_mode", "load_basis", "count_basis", "load_direction", "rate_metric", "context_kind",
   ];
   if (fields.some((field) => incoming[field] !== undefined && incoming[field] !== current[field])) {
     throw new Error("已记录训练的记录方式快照不可修改");
@@ -329,6 +335,7 @@ function workoutToPayload(workout: WorkoutDoc): WorkoutCreatePayload {
       count_basis: exercise.countBasis,
       load_direction: exercise.loadDirection,
       rate_metric: exercise.rateMetric,
+      context_kind: exercise.contextKind ?? "none",
       sort_order: exercise.sortOrder,
       superset_group: exercise.supersetGroup,
       sets: exercise.sets.map((set) => ({
@@ -343,6 +350,7 @@ function workoutToPayload(workout: WorkoutDoc): WorkoutCreatePayload {
         is_warmup: set.isWarmup,
         is_failure: set.isFailure,
         rest_seconds: set.restSeconds,
+        context_value: set.contextValue ?? null,
       })),
     })),
   };
@@ -362,6 +370,7 @@ function normalizeSet(set: WorkoutSetPayload, config: RecordingConfig, phase: Se
     isWarmup: set.is_warmup ?? false,
     isFailure: set.is_failure ?? false,
     restSeconds: set.rest_seconds ?? null,
+    contextValue: set.context_value ?? null,
   };
 }
 
@@ -392,6 +401,7 @@ export function validateWorkoutSet(
     reps: set.reps,
     durationSec: set.duration_sec,
     distanceM: set.distance_m,
+    contextValue: set.context_value,
   }, config, phase);
   validateInteger(set.rpe, "RPE", WORKOUT_LIMITS.minRpe, WORKOUT_LIMITS.maxRpe);
   validateInteger(set.rest_seconds, "休息秒数", 0, WORKOUT_LIMITS.maxRestSeconds);
@@ -423,6 +433,7 @@ function toMetricExercise(exercise: {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind?: ContextKind;
   sets: Array<{
     weight: number | null;
     reps: number | null;
@@ -437,6 +448,7 @@ function toMetricExercise(exercise: {
     countBasis: exercise.count_basis,
     loadDirection: exercise.load_direction,
     rateMetric: exercise.rate_metric,
+    contextKind: exercise.context_kind ?? "none",
     sets: exercise.sets.map((set) => ({
       weight: set.weight,
       reps: set.reps,

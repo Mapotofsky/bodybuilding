@@ -18,6 +18,15 @@ const perSideRecording = {
   rate_metric: "load_distance_per_time",
 } as const;
 
+const resistanceRecording = {
+  recording_mode: "distance_duration",
+  load_basis: null,
+  count_basis: "whole_set",
+  load_direction: null,
+  rate_metric: "none",
+  context_kind: "resistance_level",
+} as const;
+
 describe("SetFieldEditor", () => {
   it("renders farmer-walk fields in registry order with an adaptive third row", () => {
     const markup = renderToStaticMarkup(
@@ -58,5 +67,23 @@ describe("SetFieldEditor", () => {
     expect(markup).toContain('aria-label="每侧用时 (秒)"');
     expect(markup).not.toContain("左侧");
     expect(markup).not.toContain("右侧");
+  });
+
+  it("reuses one clearable numeric input for optional resistance without a parallel status selector", () => {
+    const markup = renderToStaticMarkup(
+      <SetFieldEditor
+        recording={resistanceRecording}
+        weightUnit="kg"
+        value={{ weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "" }}
+        onChange={() => undefined}
+      />
+    );
+
+    expect(markup).toContain('aria-label="阻力档位（可选）"');
+    expect(markup).not.toContain("<select");
+    expect(markup).not.toContain("已记录数值");
+    expect(markup).not.toContain("未记录");
+    expect(validateSetFieldDraft(resistanceRecording, { weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "" })).toBeNull();
+    expect(validateSetFieldDraft(resistanceRecording, { weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "0" })).toBeNull();
   });
 });

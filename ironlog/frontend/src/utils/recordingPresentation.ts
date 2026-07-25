@@ -1,5 +1,6 @@
 import type {
   CountBasis,
+  ContextKind,
   LoadBasis,
   LoadDirection,
   PerformanceInputSummary,
@@ -30,6 +31,7 @@ export interface RecordingSnapshot {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind?: ContextKind;
 }
 
 export interface PresentableSet {
@@ -38,6 +40,7 @@ export interface PresentableSet {
   unit: WeightUnit;
   distance_m: number | null;
   duration_sec: number | null;
+  context_value?: number | null;
 }
 
 export interface PresentablePerformanceMetric {
@@ -60,6 +63,7 @@ export function recordingSnapshot(value: RecordingSnapshot): RecordingSnapshot {
     count_basis: value.count_basis,
     load_direction: value.load_direction,
     rate_metric: value.rate_metric,
+    context_kind: value.context_kind ?? "none",
   };
 }
 
@@ -68,7 +72,8 @@ export function recordingSnapshotEquals(left: RecordingSnapshot, right: Recordin
     && left.load_basis === right.load_basis
     && left.count_basis === right.count_basis
     && left.load_direction === right.load_direction
-    && left.rate_metric === right.rate_metric;
+    && left.rate_metric === right.rate_metric
+    && (left.context_kind ?? "none") === (right.context_kind ?? "none");
 }
 
 export function weightFieldLabel(recording: Pick<RecordingSnapshot, "load_basis" | "load_direction">): string {
@@ -80,6 +85,14 @@ export function formatSet(recording: RecordingSnapshot, set: PresentableSet): st
   const fields = getRecordingModeSpec(recording.recording_mode).fields
     .map((field) => formatSetField(field, recording, set))
     .filter((value): value is string => value != null);
+  if ((recording.context_kind ?? "none") === "resistance_level") {
+    fields.push(set.context_value == null ? "阻力未记录" : `阻力 ${formatNumber(set.context_value)}`);
+    if (set.distance_m != null && set.duration_sec != null && set.duration_sec > 0) {
+      fields.push(`速度 ${formatTwoDecimals(set.distance_m / set.duration_sec)} m/s`);
+    }
+  } else if (recording.context_kind === "incline_percent" && set.context_value != null) {
+    fields.push(`坡度 ${formatNumber(set.context_value)}%`);
+  }
 
   if (recording.recording_mode === "weight_reps" && fields.length === 2) {
     return `${fields[0]} × ${fields[1]}`;
@@ -93,6 +106,8 @@ export function formatRecordingDescription(recording: RecordingSnapshot): string
   parts.push(COUNT_BASIS_LABELS[recording.count_basis]);
   if (recording.load_direction) parts.push(LOAD_DIRECTION_LABELS[recording.load_direction]);
   if (recording.rate_metric !== "none") parts.push(RATE_METRIC_LABELS[recording.rate_metric]);
+  if ((recording.context_kind ?? "none") === "resistance_level") parts.push("记录阻力档位");
+  if (recording.context_kind === "incline_percent") parts.push("记录坡度");
   return parts.join(" · ");
 }
 
@@ -134,6 +149,10 @@ export function formatSetMetrics(recording: RecordingSnapshot, set: PresentableS
       const rate = semantics.distanceRateMps;
       return rate == null ? [] : [{ label: "速度", value: `${formatTwoDecimals(rate)} m/s` }];
     }
+    case "reps_duration": {
+      if (recording.rate_metric !== "reps_per_time" || set.reps == null || set.duration_sec == null) return [];
+      return [{ label: "步频", value: `${formatOneDecimal(set.reps * 60 / set.duration_sec)} 步/分钟` }];
+    }
     case "reps":
     case "duration":
       return [];
@@ -146,6 +165,7 @@ export function formatPerformanceMetric(metric: PresentablePerformanceMetric, di
     const standardDeviation = convertWeight(metric.rm.standardDeviationKg, "kg", displayUnit);
     return `${formatOneDecimal(mean)} ± ${formatOneDecimal(standardDeviation)} ${displayUnit}`;
   }
+  if (metric.metric_type === "frequency.max") return `${formatOneDecimal(metric.value)} 步/分钟`;
 
   const value = displayPerformanceScalar(metric.value, metric.unit, displayUnit);
   switch (metric.unit) {
@@ -157,6 +177,7 @@ export function formatPerformanceMetric(metric: PresentablePerformanceMetric, di
     case "m": return `${formatOneDecimal(value)} m`;
     case "sec": return formatCompactDuration(value);
     case "m_per_sec": return `${formatTwoDecimals(value)} m/s`;
+    case "reps_per_minute": return `${formatOneDecimal(value)} 次/分钟`;
     case "reps": return `${formatOneDecimal(value)} 次`;
   }
 }
@@ -170,10 +191,12 @@ export function formatPerformanceInput(input: PerformanceInputSummary, displayUn
     parts.push(`${prefix ? `${prefix} ` : ""}${formatNumber(input.enteredLoad)} ${input.enteredLoadUnit}`);
   }
   const countPrefix = input.countBasis === "per_side" ? "每侧 " : "";
-  if (input.reps != null) parts.push(`${countPrefix}${formatNumber(input.reps)} 次`);
+  if (input.reps != null) parts.push(`${countPrefix}${formatNumber(input.reps)} ${input.recordingMode === "reps_duration" ? "步" : "次"}`);
   if (input.distanceM != null) parts.push(`${countPrefix}${formatNumber(input.distanceM)} m`);
   if (input.durationSec != null) parts.push(`${countPrefix}${formatCompactDuration(input.durationSec)}`);
   if (input.rpe != null) parts.push(`RPE ${formatNumber(input.rpe)}`);
+  if (input.contextKind === "resistance_level") parts.push(input.contextValue == null ? "阻力未记录" : `阻力 ${formatNumber(input.contextValue)}`);
+  if (input.contextKind === "incline_percent" && input.contextValue != null) parts.push(`坡度 ${formatNumber(input.contextValue)}%`);
   return parts.join(" · ");
 }
 
@@ -188,6 +211,7 @@ export function displayPerformanceScalar(value: number, unit: PerformanceUnit, d
     case "m":
     case "sec":
     case "m_per_sec":
+    case "reps_per_minute":
     case "reps":
       return value;
   }
@@ -203,6 +227,7 @@ export function displayPerformanceUnit(unit: PerformanceUnit, displayUnit: Weigh
     case "m": return "m";
     case "sec": return "s";
     case "m_per_sec": return "m/s";
+    case "reps_per_minute": return "次/分钟";
     case "reps": return "次";
   }
 }
@@ -228,7 +253,7 @@ function formatSetField(field: RecordingField, recording: RecordingSnapshot, set
         : recording.load_basis === "per_hand" ? "每手" : "";
       return `${prefix ? `${prefix} ` : ""}${formatNumber(set.weight)} ${set.unit}`;
     }
-    case "reps": return set.reps == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatNumber(set.reps)} 次`;
+    case "reps": return set.reps == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatNumber(set.reps)} ${recording.recording_mode === "reps_duration" ? "步" : "次"}`;
     case "distanceM": return set.distance_m == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatNumber(set.distance_m)} m`;
     case "durationSec": return set.duration_sec == null ? null : `${recording.count_basis === "per_side" ? "每侧 " : ""}${formatCompactDuration(set.duration_sec)}`;
   }
@@ -241,6 +266,7 @@ function toRecordingConfig(recording: RecordingSnapshot) {
     countBasis: recording.count_basis,
     loadDirection: recording.load_direction,
     rateMetric: recording.rate_metric,
+    contextKind: recording.context_kind ?? "none",
   };
 }
 

@@ -151,6 +151,58 @@ test.describe("农夫行走记录模式", () => {
   });
 });
 
+test.describe("阻力档位复用可清空数值输入", () => {
+  for (const viewport of viewports.slice(0, 2)) {
+    test(`${viewport.name} 下空值表示未记录且 0 可正常输入`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/workouts/new", { waitUntil: "domcontentloaded" });
+      await page.getByPlaceholder("搜索动作...").fill("固定自行车");
+      await page.getByRole("button", { name: /固定自行车/ }).click();
+      await page.getByRole("button", { name: "开始 · 固定自行车" }).click();
+
+      const resistance = page.getByRole("textbox", { name: "阻力档位（可选）" });
+      await expect(resistance).toBeVisible();
+      await expect(page.locator("select")).toHaveCount(0);
+      await resistance.fill("0");
+      await expect(resistance).toHaveValue("0");
+      await resistance.fill("");
+      await expect(resistance).toHaveValue("");
+      await page.getByRole("textbox", { name: "用时 (秒)" }).fill("60");
+
+      const geometry = await page.evaluate(() => ({
+        viewportWidth: window.innerWidth,
+        documentScrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(geometry.documentScrollWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+
+      await page.getByRole("button", { name: "✓ 完成本组" }).click();
+      await expect(page.getByRole("heading", { name: "组间休息" })).toBeVisible();
+      await expect(page.getByText(/阻力未记录/)).toBeVisible();
+    });
+  }
+});
+
+test("统计总容量复用 KPI 的小号单位槽", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/calendar", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "统计" }).click();
+
+  const volumeCard = page.locator("p").filter({ hasText: "总容量" }).first().locator("..");
+  const setsCard = page.locator("p").filter({ hasText: "总组数" }).first().locator("..");
+  const typography = await volumeCard.evaluate((volume) => {
+    const volumeValue = volume.querySelector("p")!;
+    const volumeUnit = volumeValue.querySelector("span")!;
+    return {
+      valueSize: getComputedStyle(volumeValue).fontSize,
+      volumeUnitSize: getComputedStyle(volumeUnit).fontSize,
+    };
+  });
+  const setsUnitSize = await setsCard.locator("p").first().locator("span").evaluate((unit) => getComputedStyle(unit).fontSize);
+
+  expect(typography.volumeUnitSize).toBe(setsUnitSize);
+  expect(Number.parseFloat(typography.volumeUnitSize)).toBeLessThan(Number.parseFloat(typography.valueSize));
+});
+
 test("动作详情跳转来源训练后恢复滚动位置", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await startFarmerWalk(page);

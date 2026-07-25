@@ -59,7 +59,7 @@ export class LocalJsonRepository {
     return snapshot.exercises.find((e) => e.id === id && !e.deletedAt) || null;
   }
 
-  async create(body: Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc> {
+  async create(body: Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "contextKind" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">): Promise<ExerciseDoc> {
     const config = validateRecordingConfig(recordingConfigOf(body));
     return this.mutate((snapshot) => {
       const exercise: ExerciseDoc = withDoc({
@@ -78,7 +78,7 @@ export class LocalJsonRepository {
     });
   }
 
-  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
+  async updateExercise(id: string, body: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "contextKind" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">>): Promise<ExerciseDoc> {
     return this.mutate((snapshot) => {
       const exercise = snapshot.exercises.find((item) => item.id === id && !item.deletedAt);
       if (!exercise) throw new Error("动作不存在");

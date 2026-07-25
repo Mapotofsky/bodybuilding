@@ -201,6 +201,93 @@ describe("exercise performance records", () => {
     source.replacedByExerciseId = null;
     expect(buildPerformanceRecords([historical], snapshot.exercises)).toEqual([]);
   });
+
+  it("never generates automatic records for resistance actions", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const workout = baseWorkout("bike", "2026-07-20", "2026-07-20T11:00:00.000Z", [{
+      id: "bike-exercise",
+      exerciseId: "ex-stationary-bike",
+      recordingMode: "distance_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "none",
+      contextKind: "none",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [{
+        id: "bike-set",
+        setNumber: 1,
+        weight: null,
+        reps: null,
+        unit: "kg",
+        durationSec: 600,
+        distanceM: 5000,
+        contextValue: 7.5,
+        rpe: null,
+        isWarmup: false,
+        isFailure: false,
+        restSeconds: null,
+      }],
+    }]);
+
+    expect(buildPerformanceRecords([workout], snapshot.exercises)).toEqual([]);
+  });
+
+  it("derives frequency only when reps and duration are both present", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const workout = baseWorkout("stepmill", "2026-07-20", "2026-07-20T11:00:00.000Z", [{
+      id: "stepmill-exercise",
+      exerciseId: "ex-stepmill",
+      recordingMode: "reps_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "reps_per_time",
+      contextKind: "none",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [
+        { id: "steps", setNumber: 1, weight: null, reps: 600, unit: "kg", durationSec: 600, distanceM: null, contextValue: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
+        { id: "time-only", setNumber: 2, weight: null, reps: null, unit: "kg", durationSec: 300, distanceM: null, contextValue: null, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
+      ],
+    }]);
+
+    const frequencies = buildPerformanceRecords([workout], snapshot.exercises).filter((record) => record.metricType === "frequency.max");
+    expect(frequencies).toHaveLength(1);
+    expect(frequencies[0]).toMatchObject({ value: 60, unit: "reps_per_minute", sourceSetId: "steps" });
+  });
+
+  it("prefers the higher incline when speed is tied", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.exercises.push({
+      ...exercise("custom-incline", "higher_better"),
+      recordingMode: "distance_duration",
+      loadBasis: null,
+      loadDirection: null,
+      rateMetric: "distance_per_time",
+      contextKind: "incline_percent",
+    });
+    const workout = baseWorkout("incline", "2026-07-20", "2026-07-20T11:00:00.000Z", [{
+      id: "incline-exercise",
+      exerciseId: "custom-incline",
+      recordingMode: "distance_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "distance_per_time",
+      contextKind: "incline_percent",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [
+        { id: "low", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 100, distanceM: 1000, contextValue: 3, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
+        { id: "high", setNumber: 2, weight: null, reps: null, unit: "kg", durationSec: 100, distanceM: 1000, contextValue: 8, rpe: null, isWarmup: false, isFailure: false, restSeconds: null },
+      ],
+    }]);
+
+    const speeds = buildPerformanceRecords([workout], snapshot.exercises).filter((record) => record.metricType === "speed.max");
+    expect(speeds[speeds.length - 1]?.sourceSetId).toBe("high");
+  });
 });
 
 function metric(records: ReturnType<typeof buildPerformanceRecords>, type: ReturnType<typeof buildPerformanceRecords>[number]["metricType"]) {

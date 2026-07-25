@@ -1,5 +1,5 @@
 import { resolveExerciseId } from "@/core/exerciseRedirects";
-import type { CountBasis, EquipmentId, ExerciseCategory, ExerciseDoc, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode, WeightUnit } from "@/core/models";
+import type { ContextKind, CountBasis, EquipmentId, ExerciseCategory, ExerciseDoc, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode, WeightUnit } from "@/core/models";
 import { recordingConfigEquals, recordingConfigOf, validateRecordingConfig } from "@/core/recordingModes";
 import { localRepository } from "@/repositories/localJsonRepository";
 import { toExercise } from "@/services/localMappers";
@@ -18,6 +18,7 @@ export interface CreateExerciseInput {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind: ContextKind;
   equipment: EquipmentId | null;
   description: string | null;
   primary_muscle_group_ids: MuscleGroupId[];
@@ -32,6 +33,7 @@ export interface UpdateExerciseInput {
   count_basis?: CountBasis;
   load_direction?: LoadDirection | null;
   rate_metric?: RateMetric;
+  context_kind?: ContextKind;
   equipment?: EquipmentId | null;
   description?: string | null;
   primary_muscle_group_ids?: MuscleGroupId[];
@@ -77,12 +79,14 @@ export interface ExerciseHistoryRecord {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind: ContextKind;
   set_number: number;
   weight: number | null;
   reps: number | null;
   unit: WeightUnit;
   duration_sec: number | null;
   distance_m: number | null;
+  context_value: number | null;
   rpe: number | null;
   is_warmup: boolean;
   is_failure: boolean;
@@ -99,32 +103,40 @@ export async function getExerciseHistory(exerciseId: string, limit = 30): Promis
         const resolved = resolveExerciseId(exercise.exerciseId, exercises);
         return exercise.exerciseId === exerciseId || (resolved.status === "resolved" && resolved.resolvedId === exerciseId);
       })
-      .flatMap((exercise) => exercise.sets.map((set) => ({
+      .flatMap((exercise) => {
+        const resolved = resolveExerciseId(exercise.exerciseId, exercises);
+        const currentId = resolved.status === "resolved" ? resolved.resolvedId : exercise.exerciseId;
+        const current = exercises.find((item) => item.id === currentId);
+        const contextKind = current?.contextKind === "resistance_level" ? "resistance_level" : exercise.contextKind ?? "none";
+        return exercise.sets.map((set) => ({
         date: workout.date,
         recording_mode: exercise.recordingMode,
         load_basis: exercise.loadBasis,
         count_basis: exercise.countBasis,
         load_direction: exercise.loadDirection,
         rate_metric: exercise.rateMetric,
+        context_kind: contextKind,
         set_number: set.setNumber,
         weight: set.weight,
         reps: set.reps,
         unit: set.unit,
         duration_sec: set.durationSec,
         distance_m: set.distanceM,
+        context_value: set.contextValue ?? null,
         rpe: set.rpe,
         is_warmup: set.isWarmup,
         is_failure: set.isFailure,
         rest_seconds: set.restSeconds,
-      }))))
+      }));
+      }))
     .sort((a, b) => b.date.localeCompare(a.date) || a.set_number - b.set_number)
     .slice(0, limit);
 }
 
 export function validateCreateExerciseInput(body: CreateExerciseInput) {
   if (body.recording_mode === undefined || body.load_basis === undefined || body.count_basis === undefined || body.load_direction === undefined
-    || body.rate_metric === undefined || body.equipment === undefined || body.description === undefined) {
-    throw new Error("创建动作必须明确提交记录方式、重量口径、计数口径、成绩方向、竞速指标、器械和动作说明");
+    || body.rate_metric === undefined || body.context_kind === undefined || body.equipment === undefined || body.description === undefined) {
+    throw new Error("创建动作必须明确提交记录方式、重量口径、计数口径、成绩方向、竞速指标、设备信息、器械和动作说明");
   }
   const config = validateRecordingConfig({
     recordingMode: body.recording_mode,
@@ -132,6 +144,7 @@ export function validateCreateExerciseInput(body: CreateExerciseInput) {
     countBasis: body.count_basis,
     loadDirection: body.load_direction,
     rateMetric: body.rate_metric,
+    contextKind: body.context_kind,
   });
   const primary = validateMuscleGroups(body.primary_muscle_group_ids, "主目标肌群", 3);
   const secondary = validateMuscleGroups(body.secondary_muscle_group_ids, "次要目标肌群", 6);
@@ -148,7 +161,7 @@ export function validateCreateExerciseInput(body: CreateExerciseInput) {
 }
 
 export function validateUpdateExerciseInput(body: UpdateExerciseInput, current: ExerciseDoc) {
-  const patch: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> = {};
+  const patch: Partial<Pick<ExerciseDoc, "name" | "category" | "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "contextKind" | "equipment" | "description" | "primaryMuscleGroupIds" | "secondaryMuscleGroupIds">> = {};
   if (body.name !== undefined) patch.name = validateName(body.name);
   if (body.category !== undefined) patch.category = validateCategory(body.category);
   if (body.recording_mode !== undefined) patch.recordingMode = body.recording_mode;
@@ -156,6 +169,7 @@ export function validateUpdateExerciseInput(body: UpdateExerciseInput, current: 
   if (body.count_basis !== undefined) patch.countBasis = body.count_basis;
   if (body.load_direction !== undefined) patch.loadDirection = body.load_direction;
   if (body.rate_metric !== undefined) patch.rateMetric = body.rate_metric;
+  if (body.context_kind !== undefined) patch.contextKind = body.context_kind;
   if (body.equipment !== undefined) patch.equipment = validateEquipment(body.equipment);
   if (body.description !== undefined) patch.description = validateDescription(body.description);
   if (body.primary_muscle_group_ids !== undefined) patch.primaryMuscleGroupIds = validateMuscleGroups(body.primary_muscle_group_ids, "主目标肌群", 3);

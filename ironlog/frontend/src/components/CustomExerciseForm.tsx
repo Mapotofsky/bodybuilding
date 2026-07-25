@@ -1,6 +1,7 @@
 import { getRecordingModeSpec, validateRecordingConfig } from "@/core/recordingModes";
 import {
   CATEGORY_LABELS,
+  CONTEXT_KIND_LABELS,
   COUNT_BASIS_LABELS,
   EQUIPMENT_LABELS,
   LOAD_BASIS_LABELS,
@@ -10,6 +11,7 @@ import {
   RECORDING_MODE_LABELS,
   type EquipmentId,
   type CountBasis,
+  type ContextKind,
   type ExerciseCategory,
   type LoadBasis,
   type LoadDirection,
@@ -26,6 +28,7 @@ export interface CustomExerciseFormValue {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind: ContextKind;
   equipment: EquipmentId | null;
   description: string;
   primary_muscle_group_ids: MuscleGroupId[];
@@ -51,6 +54,7 @@ export const EMPTY_CUSTOM_EXERCISE_FORM: CustomExerciseFormValue = {
   count_basis: "whole_set",
   load_direction: "higher_better",
   rate_metric: "none",
+  context_kind: "none",
   equipment: null,
   description: "",
   primary_muscle_group_ids: [],
@@ -79,6 +83,7 @@ export default function CustomExerciseForm(props: CustomExerciseFormProps) {
         ? props.value.load_direction
         : nextHasWeight ? "higher_better" : null,
       rate_metric: spec.supportedRateMetrics.includes(props.value.rate_metric) ? props.value.rate_metric : "none",
+      context_kind: recordingMode === "distance_duration" ? props.value.context_kind : "none",
     });
   }
 
@@ -129,10 +134,27 @@ export default function CustomExerciseForm(props: CustomExerciseFormProps) {
         </select>
       </label>
       {props.value.count_basis === "per_side" && <p className="text-xs text-slate-500 leading-relaxed">填写每侧的数据；完成左右两侧后，这一组会按两侧合计统计。</p>}
-      {recordingSpec.supportedRateMetrics.length > 1 && (
-        <select value={props.value.rate_metric} onChange={(event) => patch({ rate_metric: event.target.value as RateMetric })} className={inputCls} aria-label="竞速成绩">
-          {recordingSpec.supportedRateMetrics.map((metric) => <option key={metric} value={metric}>{RATE_METRIC_LABELS[metric]}</option>)}
+      {props.value.recording_mode === "distance_duration" && <label className="block space-y-1">
+        <span className="text-xs font-semibold text-slate-500">设备信息</span>
+        <select
+          value={props.value.context_kind}
+          onChange={(event) => {
+            const contextKind = event.target.value as ContextKind;
+            patch({ context_kind: contextKind, ...(contextKind === "resistance_level" ? { rate_metric: "none" as const } : {}) });
+          }}
+          className={inputCls}
+          aria-label="设备信息"
+        >
+          {Object.entries(CONTEXT_KIND_LABELS).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
         </select>
+      </label>}
+      {recordingSpec.supportedRateMetrics.length > 1 && props.value.context_kind !== "resistance_level" && (
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold text-slate-500">竞速指标</span>
+          <select value={props.value.rate_metric} onChange={(event) => patch({ rate_metric: event.target.value as RateMetric })} className={inputCls} aria-label="竞速指标">
+            {recordingSpec.supportedRateMetrics.map((metric) => <option key={metric} value={metric}>{RATE_METRIC_LABELS[metric]}</option>)}
+          </select>
+        </label>
       )}
       <textarea
         value={props.value.description}
@@ -178,6 +200,7 @@ export function isValidFormValue(value: CustomExerciseFormValue): boolean {
       countBasis: value.count_basis,
       loadDirection: value.load_direction,
       rateMetric: value.rate_metric,
+      contextKind: value.context_kind,
     });
     return true;
   } catch {

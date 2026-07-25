@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_EXERCISES } from "./defaultData";
-import { CURRENT_SCHEMA_VERSION, type ExercisePerformanceRecordDoc } from "./models";
+import { CURRENT_SCHEMA_VERSION, type DataSnapshot, type ExercisePerformanceRecordDoc } from "./models";
 import { buildShardList, makeEmptySnapshot, migrateSnapshot } from "./migrations";
 
-describe("local-first schema v5", () => {
-  it("creates a new v5 snapshot with the exact 63-item catalog", () => {
+describe("local-first schema migration", () => {
+  it("creates a new current-schema snapshot with the exact 63-item catalog", () => {
     const snapshot = makeEmptySnapshot("device-test");
 
     expect(snapshot.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
@@ -21,16 +21,16 @@ describe("local-first schema v5", () => {
     v4.manifest.schemaVersion = 4;
     if (empty) v4.exercises = [];
 
-    expect(() => migrateSnapshot(v4, "device-test")).toThrow("不兼容开发快照");
+    expect(() => migrateSnapshot(v4, "device-test")).toThrow("不兼容快照");
     expect(v4.manifest.schemaVersion).toBe(4);
     expect(v4.exercises).toHaveLength(empty ? 0 : 63);
   });
 
-  it("rejects a v4 document inside a v5 manifest without mutating the source snapshot", () => {
+  it("rejects a v4 document inside a v6 manifest without mutating the source snapshot", () => {
     const mixed = makeEmptySnapshot("device-test");
     mixed.exercises[0].schemaVersion = 4;
 
-    expect(() => migrateSnapshot(mixed, "device-test")).toThrow("不兼容开发快照");
+    expect(() => migrateSnapshot(mixed, "device-test")).toThrow("不兼容快照");
     expect(mixed.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(mixed.exercises[0].schemaVersion).toBe(4);
   });
@@ -41,8 +41,128 @@ describe("local-first schema v5", () => {
     legacy.exercisePerformanceRecords = [performanceRecord()];
     legacy.exercisePerformanceRecords[0].schemaVersion = 4;
 
-    expect(() => migrateSnapshot(legacy, "device-test")).toThrow("不兼容开发快照");
+    expect(() => migrateSnapshot(legacy, "device-test")).toThrow("不兼容快照");
     expect(legacy.exercisePerformanceRecords[0].schemaVersion).toBe(4);
+  });
+
+  it("migrates a non-empty v5 snapshot by fusing built-ins and preserving history", () => {
+    const v5 = makeEmptySnapshot("device-test");
+    v5.manifest.schemaVersion = 5;
+    v5.exercises.forEach((exercise) => {
+      exercise.schemaVersion = 5;
+      delete exercise.contextKind;
+    });
+    const bike = v5.exercises.find((exercise) => exercise.id === "ex-stationary-bike")!;
+    bike.name = "用户旧目录名称";
+    bike.rateMetric = "distance_per_time";
+    v5.exercises.push({
+      ...v5.exercises[0],
+      id: "custom-ex-preserved",
+      name: "保留的自定义动作",
+      isCustom: true,
+      schemaVersion: 5,
+    });
+    v5.workouts = [{
+      id: "workout-v5",
+      date: "2026-07-20",
+      startTime: "2026-07-20T10:00:00.000Z",
+      endTime: "2026-07-20T10:20:00.000Z",
+      planTemplateId: null,
+      note: "历史保留",
+      mood: null,
+      exercises: [{
+        id: "workout-exercise-v5",
+        exerciseId: "ex-stationary-bike",
+        recordingMode: "distance_duration",
+        loadBasis: null,
+        countBasis: "whole_set",
+        loadDirection: null,
+        rateMetric: "distance_per_time",
+        sortOrder: 0,
+        supersetGroup: null,
+        sets: [{
+          id: "set-v5",
+          setNumber: 1,
+          weight: null,
+          reps: null,
+          unit: "kg",
+          durationSec: 600,
+          distanceM: 3000,
+          rpe: null,
+          isWarmup: false,
+          isFailure: false,
+          restSeconds: null,
+        }],
+      }],
+      createdAt: "2026-07-20T10:00:00.000Z",
+      updatedAt: "2026-07-20T10:20:00.000Z",
+      deletedAt: null,
+      schemaVersion: 5,
+    }];
+    const oldBikeRecord = performanceRecord();
+    oldBikeRecord.exerciseId = "ex-stationary-bike";
+    oldBikeRecord.schemaVersion = 5;
+    delete oldBikeRecord.input.contextKind;
+    delete oldBikeRecord.input.contextValue;
+    v5.exercisePerformanceRecords = [oldBikeRecord];
+
+    const migrated = migrateSnapshot(v5, "device-test");
+
+    expect(migrated.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-stationary-bike")).toMatchObject({
+      name: "固定自行车",
+      contextKind: "resistance_level",
+      rateMetric: "none",
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "custom-ex-preserved")?.name).toBe("保留的自定义动作");
+    expect(migrated.workouts[0]).toMatchObject({ id: "workout-v5", note: "历史保留" });
+    expect(migrated.workouts[0].exercises[0]).toMatchObject({ contextKind: "none" });
+    expect(migrated.workouts[0].exercises[0].sets[0]).toMatchObject({ contextValue: null, distanceM: 3000, durationSec: 600 });
+    expect(migrated.exercisePerformanceRecords[0].deletedAt).not.toBeNull();
+  });
+
+  it("migrates the AVD v6 stepmill shape without losing custom, unknown, or nested history fields", () => {
+    const raw = avdV6Snapshot();
+    const original = structuredClone(raw);
+
+    const migrated = migrateSnapshot(raw, "device-test");
+
+    expect(migrated.manifest.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-stepmill")).toMatchObject({
+      recordingMode: "reps_duration",
+      rateMetric: "reps_per_time",
+      contextKind: "none",
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "custom-ex-avd")).toMatchObject({
+      name: "AVD 自定义动作",
+      contextKind: "none",
+      syncImportedMarker: "keep-custom",
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "unknown-ex-avd")).toMatchObject({
+      name: "AVD 未知动作",
+      deletedAt: "2026-07-16T00:00:00.000Z",
+      syncImportedMarker: "keep-unknown",
+    });
+    expect(migrated.workouts[0]).toMatchObject({
+      id: "workout-avd-draft",
+      endTime: null,
+      syncImportedMarker: "keep-workout",
+    });
+    expect(migrated.workouts[0].exercises[0]).toMatchObject({
+      id: "workout-exercise-avd",
+      recordingMode: "reps_duration",
+      rateMetric: "reps_per_time",
+      contextKind: "none",
+    });
+    expect(migrated.workouts[0].exercises[0].sets[0]).toMatchObject({
+      id: "set-avd",
+      reps: 720,
+      durationSec: 600,
+      contextValue: null,
+      syncImportedMarker: "keep-set",
+    });
+    expect(migrateSnapshot(structuredClone(migrated), "device-test")).toEqual(migrated);
+    expect(raw).toEqual(original);
   });
 
   it("preserves current-schema count basis, unknown fields, provenance, and nested ids", () => {
@@ -102,8 +222,8 @@ describe("local-first schema v5", () => {
     const snapshot = migrateSnapshot(raw, "device-test");
     expect(snapshot.exercisePerformanceRecords[0]).toMatchObject({ metricType: "weight.max", input: { countBasis: "whole_set", enteredLoad: 100 } });
     expect(Object.keys(snapshot.exercisePerformanceRecords[0].input).sort()).toEqual([
-      "countBasis", "distanceM", "durationSec", "enteredLoad", "enteredLoadUnit", "loadBasis",
-      "loadDirection", "rateMetric", "recordingMode", "reps", "rpe",
+      "contextKind", "contextValue", "countBasis", "distanceM", "durationSec", "enteredLoad", "enteredLoadUnit",
+      "loadBasis", "loadDirection", "rateMetric", "recordingMode", "reps", "rpe",
     ]);
 
     const missingCountBasis = makeEmptySnapshot("device-test");
@@ -154,6 +274,8 @@ function performanceRecord(): ExercisePerformanceRecordDoc {
       countBasis: "whole_set",
       loadDirection: "higher_better",
       rateMetric: "none",
+      contextKind: "none",
+      contextValue: null,
       reps: 5,
       rpe: null,
       distanceM: null,
@@ -165,4 +287,85 @@ function performanceRecord(): ExercisePerformanceRecordDoc {
     deletedAt: null,
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
+}
+
+export function avdV6Snapshot(): Partial<DataSnapshot> {
+  const raw = makeEmptySnapshot("device-avd");
+  raw.manifest.schemaVersion = 6;
+  raw.profile.schemaVersion = 6;
+  raw.settings.schemaVersion = 6;
+  raw.exercises.forEach((exercise) => {
+    exercise.schemaVersion = 6;
+    delete exercise.contextKind;
+  });
+  const stepmill = raw.exercises.find((exercise) => exercise.id === "ex-stepmill") as unknown as Record<string, unknown>;
+  stepmill.recordingMode = "step_count_duration";
+  stepmill.rateMetric = "steps_per_time";
+  raw.exercises.push({
+    ...raw.exercises[0],
+    id: "custom-ex-avd",
+    name: "AVD 自定义动作",
+    recordingMode: "reps",
+    loadBasis: null,
+    loadDirection: null,
+    rateMetric: "none",
+    isCustom: true,
+    schemaVersion: 6,
+    syncImportedMarker: "keep-custom",
+  } as typeof raw.exercises[number]);
+  raw.exercises.push({
+    ...raw.exercises[0],
+    id: "unknown-ex-avd",
+    name: "AVD 未知动作",
+    recordingMode: "reps",
+    loadBasis: null,
+    loadDirection: null,
+    rateMetric: "none",
+    isCustom: false,
+    deletedAt: "2026-07-16T00:00:00.000Z",
+    schemaVersion: 6,
+    syncImportedMarker: "keep-unknown",
+  } as typeof raw.exercises[number]);
+  const legacyWorkout = {
+    id: "workout-avd-draft",
+    date: "2026-07-17",
+    startTime: "2026-07-17T04:40:00.000Z",
+    endTime: null,
+    planTemplateId: null,
+    note: "保留草稿",
+    mood: null,
+    exercises: [{
+      id: "workout-exercise-avd",
+      exerciseId: "ex-stepmill",
+      recordingMode: "step_count_duration",
+      loadBasis: null,
+      countBasis: "whole_set",
+      loadDirection: null,
+      rateMetric: "steps_per_time",
+      sortOrder: 0,
+      supersetGroup: null,
+      sets: [{
+        id: "set-avd",
+        setNumber: 1,
+        weight: null,
+        reps: 720,
+        unit: "kg",
+        durationSec: 600,
+        distanceM: null,
+        rpe: null,
+        isWarmup: false,
+        isFailure: false,
+        restSeconds: null,
+        syncImportedMarker: "keep-set",
+      }],
+    }],
+    createdAt: "2026-07-17T04:40:00.000Z",
+    updatedAt: "2026-07-17T04:50:00.000Z",
+    deletedAt: null,
+    schemaVersion: 6,
+    syncImportedMarker: "keep-workout",
+  };
+  raw.workouts = [legacyWorkout] as unknown as DataSnapshot["workouts"];
+  raw.manifest.shards = buildShardList(raw);
+  return raw as unknown as Partial<DataSnapshot>;
 }

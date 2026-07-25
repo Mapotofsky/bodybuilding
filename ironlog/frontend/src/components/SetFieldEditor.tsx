@@ -10,6 +10,7 @@ export interface SetFieldDraft {
   reps: string;
   distanceM: string;
   durationSec: string;
+  contextValue?: string;
 }
 
 interface SetFieldEditorProps {
@@ -40,12 +41,18 @@ export default function SetFieldEditor({ recording, value, weightUnit, onChange 
               field={field}
               recording={recording}
               weightUnit={weightUnit}
-              value={value[fieldDraftKey(field)]}
+              value={value[fieldDraftKey(field)] ?? ""}
               onChange={(next) => change(fieldDraftKey(field), next)}
             />
           </div>
         ))}
       </div>
+      {(recording.context_kind ?? "none") === "resistance_level" && (
+        <StepInput label="阻力档位（可选）" value={value.contextValue ?? ""} onChange={(next) => change("contextValue", next)} step={0.5} min={0} max={200} inputMode="decimal" />
+      )}
+      {recording.context_kind === "incline_percent" && (
+        <StepInput label="坡度 (%)" value={value.contextValue ?? ""} onChange={(next) => change("contextValue", next)} step={0.5} min={0} max={100} inputMode="decimal" />
+      )}
       {validationError && <p role="alert" className="text-xs text-red-500">{validationError}</p>}
     </div>
   );
@@ -62,7 +69,7 @@ function RecordingFieldInput({ field, recording, weightUnit, value, onChange }: 
     case "weight":
       return <StepInput label={`${weightFieldLabel(recording)} (${weightUnit})`} value={value} onChange={onChange} step={weightUnit === "kg" ? 2.5 : 5} inputMode="decimal" />;
     case "reps":
-      return <StepInput label={recording.count_basis === "per_side" ? "每侧次数" : "次数"} value={value} onChange={onChange} step={1} inputMode="numeric" />;
+      return <StepInput label={recording.recording_mode === "reps_duration" ? "步数（可选）" : recording.count_basis === "per_side" ? "每侧次数" : "次数"} value={value} onChange={onChange} step={1} inputMode="numeric" />;
     case "distanceM":
       return <StepInput label={recording.count_basis === "per_side" ? "每侧距离 (m)" : "距离 (m)"} value={value} onChange={onChange} step={10} inputMode="decimal" />;
     case "durationSec":
@@ -92,12 +99,14 @@ export function validateSetFieldDraft(recording: RecordingSnapshot, value: SetFi
       reps: fields.includes("reps") ? parseDraftValue(value.reps) : null,
       distanceM: fields.includes("distanceM") ? parseDraftValue(value.distanceM) : null,
       durationSec: fields.includes("durationSec") ? parseDraftValue(value.durationSec) : null,
+      contextValue: parseDraftValue(value.contextValue ?? ""),
     }, {
       recordingMode: recording.recording_mode,
       loadBasis: recording.load_basis,
       countBasis: recording.count_basis,
       loadDirection: recording.load_direction,
       rateMetric: recording.rate_metric,
+      contextKind: recording.context_kind ?? "none",
     }, "draft");
     return null;
   } catch (error) {

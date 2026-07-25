@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
 import { getSettings } from "@/services/settings";
-import type { CountBasis, Exercise, LoadBasis, LoadDirection, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
+import type { ContextKind, CountBasis, Exercise, LoadBasis, LoadDirection, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
@@ -30,6 +30,7 @@ interface LocalExercise {
   count_basis: CountBasis;
   load_direction: LoadDirection | null;
   rate_metric: RateMetric;
+  context_kind: ContextKind;
   exercise_name: string;
   exercise_category: string;
   superset_group: number | null;
@@ -82,6 +83,7 @@ export default function WorkoutEditPage() {
             count_basis: ex.count_basis,
             load_direction: ex.load_direction,
             rate_metric: ex.rate_metric,
+            context_kind: ex.context_kind ?? "none",
             exercise_name: ex.exercise_name || `动作#${ex.exercise_id}`,
             exercise_category: ex.exercise_category || "",
             superset_group: ex.superset_group,
@@ -97,6 +99,7 @@ export default function WorkoutEditPage() {
               is_warmup: s.is_warmup,
               is_failure: s.is_failure,
               rest_seconds: s.rest_seconds ?? null,
+              context_value: s.context_value,
               fieldInputs: setFieldInputs(s),
             })),
           }))
@@ -118,6 +121,7 @@ export default function WorkoutEditPage() {
         count_basis: ex.count_basis,
         load_direction: ex.load_direction,
         rate_metric: ex.rate_metric,
+        context_kind: ex.context_kind ?? "none",
         exercise_name: ex.name,
         exercise_category: ex.category,
         superset_group: null,
@@ -204,6 +208,7 @@ export default function WorkoutEditPage() {
           count_basis: e.count_basis,
           load_direction: e.load_direction,
           rate_metric: e.rate_metric,
+          context_kind: e.context_kind,
           id: e.id,
           sort_order: idx,
           superset_group: e.superset_group,
@@ -219,6 +224,7 @@ export default function WorkoutEditPage() {
             is_warmup: s.is_warmup,
             is_failure: s.is_failure,
             rest_seconds: s.rest_seconds,
+            context_value: parseNullableNumber(s.fieldInputs.contextValue ?? ""),
           })),
         })),
       };
@@ -447,7 +453,10 @@ export function WorkoutEditSetFieldBlock({ recording, setNumber, isWarmup, value
 }
 
 function editableSet(set: WorkoutSet): LocalSet {
-  return { ...set, fieldInputs: setFieldInputs(set) };
+  return {
+    ...set,
+    fieldInputs: setFieldInputs(set),
+  };
 }
 
 function setFieldInputs(set: WorkoutSet): SetFieldDraft {
@@ -456,6 +465,7 @@ function setFieldInputs(set: WorkoutSet): SetFieldDraft {
     reps: set.reps == null ? "" : String(set.reps),
     distanceM: set.distance_m == null ? "" : String(set.distance_m),
     durationSec: set.duration_sec == null ? "" : String(set.duration_sec),
+    contextValue: set.context_value == null ? "" : String(set.context_value),
   };
 }
 

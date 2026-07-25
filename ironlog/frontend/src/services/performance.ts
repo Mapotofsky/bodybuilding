@@ -33,6 +33,7 @@ export const PERFORMANCE_METRIC_LABELS: Record<PerformanceMetricType, string> = 
   "distance.max_workout": "最大训练距离",
   "duration.max_set": "最长单组时间",
   "duration.max_workout": "最长训练时间",
+  "frequency.max": "最高步频",
   "speed.max": "最快速度",
   "load_duration.max": "最大持续负载",
   "load_distance.max": "最大距离负载",
@@ -112,6 +113,8 @@ export async function rebuildPerformanceForExercise(_exerciseId: string): Promis
 }
 
 export async function getExercisePerformanceRecords(exerciseId: string): Promise<PerformanceRecord[]> {
+  const exercise = await localRepository.get(exerciseId);
+  if (exercise?.contextKind === "resistance_level") return [];
   const [records, exercises] = await Promise.all([
     localRepository.listExercisePerformanceRecords({ exerciseId }),
     localRepository.list({ includeDeleted: true }),
@@ -143,6 +146,23 @@ export function buildExercisePerformanceTrend(
   const exercise = exercises.find((item) => item.id === exerciseId);
   if (!exercise) throw new Error("动作不存在");
   const currentConfig = validateRecordingConfig(recordingConfigOf(exercise));
+  if (currentConfig.contextKind === "resistance_level") {
+    const points = workouts
+      .filter((workout) => !workout.deletedAt && workout.endTime != null)
+      .slice()
+      .sort((left, right) => achievedAt(left).localeCompare(achievedAt(right)) || left.id.localeCompare(right.id))
+      .map((workout) => {
+        const values = workout.exercises
+          .filter((item) => item.exerciseId === exerciseId)
+          .flatMap((item) => item.sets)
+          .map((set) => set.distanceM != null && set.durationSec != null ? set.distanceM / set.durationSec : null)
+          .filter((value): value is number => value != null && Number.isFinite(value));
+        const value = values.length > 0 ? Math.max(...values) : null;
+        return value == null ? null : { date: workout.date, value, unit: "m_per_sec" as const, source_workout_id: workout.id };
+      })
+      .filter((point): point is NonNullable<typeof point> => point != null);
+    return { metric_type: "speed.max", metric_label: "训练速度", points };
+  }
   const metricType = trendMetricForConfig(exercise);
   if (currentConfig.recordingMode !== recordingMode) throw new Error("趋势记录方式与动作配置不一致");
   const points = workouts
@@ -253,6 +273,8 @@ function candidatesForWorkout(workout: WorkoutDoc, exercises: ExerciseDoc[]): Pe
     const resolved = resolveExerciseId(exercise.exerciseId, exercises);
     if (resolved.status === "unresolved" && resolved.reason !== "missing") return [];
     const exerciseId = resolved.status === "resolved" ? resolved.resolvedId : exercise.exerciseId;
+    const current = exercises.find((item) => item.id === exerciseId);
+    if (current?.contextKind === "resistance_level") return [];
     return exerciseCandidates(workout, exercise, exerciseId, achievedAt(workout), maxIso(workout.updatedAt, achievedAt(workout)));
   });
 }
@@ -264,6 +286,7 @@ function exerciseCandidates(
   sourceTime: string,
   updatedAt: string
 ): PerformanceCandidate[] {
+  if ((exercise.contextKind ?? "none") === "resistance_level") return [];
   const spec = getRecordingModeSpec(exercise.recordingMode);
   const workingSets = exercise.sets.filter((set) => !set.isWarmup);
   const candidates: PerformanceCandidate[] = [];
@@ -345,6 +368,20 @@ function exerciseCandidates(
       const value = semantics.distanceRateMps;
       if (value != null) candidates.push(candidate({ workout, exercise, exerciseId, set, metricType: "speed.max", value, sourceTime, updatedAt, input }));
     }
+    if (spec.performance.compound.includes("reps_rate") && exercise.rateMetric === "reps_per_time"
+      && set.reps != null && set.durationSec != null) {
+      candidates.push(candidate({
+        workout,
+        exercise,
+        exerciseId,
+        set,
+        metricType: "frequency.max",
+        value: set.reps * 60 / set.durationSec,
+        sourceTime,
+        updatedAt,
+        input,
+      }));
+    }
   }
 
   if (workoutReps > 0 && exercise.loadDirection !== "lower_better") {
@@ -415,12 +452,13 @@ function setInput(exercise: WorkoutExerciseDoc, set: WorkoutSetDoc): ExercisePer
     rpe: set.rpe,
     distanceM: set.distanceM,
     durationSec: set.durationSec,
+    contextValue: set.contextValue ?? null,
   });
 }
 
 function inputSummary(
-  exercise: Pick<WorkoutExerciseDoc, "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric">,
-  values: Pick<Partial<ExercisePerformanceRecordDoc["input"]>, "enteredLoad" | "enteredLoadUnit" | "reps" | "rpe" | "distanceM" | "durationSec"> = {}
+  exercise: Pick<WorkoutExerciseDoc, "recordingMode" | "loadBasis" | "countBasis" | "loadDirection" | "rateMetric" | "contextKind">,
+  values: Pick<Partial<ExercisePerformanceRecordDoc["input"]>, "enteredLoad" | "enteredLoadUnit" | "reps" | "rpe" | "distanceM" | "durationSec" | "contextValue"> = {}
 ): ExercisePerformanceRecordDoc["input"] {
   return {
     recordingMode: exercise.recordingMode,
@@ -430,6 +468,8 @@ function inputSummary(
     countBasis: exercise.countBasis,
     loadDirection: exercise.loadDirection,
     rateMetric: exercise.rateMetric,
+    contextKind: exercise.contextKind ?? "none",
+    contextValue: values.contextValue ?? null,
     reps: values.reps ?? null,
     rpe: values.rpe ?? null,
     distanceM: values.distanceM ?? null,
@@ -467,7 +507,8 @@ function tieBreakersFor(metricType: PerformanceMetricType, input: ExercisePerfor
     case "distance.max_workout": return [input.durationSec ?? Number.MAX_SAFE_INTEGER];
     case "duration.max_set":
     case "duration.max_workout": return [input.distanceM ?? 0];
-    case "speed.max": return [input.distanceM ?? 0, input.durationSec ?? Number.MAX_SAFE_INTEGER];
+    case "frequency.max": return [input.reps ?? 0, input.durationSec ?? Number.MAX_SAFE_INTEGER];
+    case "speed.max": return [input.contextKind === "incline_percent" ? input.contextValue ?? 0 : 0, input.distanceM ?? 0, input.durationSec ?? Number.MAX_SAFE_INTEGER];
     case "load_duration.max": return [inputLoadKg ?? 0, input.durationSec ?? 0];
     case "load_distance.max":
     case "load_distance_rate.max": return [inputLoadKg ?? 0, input.distanceM ?? 0, input.durationSec ?? Number.MAX_SAFE_INTEGER];
@@ -490,6 +531,7 @@ function trendMetricForConfig(exercise: ExerciseDoc): PerformanceMetricType {
     case "weight_reps":
       return exercise.loadDirection === "lower_better" ? "assistance.best_reps" : "rm.rpe_adjusted_mean";
     case "reps": return "reps.max_set";
+    case "reps_duration": return exercise.rateMetric === "reps_per_time" ? "frequency.max" : "duration.max_set";
     case "duration": return "duration.max_set";
     case "distance_duration": return exercise.rateMetric === "distance_per_time" ? "speed.max" : "distance.max_set";
     case "weight_duration": return exercise.loadDirection === "lower_better" ? "duration.max_set" : "load_duration.max";

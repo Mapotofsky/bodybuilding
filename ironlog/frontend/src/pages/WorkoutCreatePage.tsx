@@ -91,6 +91,7 @@ export default function WorkoutCreatePage() {
   const [inputReps, setInputReps] = useState("");
   const [inputDistance, setInputDistance] = useState("");
   const [inputDuration, setInputDuration] = useState("");
+  const [inputContextValue, setInputContextValue] = useState("");
   const [inputRpe, setInputRpe] = useState("");
   const [inputRpeError, setInputRpeError] = useState<string | null>(null);
   const [inputWarmup, setInputWarmup] = useState(false);
@@ -271,6 +272,7 @@ export default function WorkoutCreatePage() {
           setInputReps(last.reps != null ? String(last.reps) : "");
           setInputDistance(last.distance_m != null ? String(last.distance_m) : "");
           setInputDuration(last.duration_sec != null ? String(last.duration_sec) : "");
+          setInputContextValue(last.context_value != null ? String(last.context_value) : "");
           resetSetMetaInputs();
         } else if (hist.length > 0) {
           // New exercise → default from history's last session first set
@@ -281,12 +283,14 @@ export default function WorkoutCreatePage() {
           setInputReps(firstSet?.reps != null ? String(firstSet.reps) : "");
           setInputDistance(firstSet?.distance_m != null ? String(firstSet.distance_m) : "");
           setInputDuration(firstSet?.duration_sec != null ? String(firstSet.duration_sec) : "");
+          setInputContextValue(firstSet?.context_value != null ? String(firstSet.context_value) : "");
           resetSetMetaInputs();
         } else {
           setInputWeight("");
           setInputReps("");
           setInputDistance("");
           setInputDuration("");
+          setInputContextValue("");
           resetSetMetaInputs();
         }
       } catch {
@@ -295,6 +299,7 @@ export default function WorkoutCreatePage() {
         setInputReps("");
         setInputDistance("");
         setInputDuration("");
+        setInputContextValue("");
         resetSetMetaInputs();
       }
 
@@ -322,6 +327,7 @@ export default function WorkoutCreatePage() {
       count_basis: se.exercise.count_basis,
       load_direction: se.exercise.load_direction,
       rate_metric: se.exercise.rate_metric,
+      context_kind: se.exercise.context_kind,
       sort_order: idx,
       superset_group: se.superset_group,
       sets: se.sets.map((s) => ({
@@ -336,6 +342,7 @@ export default function WorkoutCreatePage() {
         is_warmup: s.is_warmup,
         is_failure: s.is_failure,
         rest_seconds: s.rest_seconds,
+        context_value: s.context_value,
       })),
     })),
   });
@@ -388,6 +395,7 @@ export default function WorkoutCreatePage() {
     const r = parseNullableNumber(inputReps);
     const distance = parseNullableNumber(inputDistance);
     const duration = parseNullableNumber(inputDuration);
+    const contextValue = parseNullableNumber(inputContextValue);
     const rpe = parseNullableNumber(inputRpe);
 
     const completedSet: WorkoutSet = {
@@ -401,6 +409,7 @@ export default function WorkoutCreatePage() {
       is_warmup: inputWarmup,
       is_failure: inputFailure,
       rest_seconds: null,
+      context_value: contextValue,
     };
     try {
       validateWorkoutSetForMode({
@@ -408,12 +417,14 @@ export default function WorkoutCreatePage() {
         reps: completedSet.reps,
         distanceM: completedSet.distance_m,
         durationSec: completedSet.duration_sec,
+        contextValue: completedSet.context_value,
       }, {
         recordingMode: currentExercise.recording_mode,
         loadBasis: currentExercise.load_basis,
         countBasis: currentExercise.count_basis,
         loadDirection: currentExercise.load_direction,
         rateMetric: currentExercise.rate_metric,
+        contextKind: currentExercise.context_kind,
       }, "complete");
       if (rpe != null && (!Number.isInteger(rpe) || rpe < 1 || rpe > 10)) throw new Error("RPE 必须是 1 到 10 的整数");
     } catch (error) {
@@ -576,6 +587,7 @@ export default function WorkoutCreatePage() {
       setInputReps(lastSet?.reps != null ? String(lastSet.reps) : "");
       setInputDistance(lastSet?.distance_m != null ? String(lastSet.distance_m) : "");
       setInputDuration(lastSet?.duration_sec != null ? String(lastSet.duration_sec) : "");
+      setInputContextValue(lastSet?.context_value != null ? String(lastSet.context_value) : "");
       resetSetMetaInputs();
       if (lastSet?.unit === "lb") setWeightUnit("lb");
       setPhase("training");
@@ -844,12 +856,13 @@ export default function WorkoutCreatePage() {
             <SetFieldEditor
               recording={currentExercise}
               weightUnit={weightUnit}
-              value={{ weight: inputWeight, reps: inputReps, distanceM: inputDistance, durationSec: inputDuration }}
+              value={{ weight: inputWeight, reps: inputReps, distanceM: inputDistance, durationSec: inputDuration, contextValue: inputContextValue }}
               onChange={(field, value) => {
                 if (field === "weight") setInputWeight(value);
                 else if (field === "reps") setInputReps(value);
                 else if (field === "distanceM") setInputDistance(value);
-                else setInputDuration(value);
+                else if (field === "durationSec") setInputDuration(value);
+                else setInputContextValue(value);
               }}
             />
           </div>
@@ -1054,6 +1067,7 @@ export default function WorkoutCreatePage() {
       countBasis: se.exercise.count_basis,
       loadDirection: se.exercise.load_direction,
       rateMetric: se.exercise.rate_metric,
+      contextKind: se.exercise.context_kind ?? "none",
       sets: se.sets.map((set) => ({
         weight: set.weight,
         reps: set.reps,

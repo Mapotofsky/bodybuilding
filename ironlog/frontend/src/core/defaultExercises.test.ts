@@ -3,12 +3,12 @@ import { DEFAULT_EXERCISES } from "./defaultData";
 import { CURRENT_SCHEMA_VERSION } from "./models";
 
 const VALID_CATEGORIES = new Set(["chest", "back", "legs", "shoulders", "arms", "core", "cardio", "stretch", "other"]);
-const VALID_RECORDING_MODES = new Set(["weight_reps", "reps", "duration", "distance_duration", "weight_duration", "weight_distance_duration"]);
+const VALID_RECORDING_MODES = new Set(["weight_reps", "reps", "reps_duration", "duration", "distance_duration", "weight_duration", "weight_distance_duration"]);
 const WEIGHT_RECORDING_MODES = new Set(["weight_reps", "weight_duration", "weight_distance_duration"]);
 const VALID_LOAD_BASIS = new Set(["total", "per_hand"]);
 const VALID_COUNT_BASIS = new Set(["whole_set", "per_side"]);
 const VALID_LOAD_DIRECTIONS = new Set(["higher_better", "lower_better"]);
-const VALID_RATE_METRICS = new Set(["none", "distance_per_time", "load_distance_per_time"]);
+const VALID_RATE_METRICS = new Set(["none", "reps_per_time", "distance_per_time", "load_distance_per_time"]);
 const VALID_EQUIPMENT = new Set(["body_weight", "barbell", "dumbbell", "cable", "machine", "band", "kettlebell", "ab_wheel", "stationary_bike", "jump_rope", "elliptical", "stepmill", "external_weight", "other"]);
 const RETIRED_DEFAULT_IDS = ["squat", "overhead-press", "face-pull", "plank", "cat-cow-stretch"].map((suffix) => `ex-${suffix}`);
 
@@ -74,7 +74,14 @@ describe("generated default exercise catalog", () => {
       "ex-stationary-bike",
     ]);
     expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-jump-rope")?.recordingMode).toBe("reps");
-    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-stepmill")?.recordingMode).toBe("duration");
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-stepmill")).toMatchObject({
+      name: "爬楼机",
+      recordingMode: "reps_duration",
+      rateMetric: "reps_per_time",
+      contextKind: "none",
+    });
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-stationary-bike")).toMatchObject({ contextKind: "resistance_level", rateMetric: "none" });
+    expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-elliptical-trainer")).toMatchObject({ contextKind: "resistance_level", rateMetric: "none" });
     expect(DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-farmer-walk")).toMatchObject({
       name: "农夫行走",
       recordingMode: "weight_distance_duration",

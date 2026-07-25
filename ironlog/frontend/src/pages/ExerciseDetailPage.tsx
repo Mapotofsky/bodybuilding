@@ -5,7 +5,7 @@ import { Check, ChevronLeft, Dumbbell, Gauge, NotebookText, Pencil, Trash2, Tren
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
 import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
-import type { CountBasis, EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode } from "@/types";
+import type { ContextKind, CountBasis, EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
 import { getSettings } from "@/services/settings";
@@ -56,6 +56,7 @@ export default function ExerciseDetailPage() {
   const [countBasis, setCountBasis] = useState<CountBasis>("whole_set");
   const [loadDirection, setLoadDirection] = useState<LoadDirection | null>("higher_better");
   const [rateMetric, setRateMetric] = useState<RateMetric>("none");
+  const [contextKind, setContextKind] = useState<ContextKind>("none");
   const [equipment, setEquipment] = useState<EquipmentId | null>(null);
   const [description, setDescription] = useState("");
   const [primaryMuscles, setPrimaryMuscles] = useState<MuscleGroupId[]>([]);
@@ -123,6 +124,7 @@ export default function ExerciseDetailPage() {
     setCountBasis(nextDetail.count_basis);
     setLoadDirection(nextDetail.load_direction);
     setRateMetric(nextDetail.rate_metric);
+    setContextKind(nextDetail.context_kind);
     setEquipment(nextDetail.equipment);
     setDescription(nextDetail.description || "");
     setPrimaryMuscles(nextDetail.primary_muscle_group_ids);
@@ -153,6 +155,7 @@ export default function ExerciseDetailPage() {
         count_basis: countBasis,
         load_direction: loadDirection,
         rate_metric: rateMetric,
+        context_kind: contextKind,
         equipment,
         description: description.trim() || null,
         primary_muscle_group_ids: primaryMuscles,
@@ -281,7 +284,7 @@ export default function ExerciseDetailPage() {
           <p className="text-sm app-text-muted leading-relaxed whitespace-pre-wrap">{detail.description || "暂无"}</p>
         </section>
 
-        <section>
+        {detail.context_kind !== "resistance_level" && <section>
           <h2 className="text-sm font-bold app-text mb-2 px-1">我的统计</h2>
           <div className="grid grid-cols-2 gap-3">
             <StatCard icon={<Check size={14} />} label="已完成训练" value={detail.stats.completed_workout_count} unit="次" />
@@ -290,9 +293,9 @@ export default function ExerciseDetailPage() {
               <StatCard key={card.label} icon={card.icon} label={card.label} value={card.value} unit={card.unit} />
             ))}
           </div>
-        </section>
+        </section>}
 
-        <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
+        {detail.context_kind !== "resistance_level" && <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="text-sm font-bold app-text">动作成绩</h2>
             <button onClick={rebuildPerformance} className="app-primary-soft shrink-0 min-h-9 text-xs font-semibold border px-3 py-1 rounded-full">重算</button>
@@ -315,7 +318,7 @@ export default function ExerciseDetailPage() {
               ))}
             </div>
           )}
-        </section>
+        </section>}
 
         <section className="app-surface rounded-2xl border app-border shadow-sm p-4">
           <h2 className="text-sm font-bold app-text mb-3">{trend ? `${trend.metric_label}趋势` : "趋势"}</h2>
@@ -382,6 +385,7 @@ export default function ExerciseDetailPage() {
           countBasis={countBasis}
           loadDirection={loadDirection}
           rateMetric={rateMetric}
+          contextKind={contextKind}
           equipment={equipment}
           description={description}
           primary={primaryMuscles}
@@ -393,6 +397,7 @@ export default function ExerciseDetailPage() {
           onCountBasis={setCountBasis}
           onLoadDirection={setLoadDirection}
           onRateMetric={setRateMetric}
+          onContextKind={setContextKind}
           onEquipment={setEquipment}
           onDescription={setDescription}
           onPrimary={setPrimaryMuscles}
@@ -443,6 +448,7 @@ function ExerciseEditor(props: {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind: ContextKind;
   equipment: EquipmentId | null;
   description: string;
   primary: MuscleGroupId[];
@@ -454,6 +460,7 @@ function ExerciseEditor(props: {
   onCountBasis: (value: CountBasis) => void;
   onLoadDirection: (value: LoadDirection | null) => void;
   onRateMetric: (value: RateMetric) => void;
+  onContextKind: (value: ContextKind) => void;
   onEquipment: (value: EquipmentId | null) => void;
   onDescription: (value: string) => void;
   onPrimary: (value: MuscleGroupId[]) => void;
@@ -469,6 +476,7 @@ function ExerciseEditor(props: {
     count_basis: props.countBasis,
     load_direction: props.loadDirection,
     rate_metric: props.rateMetric,
+    context_kind: props.contextKind,
     equipment: props.equipment,
     description: props.description,
     primary_muscle_group_ids: props.primary,
@@ -482,6 +490,7 @@ function ExerciseEditor(props: {
     props.onCountBasis(next.count_basis);
     props.onLoadDirection(next.load_direction);
     props.onRateMetric(next.rate_metric);
+    props.onContextKind(next.context_kind);
     props.onEquipment(next.equipment);
     props.onDescription(next.description);
     props.onPrimary(next.primary_muscle_group_ids);

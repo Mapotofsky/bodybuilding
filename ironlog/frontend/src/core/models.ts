@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 export type DocId = string;
 export type ISODate = string;
@@ -9,6 +9,7 @@ export type PlanMode = "weekly" | "cyclic" | "flexible";
 export type RecordingMode =
   | "weight_reps"
   | "reps"
+  | "reps_duration"
   | "duration"
   | "distance_duration"
   | "weight_duration"
@@ -16,7 +17,8 @@ export type RecordingMode =
 export type LoadBasis = "total" | "per_hand";
 export type CountBasis = "whole_set" | "per_side";
 export type LoadDirection = "higher_better" | "lower_better";
-export type RateMetric = "none" | "distance_per_time" | "load_distance_per_time";
+export type RateMetric = "none" | "reps_per_time" | "distance_per_time" | "load_distance_per_time";
+export type ContextKind = "none" | "resistance_level" | "incline_percent";
 export type ExerciseCategory =
   | "chest" | "back" | "legs" | "shoulders" | "arms"
   | "core" | "cardio" | "stretch" | "other";
@@ -64,6 +66,7 @@ export interface ExerciseDoc extends BaseDoc {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind?: ContextKind;
   equipment: EquipmentId | null;
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
@@ -89,6 +92,7 @@ export interface DefaultExerciseSeed {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind?: ContextKind;
   equipment: EquipmentId | null;
   description: string | null;
   primaryMuscleGroupIds: MuscleGroupId[];
@@ -133,6 +137,7 @@ export interface WorkoutSetDoc {
   isWarmup: boolean;
   isFailure: boolean;
   restSeconds: number | null;
+  contextValue?: number | null;
 }
 
 export interface WorkoutExerciseDoc {
@@ -144,6 +149,7 @@ export interface WorkoutExerciseDoc {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind?: ContextKind;
   sortOrder: number;
   supersetGroup: number | null;
   sets: WorkoutSetDoc[];
@@ -202,6 +208,7 @@ export type PerformanceMetricType =
   | "distance.max_workout"
   | "duration.max_set"
   | "duration.max_workout"
+  | "frequency.max"
   | "speed.max"
   | "load_duration.max"
   | "load_distance.max"
@@ -216,6 +223,7 @@ export type PerformanceUnit =
   | "m"
   | "sec"
   | "m_per_sec"
+  | "reps_per_minute"
   | "reps";
 
 export interface RmFormulaResults {
@@ -237,6 +245,8 @@ export interface PerformanceInputSummary {
   countBasis: CountBasis;
   loadDirection: LoadDirection | null;
   rateMetric: RateMetric;
+  contextKind?: ContextKind;
+  contextValue?: number | null;
   reps: number | null;
   rpe: number | null;
   distanceM: number | null;
