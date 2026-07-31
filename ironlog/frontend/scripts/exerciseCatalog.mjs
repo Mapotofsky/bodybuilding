@@ -97,7 +97,7 @@ function parseRow(line, rowNumber) {
   if (cells.length !== 14) throw new Error(`候选表第 ${rowNumber} 行列数无效`);
   const [id, sourceId, name, category, recordingMode, loadBasisValue, countBasis, loadDirectionValue, rateMetric, contextKind, equipment, primary, secondary, descriptionValue] = cells;
   if (!/^ex-[a-z0-9-]+$/.test(id) || !/^(?:[0-9]{4}|-)$/.test(sourceId)) throw new Error(`候选表第 ${rowNumber} 行 ID 无效`);
-  const description = descriptionValue.replaceAll("↵↵", "\n\n").replaceAll("↵", "\n");
+  const description = descriptionValue.replaceAll("↵", "\n");
   return {
     id,
     name,
@@ -131,7 +131,7 @@ function validateCatalog(catalog) {
   for (const seed of catalog) {
     if (![...EQUIPMENT_MAP.values()].includes(seed.equipment)) throw new Error(`${seed.id} 的 equipment 无效`);
     validateRecordingConfiguration(seed);
-    if (seed.description.trim().length < 1 || seed.description.length > 500 || seed.description.includes("↵")) {
+    if (seed.description.trim().length < 1 || seed.description.length > 500 || seed.description.includes("↵") || seed.description.includes("\n\n")) {
       throw new Error(`${seed.id} 的 description 长度或换行标记无效`);
     }
     validateMuscles(seed.id, seed.primaryMuscleGroupIds, seed.secondaryMuscleGroupIds);

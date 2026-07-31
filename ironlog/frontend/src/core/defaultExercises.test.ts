@@ -34,6 +34,7 @@ describe("generated default exercise catalog", () => {
       }
       expect(exercise.equipment === null || VALID_EQUIPMENT.has(exercise.equipment)).toBe(true);
       expect(exercise.description === null || (exercise.description.trim().length >= 1 && exercise.description.length <= 500)).toBe(true);
+      expect(exercise.description).not.toContain("\n\n");
       expect(new Set(exercise.primaryMuscleGroupIds).size).toBe(exercise.primaryMuscleGroupIds.length);
       expect(new Set(exercise.secondaryMuscleGroupIds).size).toBe(exercise.secondaryMuscleGroupIds.length);
       expect(exercise.secondaryMuscleGroupIds.some((muscle) => exercise.primaryMuscleGroupIds.includes(muscle))).toBe(false);

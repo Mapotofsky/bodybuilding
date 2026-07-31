@@ -227,7 +227,7 @@ describe("local-first schema migration", () => {
       deletedAt: "2026-07-24T12:00:00.000Z",
       schemaVersion: CURRENT_SCHEMA_VERSION,
     });
-    expect(migrated.exercises.find((exercise) => exercise.id === "ex-bench-press")?.description).toContain("\n\n");
+    expect(migrated.exercises.find((exercise) => exercise.id === "ex-bench-press")?.description).not.toContain("\n\n");
     expect(migrated.exercises.find((exercise) => exercise.id === "ex-trap-bar-deadlift")).toMatchObject({
       equipment: "trap_bar",
       provenance: { sourceId: "0811" },
