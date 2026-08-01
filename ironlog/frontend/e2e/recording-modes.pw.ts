@@ -17,7 +17,7 @@ async function startFarmerWalk(page: Page) {
   await page.goto("/workouts/new", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "准备训练" })).toBeVisible();
   await page.getByPlaceholder("搜索动作...").fill("农夫行走");
-  await page.getByRole("button", { name: /农夫行走/ }).click();
+  await page.getByRole("button", { name: "农夫行走 腿部 · 哑铃" }).click();
   await page.getByRole("button", { name: "开始 · 农夫行走" }).click();
   await expect(page.getByRole("heading", { name: "农夫行走" })).toBeVisible();
 }
@@ -254,18 +254,18 @@ test("动作详情只展示适用于当前记录配置的基础信息", async ({
 test("URL 与页内选择模板都使用同一真实动作过滤", async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto("/workouts/new", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: /农夫行走/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "农夫行走 腿部 · 哑铃" })).toBeVisible();
   await seedFarmerTemplate(page);
 
   await page.goto("/workouts/new?template_id=template-e2e-farmer", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: /农夫行走/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "农夫行走 腿部 · 哑铃" })).toBeVisible();
   await expect(page.getByRole("button", { name: /杠铃卧推/ })).toHaveCount(0);
 
   await page.goto("/workouts/new", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: /E2E 计划/ }).click();
   await page.getByRole("button", { name: "农夫模板" }).click();
   await expect(page.getByText("已过滤动作", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /农夫行走/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "农夫行走 腿部 · 哑铃" })).toBeVisible();
   await expect(page.getByRole("button", { name: /杠铃卧推/ })).toHaveCount(0);
 });
 
