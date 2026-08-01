@@ -243,6 +243,72 @@ describe("local-first schema migration", () => {
     });
   });
 
+  it("refreshes v8 built-in double-newline descriptions without changing preserved records", () => {
+    const v8 = makeEmptySnapshot("device-test");
+    const bench = v8.exercises.find((exercise) => exercise.id === "ex-bench-press")!;
+    bench.description = "旧步骤一\n\n旧步骤二";
+    bench.createdAt = "2026-02-01T00:00:00.000Z";
+    bench.updatedAt = "2026-07-24T11:00:00.000Z";
+    bench.deletedAt = "2026-07-24T12:00:00.000Z";
+    bench.replacedByExerciseId = "ex-push-up";
+    (bench as typeof bench & { syncImportedMarker: string }).syncImportedMarker = "keep-built-in";
+    v8.exercises.push({
+      ...v8.exercises[0],
+      id: "custom-ex-v8-preserved",
+      name: "保留的 v8 自定义动作",
+      description: "自定义步骤一\n\n自定义步骤二",
+      isCustom: true,
+      syncImportedMarker: "keep-custom",
+    } as (typeof v8.exercises)[number]);
+    v8.exercises.push({
+      ...v8.exercises[0],
+      id: "unknown-ex-v8-preserved",
+      name: "保留的 v8 未知动作",
+      isCustom: false,
+      syncImportedMarker: "keep-unknown",
+    } as (typeof v8.exercises)[number]);
+    v8.workouts = [{
+      id: "workout-v8-preserved",
+      date: "2026-07-31",
+      startTime: null,
+      endTime: null,
+      planTemplateId: null,
+      note: "历史不改写",
+      mood: null,
+      exercises: [{ id: "workout-exercise-v8", exerciseId: "ex-bench-press", recordingMode: "weight_reps", loadBasis: "total", countBasis: "whole_set", loadDirection: "higher_better", rateMetric: "none", sortOrder: 0, supersetGroup: null, sets: [] }],
+      createdAt: "2026-07-31T00:00:00.000Z",
+      updatedAt: "2026-07-31T00:00:00.000Z",
+      deletedAt: null,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      syncImportedMarker: "keep-workout",
+    } as (typeof v8.workouts)[number]];
+    const original = structuredClone(v8);
+
+    const migrated = migrateSnapshot(v8, "device-test");
+    const refreshedBench = migrated.exercises.find((exercise) => exercise.id === "ex-bench-press")!;
+
+    expect(refreshedBench).toMatchObject({
+      description: DEFAULT_EXERCISES.find((exercise) => exercise.id === "ex-bench-press")?.description,
+      createdAt: "2026-02-01T00:00:00.000Z",
+      updatedAt: "2026-07-24T11:00:00.000Z",
+      deletedAt: "2026-07-24T12:00:00.000Z",
+      replacedByExerciseId: "ex-push-up",
+      syncImportedMarker: "keep-built-in",
+    });
+    expect(refreshedBench.description).not.toContain("\n\n");
+    expect(migrated.exercises.find((exercise) => exercise.id === "custom-ex-v8-preserved")).toMatchObject({
+      description: "自定义步骤一\n\n自定义步骤二",
+      syncImportedMarker: "keep-custom",
+    });
+    expect(migrated.exercises.find((exercise) => exercise.id === "unknown-ex-v8-preserved")).toMatchObject({
+      description: "旧步骤一\n\n旧步骤二",
+      syncImportedMarker: "keep-unknown",
+    });
+    expect(migrated.workouts[0]).toMatchObject({ id: "workout-v8-preserved", note: "历史不改写", syncImportedMarker: "keep-workout" });
+    expect(migrateSnapshot(structuredClone(migrated), "device-test")).toEqual(migrated);
+    expect(v8).toEqual(original);
+  });
+
   it("preserves current-schema count basis, unknown fields, provenance, and nested ids", () => {
     const raw = makeEmptySnapshot("device-test");
     raw.exercises.push({

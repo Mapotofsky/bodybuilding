@@ -196,7 +196,9 @@ function normalizeExercises(value: ExerciseDoc[] | undefined, sourceSchemaVersio
           deletedAt: previous.deletedAt,
           replacedByExerciseId: previous.replacedByExerciseId,
         }
-      : previous;
+      : previous.isCustom || !previous.description?.includes("\n\n")
+        ? previous
+        : { ...previous, description: current.description };
     return {
       ...merged,
       ...normalizeRecordingConfig(merged, CURRENT_SCHEMA_VERSION),
