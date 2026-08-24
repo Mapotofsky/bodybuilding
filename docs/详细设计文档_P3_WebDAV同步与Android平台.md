@@ -192,7 +192,7 @@ settings 特殊处理：只合并可同步偏好并强制保留本地 `lastSyncA
 }
 ```
 
-每次修改 Web 代码后执行：
+只有 Capacitor 配置、Android 集成、原生插件、打包 Web 资源或 Android 交付物实际变化并需要验证时执行：
 
 ```powershell
 cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
@@ -207,17 +207,7 @@ AndroidManifest 需要 `android.permission.INTERNET`；Android 9 及以下保存
 
 ### 6.3 构建验收
 
-```powershell
-cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
-npm run build
-npm test
-npm run android:sync
-
-cd android
-.\gradlew.bat assembleDebug
-```
-
-若最后一步因 Gradle 下载或 Android SDK 缺失失败，记录为环境阻塞；不得声称 APK 已验证。
+Web/本机、Android sync、Gradle/APK、AVD 与真机按《如何运行 IronLog》的风险分级逐层升级；签名、安装升级和发布产物再使用《部署指南》。`android:sync` 只证明 Web 构建和 Capacitor 资源同步；需要证明原生代码或 APK 可编译时，才在 `frontend/android` 运行目标明确的 Gradle 任务。Gradle 下载、Android SDK 或设备环境缺失时记录为环境阻塞，不得声称 APK、AVD 或真机已验证。
 
 ---
 

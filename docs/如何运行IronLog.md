@@ -42,9 +42,9 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 - Android Studio 模拟器：卸载 IronLog，或在模拟器系统设置中进入 `Apps -> IronLog -> Storage -> Clear storage`。命令行清理前先用 `adb devices` 确认目标是模拟器，再显式执行 `adb -s emulator-<serial> shell pm clear app.ironlog.local`；不得对日常真机执行该命令。
 - 如果旧测试数据已经同步到测试用 WebDAV 目录，清空本地数据前应确认不会被旧远端分片再次同步回来。精选动作目录验收使用全新或已定向清空的隔离测试目录，不复用日常远端目录。
 
-## 3. 日常验证命令
+## 3. 验证命令与选择
 
-在提交或修改核心逻辑前执行：
+根据修改的可观察风险选择最低但足够的命令，先运行受影响范围的定向验证。只有 Android 集成、原生范围或 Android 交付物实际变化时才运行 `android:sync`；需要证明 APK 或原生代码可编译时再运行第 4 节的 Gradle 命令。以下是命令用途，不是每次修改都必须完整执行的固定流水线：
 
 ```powershell
 cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend
@@ -64,11 +64,11 @@ npm run android:sync
 | `npm run build` | TypeScript 构建和 Vite 生产产物。 |
 | `npm test` | 运行当前 Vitest 单元测试。 |
 | `npm run test:layout` | 用临时 Chrome 配置验证 360px、412px 和横屏的动态视口、唯一主滚动区与底部 Tab 几何关系；包含从准备训练的具体动作按钮发起的模拟触摸上滑。不读写 Android 数据、Keystore 或 WebDAV。 |
-| `npm run android:sync` | 先 build，再将 `dist/` 同步进 `android/` 工程。 |
+| `npm run android:sync` | 同步版本元数据，先 build，再将 `dist/` 同步进 `android/` 工程；仅用于 Android 集成或交付范围。 |
 
 Android 内部测试版本以 `frontend/release/version.json` 为权威。修改发布构建序号后，运行 `npm run release:sync` 生成 Android 属性文件，再以 `npm run release:check` 确认一致性；`npm run android:sync` 会自动执行这两个步骤。不要手工修改 Gradle 中的版本号。
 
-`android:sync` 成功不等于 APK 已编译；它只验证 Capacitor 资源同步。
+`android:sync` 成功不等于 APK 已编译；它只验证 Web 构建与 Capacitor 资源同步。验收通过后停止，失败时只重跑相关范围。
 
 ## 4. Android 调试与 APK
 

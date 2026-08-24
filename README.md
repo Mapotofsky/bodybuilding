@@ -32,7 +32,7 @@ npm run dev
 
 应用不需要服务器、数据库、登录、JWT 或 PostgreSQL。
 
-## 构建 Web 资源
+## 构建与验证
 
 ```bash
 cd ironlog/frontend
@@ -42,7 +42,7 @@ npm test
 npm run test:layout
 ```
 
-`npm run catalog:generate` 会联网核对固定上游 commit 并重建默认动作产物，`npm run catalog:check` 可离线检查候选文档与已提交产物是否一致。`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试；`npm run test:layout` 使用本机 Chrome 验证 360px、412px 和横屏下的动态视口、主内容滚动区与底部导航几何关系，并从准备训练的具体动作按钮模拟触摸上滑。它不能替代 Android WebView、软键盘和系统安全区域的验收。
+`npm run catalog:generate` 会联网核对固定上游 commit 并重建默认动作产物，`npm run catalog:check` 可离线检查候选文档与已提交产物是否一致。`npm run build` 会执行 TypeScript 检查并生成 Vite 产物到 `dist/`。`npm test` 会运行迁移、文档分片存储和 WebDAV 同步的单元测试；`npm run test:layout` 使用本机 Chrome 验证 360px、412px 和横屏下的动态视口、主内容滚动区与底部导航几何关系，并从准备训练的具体动作按钮模拟触摸上滑。按修改风险选择相关命令；完整选择规则见本地运行指南。布局测试不能替代 Android WebView、软键盘和系统安全区域的验收。
 
 ## Android
 
@@ -125,7 +125,7 @@ ironlog/
     backend/                # 旧 FastAPI/PostgreSQL 后端归档
 ```
 
-## 验证命令
+## 验证命令索引
 
 ```bash
 cd ironlog/frontend
@@ -135,7 +135,7 @@ npm run test:layout
 npm run android:sync
 ```
 
-当前 Android APK 命令行构建依赖 Gradle 分发包下载。如果本机网络无法访问 `services.gradle.org`，`.\gradlew.bat assembleDebug` 会在下载 Gradle wrapper 时失败；Android 工程和 Capacitor 同步链路本身已就绪。
+以上命令按实际修改风险选用，不是每次变更的固定流水线；`android:sync` 只在 Android 集成、原生范围或 Android 交付物变化时运行。当前 Android APK 命令行构建依赖 Gradle 分发包下载。如果本机网络无法访问 `services.gradle.org`，`.\gradlew.bat assembleDebug` 会在下载 Gradle wrapper 时失败；Android 工程和 Capacitor 同步链路本身已就绪。
 
 ## 当前限制
 
