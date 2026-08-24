@@ -72,3 +72,19 @@ for (const viewport of [...portraitViewports, { name: "landscape", width: 800, h
     expect(Math.abs(after.mainBottom - after.tabbarTop)).toBeLessThanOrEqual(1);
   });
 }
+
+test("route changes reset the main scroll region", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/tools/rpe-strength", { waitUntil: "domcontentloaded" });
+  const main = page.getByTestId("app-main");
+  await main.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "日历" }).click();
+
+  await expect(page).toHaveURL(/\/calendar$/);
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+});

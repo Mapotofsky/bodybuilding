@@ -8,7 +8,7 @@ const repsRecording = { recording_mode: "reps", load_basis: null, count_basis: "
 const distanceRecording = { recording_mode: "distance_duration", load_basis: null, count_basis: "whole_set", load_direction: null, rate_metric: "distance_per_time" } as const;
 
 describe("workout completion presentation", () => {
-  it("does not show kg or strength volume for the static-hold completion issue", () => {
+  it("summarizes static holds with duration metrics only", () => {
     const summary = formatExerciseCompletion(durationRecording, [
       { ...emptyStrengthFields, duration_sec: 45, distance_m: null },
       { ...emptyStrengthFields, duration_sec: 60, distance_m: null },

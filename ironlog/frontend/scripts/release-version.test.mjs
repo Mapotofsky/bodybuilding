@@ -3,12 +3,15 @@ import { readFile } from "node:fs/promises";
 import { propertiesFor, validateAndroidProperties, validateVersion, versionName } from "./release-version.mjs";
 
 const current = JSON.parse(await readFile(new URL("../release/version.json", import.meta.url), "utf8"));
+const generatedAndroidProperties = await readFile(new URL("../android/version.properties", import.meta.url), "utf8");
 
 describe("release version metadata", () => {
-  it("generates the current internal Android version", () => {
+  it("generates Android metadata from the authoritative release metadata", () => {
     validateVersion(current);
-    expect(versionName(current)).toBe("0.1.0-internal.3");
-    expect(propertiesFor(current)).toContain("VERSION_CODE=3\nVERSION_NAME=0.1.0-internal.3");
+    const expectedVersionName = `${current.baseVersion}-${current.channel}.${current.buildNumber}`;
+    expect(versionName(current)).toBe(expectedVersionName);
+    expect(propertiesFor(current)).toContain(`VERSION_CODE=${current.android.versionCode}\nVERSION_NAME=${expectedVersionName}`);
+    expect(() => validateAndroidProperties(current, generatedAndroidProperties)).not.toThrow();
   });
 
   it("requires a positive integer versionCode", () => {

@@ -121,7 +121,7 @@ describe("local-first schema migration", () => {
     expect(migrated.exercisePerformanceRecords[0].deletedAt).not.toBeNull();
   });
 
-  it("migrates the AVD v6 stepmill shape without losing custom, unknown, or nested history fields", () => {
+  it("migrates a v6 stepmill snapshot without losing custom, unknown, or nested history fields", () => {
     const raw = avdV6Snapshot();
     const original = structuredClone(raw);
 
@@ -243,7 +243,7 @@ describe("local-first schema migration", () => {
     });
   });
 
-  it("refreshes v8 built-in double-newline descriptions without changing preserved records", () => {
+  it("normalizes controlled v8 built-in descriptions while preserving user records", () => {
     const v8 = makeEmptySnapshot("device-test");
     const bench = v8.exercises.find((exercise) => exercise.id === "ex-bench-press")!;
     bench.description = "旧步骤一\n\n旧步骤二";

@@ -161,7 +161,7 @@ describe("document file serialization", () => {
     expect(snapshot.manifest.shards.map((shard) => shard.path)).toContain("assets/avatar/profile-local.txt");
   });
 
-  it("round-trips the migrated AVD v6 stepmill shape through JSON/WebDAV shard serialization", () => {
+  it("round-trips a migrated v6 stepmill snapshot through JSON/WebDAV shard serialization", () => {
     const migrated = migrateSnapshot(legacyV6FileSnapshot(), "device-avd");
     const files = JSON.parse(JSON.stringify(snapshotToFiles(migrated))) as Record<string, unknown>;
     const reloaded = migrateSnapshot(filesToSnapshot(files), "device-avd");

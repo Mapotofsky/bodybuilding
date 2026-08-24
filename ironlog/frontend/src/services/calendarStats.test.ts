@@ -58,7 +58,7 @@ describe("calendar period comparison", () => {
     vi.restoreAllMocks();
   });
 
-  it("includes the missing training-duration difference beside the other KPI differences", async () => {
+  it("reports the training-duration difference with the period KPIs", async () => {
     mockSnapshot([
       strengthWorkout("previous-month", "2025-05-15", 100, 60),
       strengthWorkout("current-month", "2025-06-15", 100, 90),

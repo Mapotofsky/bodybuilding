@@ -100,7 +100,7 @@ describe("workout aggregate persistence", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("loads the AVD v6 exercise catalog and unfinished draft, then writes a stable current snapshot", async () => {
+  it("loads a v6 exercise catalog and unfinished draft, then writes a stable current snapshot", async () => {
     const store = memoryStore(legacyV6RepositorySnapshot());
     const save = vi.spyOn(store, "save");
     const repository = new LocalJsonRepository(Promise.resolve(store));

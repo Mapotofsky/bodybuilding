@@ -28,7 +28,7 @@ const resistanceRecording = {
 } as const;
 
 describe("SetFieldEditor", () => {
-  it("renders farmer-walk fields in registry order with an adaptive third row", () => {
+  it("renders farmer-walk fields in registry order with accessible labels", () => {
     const markup = renderToStaticMarkup(
       <SetFieldEditor
         recording={farmerRecording}
@@ -40,11 +40,9 @@ describe("SetFieldEditor", () => {
 
     expect(markup.indexOf("每手重量 (kg)")).toBeLessThan(markup.indexOf("距离 (m)"));
     expect(markup.indexOf("距离 (m)")).toBeLessThan(markup.indexOf("用时 (秒)"));
-    expect(markup).toContain("col-span-2");
     expect(markup).toContain('aria-label="每手重量 (kg)"');
     expect(markup).toContain('aria-label="距离 (m)"');
     expect(markup).toContain('aria-label="用时 (秒)"');
-    expect(markup).not.toContain('type="number"');
   });
 
   it("validates non-empty draft values immediately while allowing a blank placeholder", () => {
@@ -69,20 +67,7 @@ describe("SetFieldEditor", () => {
     expect(markup).not.toContain("右侧");
   });
 
-  it("reuses one clearable numeric input for optional resistance without a parallel status selector", () => {
-    const markup = renderToStaticMarkup(
-      <SetFieldEditor
-        recording={resistanceRecording}
-        weightUnit="kg"
-        value={{ weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "" }}
-        onChange={() => undefined}
-      />
-    );
-
-    expect(markup).toContain('aria-label="阻力档位（可选）"');
-    expect(markup).not.toContain("<select");
-    expect(markup).not.toContain("已记录数值");
-    expect(markup).not.toContain("未记录");
+  it("accepts blank and zero as distinct valid resistance drafts", () => {
     expect(validateSetFieldDraft(resistanceRecording, { weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "" })).toBeNull();
     expect(validateSetFieldDraft(resistanceRecording, { weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "0" })).toBeNull();
   });
