@@ -34,7 +34,7 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 
 ### 2.1 隔离测试数据重置
 
-`0.1.0-internal.2` 已建立兼容基线，已有本地与 WebDAV 快照必须按可能含用户数据处理。当前代码创建 v8 快照，并显式迁移 v5/v6/v7；v4 及更早和未来版本会明确拒绝，应用不会自动清理。正常升级不得使用本节步骤绕过 migration；完整兼容规则见 P2。
+已有本地与 WebDAV 快照必须按可能含用户数据处理。当前代码创建 v8 快照，并显式迁移 v5/v6/v7；v4 及更早和未来版本会明确拒绝，应用不会自动清理。正常升级不得使用本节步骤绕过 migration；完整兼容规则见 P2。
 
 只有开发者已经确认目标是可丢弃的浏览器测试数据、Android Studio 模拟器或隔离 WebDAV 测试目录时，才可按下列步骤定向重置。默认动作目录由 `docs/data_import/candidates.md` 唯一生成；目录实施与验收见《默认动作库引入实施方案》。
 
@@ -130,12 +130,6 @@ cd D:\workspaces\vscodeWorkspace\project\bodybuilding\ironlog\frontend\android
 
 只运行 `:app:` 任务，避免项目级 `assembleDebugAndroidTest` 触发 Capacitor Cordova 插件模块的 Kotlin 重复类问题。没有连接设备时只能完成 test APK 构建，不能写成真机通过。
 
-当前 `0.1.0-internal.2` 候选已在 Android 16（API 36）AVD 运行 `:app:connectedDebugAndroidTest`，4 项 instrumentation 全部通过。测试覆盖 Android Context 包名以及 Keystore 新凭据、旧凭据迁移、损坏后重新输入和清除配置路径；测试使用隔离的测试键并定向清理，不会清除应用业务数据或 WebDAV 目录。
-
-该候选还在同一 AVD 通过实体返回事件和边缘滑动事件完成“动作库筛选 → 动作详情 → 返回动作库”验证，筛选条件得到保留；动作库处无应用内历史时再次返回会退出到系统桌面。
-
-该候选同时已在目标真机使用 HTTPS 测试专用 WebDAV 完成设置保存、数据读取、应用重启后同步和远端脱敏检查；远端 JSON、manifest、backup 与日志未发现密码、密文、端点、用户名或 `passwordRef`。后续版本仍应使用隔离目录重复该检查，不能沿用本次结果代替新构建验收。
-
 分享图真机测试会在系统相册的 `Pictures/IronLog` 新增一张 PNG，不会写入训练 JSON、WebDAV、Keystore 或同步配置。测试后可只删除该图片；不要清除应用数据、正式密钥或 WebDAV 目录。Android 9 及以下首次保存会请求旧版存储权限，Android 10 及以上通过 MediaStore 保存。
 
 ## 5. 使用流程
@@ -165,17 +159,7 @@ Android 新密码由 Keystore 中不可导出的 AES 密钥使用 AES-GCM 加密
 
 测试连接会创建/确认远端同步目录并执行 PROPFIND。同步前远端已有数据会写入 `backups/`，但当前没有自动清理策略。
 
-## 7. 尚未可用的规划能力
-
-以下能力尚未实现；当前没有对应的页面、环境变量、命令、provider 或 API 配置：
-
-- AI provider、模型、API key、动作问答、训练分析、计划候选导入和联网资料检索。
-
-主题选择和语义色彩映射已经实现。源码中保留的 emerald/slate Tailwind 工具类通过全局兼容变量解析为当前主题角色。当前候选已通过 360px、412px 与横屏自动布局测试，并在 Android 16（API 36）AVD 的 411px WebView 逐套核对 5 套主题、主内容滚动区、底部 Tab、动作按钮起始拖动和分享预览；软键盘及厂商系统差异仍按上文人工步骤在目标设备确认。
-
-请不要将 API key 写入 settings.json、WebDAV、项目文件、日志或地址栏。未来 AI 未配置时，离线训练、模板、动作库/动作详情与 WebDAV 必须保持可用。
-
-## 8. 常见问题
+## 7. 常见问题
 
 ### Q: 浏览器刷新后数据不见了
 

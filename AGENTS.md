@@ -39,7 +39,7 @@
 
 ### 文档治理
 
-修改概要设计、P0–P7 详细设计、README、运行、部署、技术路线或文档职责时，使用 [ironlog-doc-governance](.agents/skills/ironlog-doc-governance/SKILL.md)。文档权威职责以 [概要设计文档](docs/概要设计文档.md) 的文档职责表为准。
+涉及文档职责调整、跨文档事实对齐、合并、拆分、归档或权威位置变化时，使用 [ironlog-doc-governance](.agents/skills/ironlog-doc-governance/SKILL.md)。单文档错字、格式、失效链接及权威位置明确的局部事实修正直接处理。文档权威职责以 [概要设计文档](docs/概要设计文档.md) 的文档职责表为准。
 
 ### 普通任务
 

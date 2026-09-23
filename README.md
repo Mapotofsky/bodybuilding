@@ -1,12 +1,12 @@
 # IronLog 本地单人版
 
-IronLog 已重构为 Android-first、本地优先的单人训练日志应用。当前运行路径是 `frontend` 下的 React/Vite/Capacitor 应用；旧 FastAPI 后端已归档到 `legacy/backend`，不再作为单人版运行依赖。
+IronLog 是 Android-first、本地优先的单人训练日志应用。当前运行路径是 `frontend` 下的 React/Vite/Capacitor 应用，不依赖业务后端、数据库或账号系统。
 
-## 当前状态与路线图
+## 当前能力与规划
 
 当前已实现离线训练、计划/模板、训练记录月历与统计、当前默认动作库/动作详情、七种受控记录方式、每手/总重量口径与整组/每侧计数口径、农夫行走、自定义动作器械与分类组合筛选、训练详情 PNG 分享图、本地头像资料、5 套主题及语义色彩映射和 WebDAV 手动同步。Android 保存分享图时写入系统相册的 `Pictures/IronLog`，浏览器开发模式继续使用下载。HomePage 可展示今日计划和补训建议；CalendarPage 当前仅显示实际训练记录，不渲染计划条目。
 
-以下 AI 能力均为规划中，不能按当前功能描述：AI provider/API key 配置、AI 问答/训练分析、联网 agent 和 AI 计划候选导入。主题语义映射已完成；当前内部候选已通过 360px、412px 与横屏自动布局测试，并在 Android 16（API 36）AVD 的 411px WebView 逐套核对 5 套主题、主内容滚动、底部 Tab 和分享预览。目标真机已完成功能复测及 HTTPS WebDAV 保存、读取、重启后同步与远端脱敏检查。
+AI provider/API key 配置、AI 问答与训练分析、联网 agent 和 AI 计划候选导入仍在规划中，当前没有对应入口或运行依赖。
 
 ## 文档索引
 
@@ -19,7 +19,7 @@ IronLog 已重构为 Android-first、本地优先的单人训练日志应用。�
 - [默认动作目录生成输入](docs/data_import/candidates.md)：当前默认目录唯一生成源；只保存已批准的完整生成字段。
 - [默认动作库引入实施方案](docs/data_import/默认动作库引入实施方案.md)：目录变更的实施、兼容迁移和验收步骤。
 - [P0 核心训练](docs/详细设计文档_P0_核心训练.md)、[P1 计划与动作库](docs/详细设计文档_P1_计划与动作库.md)、[P2 本地文档存储](docs/详细设计文档_P2_本地文档存储与数据迁移.md)、[P3 WebDAV 与 Android](docs/详细设计文档_P3_WebDAV同步与Android平台.md)：实现级契约。
-- [P4 主题系统与 UI 导航](docs/详细设计文档_P4_主题系统与UI导航.md)：主题选择、语义 token/兼容色彩映射与五项底部导航已实现；当前候选的自动布局与 AVD 视觉验收结果见该文档。
+- [P4 主题系统与 UI 导航](docs/详细设计文档_P4_主题系统与UI导航.md)：主题选择、语义 token、兼容色彩映射与五项底部导航契约。
 - [P5 AI 智能体与安全](docs/详细设计文档_P5_AI智能体与安全.md)：已批准路线图的详细设计；当前未实现。
 
 ## 本地运行
@@ -72,9 +72,10 @@ Capacitor 配置：
 - `appId`: `app.ironlog.local`
 - `appName`: `IronLog录铁`
 
-Android 内部测试版本由 [`frontend/release/version.json`](ironlog/frontend/release/version.json) 统一定义。修改构建序号后执行 `npm run release:sync` 和 `npm run release:check`；`npm run android:sync` 会自动同步并校验版本元数据。
 - `webDir`: `dist`
 - 已接入插件：App、Filesystem、Preferences，以及原生 `WebDavHttp`、`SecretStore` 和 `ImageSaver` 插件；App 将 Android 系统返回键和边缘返回手势接入应用内路由，Preferences 只保存本机端点配置及待迁移旧密码，不再承载新写入的 Android 密码正文
+
+Android 内部测试版本由 [`frontend/release/version.json`](ironlog/frontend/release/version.json) 统一定义。修改构建序号后执行 `npm run release:sync` 和 `npm run release:check`；`npm run android:sync` 会自动同步并校验版本元数据。
 
 ## 本地数据格式
 
@@ -92,7 +93,7 @@ ironlog-data/
     2026-07.json
 ```
 
-训练按月分片，应用启动时会先按 P2 的显式 migration 归一化本地分片。`0.1.0-internal.2` 已建立兼容基线，现有本地或 WebDAV 快照均按可能含用户数据处理；升级不得用清空、卸载或整体覆盖代替 migration。历史 FastAPI/PostgreSQL 数据和旧训练索引文件不在当前兼容范围。训练聚合、动作引用和完整兼容规则分别见 P0、P1、P2。
+训练按月分片，应用启动时会先按 P2 的显式 migration 归一化本地分片。升级不得用清空、卸载或整体覆盖代替 migration；训练聚合、动作引用和完整兼容规则分别见 P0、P1、P2。
 
 ## WebDAV 同步
 
@@ -121,8 +122,6 @@ ironlog/
       platform/             # IndexedDB / Capacitor Filesystem / Android Keystore secret 适配
       services/             # 页面稳定调用面，内部转到本地仓储
       sync/                 # WebDAV client 和同步服务
-  legacy/
-    backend/                # 旧 FastAPI/PostgreSQL 后端归档
 ```
 
 ## 验证命令索引

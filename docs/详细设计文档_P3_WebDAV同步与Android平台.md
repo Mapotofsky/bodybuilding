@@ -1,7 +1,7 @@
 # P3 详细设计文档：WebDAV 同步与 Android 平台
 
 > 对应概要设计：M3 同步部分、M4 Android 平台；M5/M6 设置同步与秘密隔离
-> 状态：当前 schema 8 实现基线；v5/v6/v7 远端分片经 P2 migration 迁移，安全和冲突限制保持不变
+> 状态：已实现；当前 schema 8，v5/v6/v7 远端分片经 P2 migration 迁移
 > 前置依赖：P2 本地文档存储与数据迁移。
 
 ---
@@ -233,5 +233,3 @@ Web/本机、Android sync、Gradle/APK、AVD 与真机按《如何运行 IronLog
 | 主题与 AI 规划字段 | themeId 可同步且未知值可回退；apiKeyRef 永不进入远端 JSON、备份或日志。 |
 
 迁移状态机、service 调用顺序与远端脱敏自动测试位于 `src/platform/secretStore.test.ts`、`src/services/syncSettings.test.ts` 和 `src/sync/syncService.test.ts`。Android 加密适配器的 instrumentation test 位于 `android/app/src/androidTest/java/app/ironlog/local/SecureSecretStoreInstrumentedTest.java`。任何改变同步顺序、分片格式、密码字段或插件方法集合的修改，都必须增加相应测试并走查失败恢复路径。
-
-当前 `0.1.0-internal.2` 候选已在 Android 16（API 36）AVD 完成 4 项 instrumentation，覆盖应用 Context、Keystore 新旧凭据迁移、凭据损坏后的重新输入以及清除配置不删除业务数据的边界。目标真机另使用 HTTPS 测试专用账户与目录完成设置保存、数据读取、应用重启后同步和远端脱敏检查；远端 JSON、manifest、backup 与日志未发现密码、密文、端点、用户名或 `passwordRef`。
