@@ -117,6 +117,7 @@ export interface Workout {
   date: string;
   start_time: string | null;
   end_time: string | null;
+  rest_started_at?: string | null;
   plan_template_id: string | null;
   template_name: string | null;
   template_color: string | null;

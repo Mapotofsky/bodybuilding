@@ -5,12 +5,13 @@ import {
   getExerciseHistory,
   type ExerciseHistoryRecord,
 } from "@/services/exercise";
-import { completeWorkoutDraft, createWorkout, getLatestWorkoutDraft, updateWorkout } from "@/services/workout";
+import { completeWorkoutDraft, createWorkout, listWorkoutDrafts, updateWorkout } from "@/services/workout";
 import { appendExerciseToTemplate, getTemplate, getPlans, getPlan } from "@/services/plan";
 import { getSettings } from "@/services/settings";
 import { calculateWorkoutMetrics } from "@/core/workoutMetrics";
 import { getRecordingModeSpec, validateWorkoutSetForMode } from "@/core/recordingModes";
-import { completionTimestamp, formatExerciseCompletion, formatWorkoutPrimaryMetric, splitMetricValue } from "@/utils/workoutPresentation";
+import { formatExerciseCompletion, formatWorkoutPrimaryMetric, splitMetricValue } from "@/utils/workoutPresentation";
+import { elapsedBetweenMs, elapsedSeconds } from "@/utils/workoutTime";
 import { formatSet } from "@/utils/recordingPresentation";
 import { scrollAppToTop } from "@/utils/scroll";
 import { sessionExerciseForDraft } from "@/utils/workoutDraft";
@@ -104,7 +105,7 @@ export default function WorkoutCreatePage() {
   /* ---- active template (optional) ---- */
   const [activeTemplate, setActiveTemplate] = useState<PlanTemplate | null>(null);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Workout | null>(null);
+  const [drafts, setDrafts] = useState<Workout[]>([]);
   const [draftChecking, setDraftChecking] = useState(true);
 
   /* ---- plan picker ---- */
@@ -120,17 +121,22 @@ export default function WorkoutCreatePage() {
   const totalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef("");
   const finishTimeRef = useRef("");
+  const finishFromRestRef = useRef(false);
 
   const [restSeconds, setRestSeconds] = useState(0);
   const restTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const restStartedAtRef = useRef<number | null>(null);
+  const restBaseRef = useRef(0);
   const workoutIdRef = useRef<string | null>(null);
+  const persistTailRef = useRef<Promise<unknown>>(Promise.resolve());
+  const completingSetRef = useRef(false);
 
   /* ---- load exercises, active plans & optional template ---- */
   useEffect(() => {
     getExercises().then(setAllExercises);
     getSettings().then((settings) => setWeightUnit(settings.weight_unit)).catch(() => undefined);
     getPlans().then((plans) => setActivePlans(plans.filter((p) => p.is_active)));
-    getLatestWorkoutDraft().then(setDraft).catch(() => useToastStore.getState().add("无法读取上次训练草稿", "error")).finally(() => setDraftChecking(false));
+    listWorkoutDrafts().then(setDrafts).catch(() => useToastStore.getState().add("无法读取上次训练草稿", "error")).finally(() => setDraftChecking(false));
   }, []);
 
   useLayoutEffect(() => {
@@ -221,31 +227,44 @@ export default function WorkoutCreatePage() {
   const ensureTotalTimer = useCallback(() => {
     if (totalTimerRef.current) return;
     if (!startTimeRef.current) startTimeRef.current = new Date().toISOString();
-    totalTimerRef.current = setInterval(
-      () => setTotalSeconds((s) => s + 1),
-      1000
-    );
+    setTotalSeconds(elapsedSeconds(startTimeRef.current, Date.now()));
+    totalTimerRef.current = setInterval(() => setTotalSeconds(elapsedSeconds(startTimeRef.current, Date.now())), 1000);
   }, []);
 
   const startRestTimer = useCallback(() => {
+    restBaseRef.current = 0;
+    restStartedAtRef.current = Date.now();
     setRestSeconds(0);
     if (restTimerRef.current) clearInterval(restTimerRef.current);
-    restTimerRef.current = setInterval(
-      () => setRestSeconds((s) => s + 1),
-      1000
-    );
+    restTimerRef.current = setInterval(() => setRestSeconds(restBaseRef.current + elapsedBetweenMs(restStartedAtRef.current!, Date.now())), 1000);
   }, []);
 
   const stopRestTimer = useCallback(() => {
+    const seconds = restStartedAtRef.current === null ? restSeconds : restBaseRef.current + elapsedBetweenMs(restStartedAtRef.current, Date.now());
     if (restTimerRef.current) {
       clearInterval(restTimerRef.current);
       restTimerRef.current = null;
     }
-  }, []);
+    restStartedAtRef.current = null;
+    setRestSeconds(seconds);
+    return seconds;
+  }, [restSeconds]);
 
   const resumeRestTimer = useCallback(() => {
     if (restTimerRef.current) return;
-    restTimerRef.current = setInterval(() => setRestSeconds((seconds) => seconds + 1), 1000);
+    restBaseRef.current = restSeconds;
+    restStartedAtRef.current = Date.now();
+    restTimerRef.current = setInterval(() => setRestSeconds(restBaseRef.current + elapsedBetweenMs(restStartedAtRef.current!, Date.now())), 1000);
+  }, [restSeconds]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (totalTimerRef.current) setTotalSeconds(elapsedSeconds(startTimeRef.current, Date.now()));
+      if (restStartedAtRef.current !== null) setRestSeconds(restBaseRef.current + elapsedBetweenMs(restStartedAtRef.current, Date.now()));
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); };
   }, []);
 
   /* ---- enter training for an exercise ---- */
@@ -316,6 +335,7 @@ export default function WorkoutCreatePage() {
     date,
     start_time: startTimeRef.current || undefined,
     end_time: extra?.end_time,
+    rest_started_at: restStartedAtRef.current === null ? null : new Date(restStartedAtRef.current).toISOString(),
     mood: extra?.mood ?? undefined,
     note: extra?.note,
     plan_template_id: activeTemplateId ?? undefined,
@@ -347,18 +367,19 @@ export default function WorkoutCreatePage() {
     })),
   });
 
-  const persistWorkout = async (
+  const persistWorkout = (
     exercises: SessionExercise[],
     extra?: { mood?: number | null; note?: string; end_time?: string }
   ): Promise<Workout> => {
     const payload = buildPayload(exercises, extra);
-    if (workoutIdRef.current) {
-      return updateWorkout(workoutIdRef.current, payload);
-    } else {
+    const next = persistTailRef.current.catch(() => undefined).then(async () => {
+      if (workoutIdRef.current) return updateWorkout(workoutIdRef.current, payload);
       const result = await createWorkout(payload);
       workoutIdRef.current = result.id;
       return result;
-    }
+    });
+    persistTailRef.current = next;
+    return next;
   };
 
   const applyRestSeconds = (
@@ -389,7 +410,8 @@ export default function WorkoutCreatePage() {
   };
 
   const handleCompleteSet = async () => {
-    if (!currentExercise) return;
+    if (!currentExercise || completingSetRef.current) return;
+    completingSetRef.current = true;
     const spec = getRecordingModeSpec(currentExercise.recording_mode);
     const w = parseNullableNumber(inputWeight);
     const r = parseNullableNumber(inputReps);
@@ -399,6 +421,7 @@ export default function WorkoutCreatePage() {
     const rpe = parseNullableNumber(inputRpe);
 
     const completedSet: WorkoutSet = {
+      id: crypto.randomUUID(),
       set_number: currentSetNum,
       weight: spec.fields.includes("weight") ? w : null,
       reps: spec.fields.includes("reps") ? r : null,
@@ -429,6 +452,7 @@ export default function WorkoutCreatePage() {
       if (rpe != null && (!Number.isInteger(rpe) || rpe < 1 || rpe > 10)) throw new Error("RPE 必须是 1 到 10 的整数");
     } catch (error) {
       useToastStore.getState().add(error instanceof Error ? error.message : "请检查本组输入", "error");
+      completingSetRef.current = false;
       return;
     }
 
@@ -446,37 +470,37 @@ export default function WorkoutCreatePage() {
     } else {
       updated = [
         ...sessionExercises,
-        { exercise: currentExercise, superset_group: null, sets: [completedSet] },
+        { id: crypto.randomUUID(), exercise: currentExercise, superset_group: null, sets: [completedSet] },
       ];
     }
     setSessionExercises(updated);
 
+    startRestTimer();
     // Save immediately
     try {
-      const saved = await persistWorkout(updated);
-      setSessionExercises(mergePersistedIds(updated, saved));
+      await persistWorkout(updated);
     } catch (error) {
       useToastStore.getState().add(saveErrorMessage(error), "error");
+    } finally {
+      completingSetRef.current = false;
     }
 
     setPhase("rest");
     resetSetMetaInputs();
-    startRestTimer();
   };
 
   const handleNextSet = async () => {
-    stopRestTimer();
+    const completedRestSeconds = stopRestTimer();
     if (!currentExercise) return;
     const updated = applyRestSeconds(
       sessionExercises,
       currentExercise.id,
-      restSeconds
+      completedRestSeconds
     );
     setSessionExercises(updated);
 
     try {
-      const saved = await persistWorkout(updated);
-      setSessionExercises(mergePersistedIds(updated, saved));
+      await persistWorkout(updated);
     } catch (error) {
       useToastStore.getState().add(saveErrorMessage(error), "error");
     }
@@ -486,18 +510,17 @@ export default function WorkoutCreatePage() {
   };
 
   const handleChangeExercise = async () => {
-    stopRestTimer();
+    const completedRestSeconds = stopRestTimer();
     if (!currentExercise) return;
     const updated = applyRestSeconds(
       sessionExercises,
       currentExercise.id,
-      restSeconds
+      completedRestSeconds
     );
     setSessionExercises(updated);
 
     try {
-      const saved = await persistWorkout(updated);
-      setSessionExercises(mergePersistedIds(updated, saved));
+      await persistWorkout(updated);
     } catch (error) {
       useToastStore.getState().add(saveErrorMessage(error), "error");
     }
@@ -507,23 +530,20 @@ export default function WorkoutCreatePage() {
   };
 
   const handleEndTraining = async () => {
-    stopRestTimer();
+    finishFromRestRef.current = phase === "rest";
+    const completedRestSeconds = finishFromRestRef.current ? stopRestTimer() : null;
     if (!currentExercise) return;
-    finishTimeRef.current = completionTimestamp(startTimeRef.current, totalSeconds, new Date().toISOString());
+    finishTimeRef.current = new Date().toISOString();
+    setTotalSeconds(elapsedSeconds(startTimeRef.current, Date.parse(finishTimeRef.current)));
     if (totalTimerRef.current) {
       clearInterval(totalTimerRef.current);
       totalTimerRef.current = null;
     }
-    const updated = applyRestSeconds(
-      sessionExercises,
-      currentExercise.id,
-      restSeconds
-    );
+    const updated = completedRestSeconds === null ? sessionExercises : applyRestSeconds(sessionExercises, currentExercise.id, completedRestSeconds);
     setSessionExercises(updated);
 
     try {
-      const saved = await persistWorkout(updated);
-      setSessionExercises(mergePersistedIds(updated, saved));
+      await persistWorkout(updated);
     } catch (error) {
       useToastStore.getState().add(saveErrorMessage(error), "error");
     }
@@ -534,8 +554,13 @@ export default function WorkoutCreatePage() {
   const handleResumeTraining = () => {
     finishTimeRef.current = "";
     ensureTotalTimer();
-    resumeRestTimer();
-    setPhase("rest");
+    if (finishFromRestRef.current) {
+      resumeRestTimer();
+      void persistWorkout(sessionExercises).catch((error) => useToastStore.getState().add(saveErrorMessage(error), "error"));
+      setPhase("rest");
+    } else {
+      setPhase("training");
+    }
   };
 
   const handleSave = async () => {
@@ -545,12 +570,11 @@ export default function WorkoutCreatePage() {
       totalTimerRef.current = null;
     }
     try {
-      const saved = await persistWorkout(sessionExercises, {
+      await persistWorkout(sessionExercises, {
         mood,
         note: note || undefined,
-        end_time: finishTimeRef.current || completionTimestamp(startTimeRef.current, totalSeconds, new Date().toISOString()),
+        end_time: finishTimeRef.current || new Date().toISOString(),
       });
-      setSessionExercises(mergePersistedIds(sessionExercises, saved));
       useToastStore.getState().add("训练已保存", "success");
       navigate(`/workouts/${workoutIdRef.current}`, { replace: true });
     } catch (err) {
@@ -561,8 +585,7 @@ export default function WorkoutCreatePage() {
     }
   };
 
-  async function continueDraft() {
-    if (!draft) return;
+  async function continueDraft(draft: Workout) {
     const exerciseMap = new Map(allExercises.map((exercise) => [exercise.id, exercise]));
     const restored = draft.exercises.map((item) => sessionExerciseForDraft(item, exerciseMap.get(item.exercise_id)));
     workoutIdRef.current = draft.id;
@@ -570,14 +593,14 @@ export default function WorkoutCreatePage() {
     setMood(draft.mood);
     setNote(draft.note || "");
     startTimeRef.current = draft.start_time || "";
-    if (draft.start_time) setTotalSeconds(Math.max(0, Math.floor((Date.now() - new Date(draft.start_time).getTime()) / 1000)));
+    if (draft.start_time) setTotalSeconds(elapsedSeconds(draft.start_time, Date.now()));
     setActiveTemplateId(draft.plan_template_id);
     if (draft.plan_template_id) {
       getTemplate(draft.plan_template_id).then(setActiveTemplate).catch(() => useToastStore.getState().add("原训练模板已不存在，已保留训练数据", "error"));
     }
     setSessionExercises(restored);
     setIsFirstSelect(false);
-    setDraft(null);
+    setDrafts([]);
     const last = restored[restored.length - 1];
     if (last) {
       const lastSet = last.sets[last.sets.length - 1];
@@ -590,18 +613,25 @@ export default function WorkoutCreatePage() {
       setInputContextValue(lastSet?.context_value != null ? String(lastSet.context_value) : "");
       resetSetMetaInputs();
       if (lastSet?.unit === "lb") setWeightUnit("lb");
-      setPhase("training");
+      if (draft.rest_started_at) {
+        restBaseRef.current = lastSet?.rest_seconds ?? 0;
+        restStartedAtRef.current = Date.parse(draft.rest_started_at);
+        setRestSeconds(restBaseRef.current + elapsedBetweenMs(restStartedAtRef.current, Date.now()));
+        restTimerRef.current = setInterval(() => setRestSeconds(restBaseRef.current + elapsedBetweenMs(restStartedAtRef.current!, Date.now())), 1000);
+        setPhase("rest");
+      } else {
+        setPhase("training");
+      }
       ensureTotalTimer();
     } else {
       setPhase("select");
     }
   }
 
-  async function startFreshAfterDraft() {
-    if (!draft) return;
+  async function startFreshAfterDraft(draft: Workout) {
     try {
       await completeWorkoutDraft(draft.id);
-      setDraft(null);
+      setDrafts((previous) => previous.filter((item) => item.id !== draft.id));
     } catch (error) {
       useToastStore.getState().add(error instanceof Error ? error.message : "无法结束旧草稿", "error");
     }
@@ -617,8 +647,8 @@ export default function WorkoutCreatePage() {
         ?.sets.slice(-1)[0]
     : null;
 
-  if (draft && !draftChecking) {
-    return <DraftRecoveryDialog draft={draft} onContinue={continueDraft} onStartFresh={startFreshAfterDraft} />;
+  if (drafts.length > 0 && !draftChecking) {
+    return <DraftRecoveryDialog drafts={drafts} onContinue={continueDraft} onStartFresh={startFreshAfterDraft} />;
   }
 
   /* ================================================================ */
@@ -1189,30 +1219,21 @@ export default function WorkoutCreatePage() {
   return null;
 }
 
-function mergePersistedIds(draft: SessionExercise[], saved: Workout): SessionExercise[] {
-  return draft.map((exercise, index) => {
-    const persisted = saved.exercises[index];
-    if (!persisted) return exercise;
-    return {
-      ...exercise,
-      id: persisted.id,
-      sets: exercise.sets.map((set, setIndex) => ({ ...set, id: persisted.sets[setIndex]?.id || set.id })),
-    };
-  });
-}
-
-function DraftRecoveryDialog({ draft, onContinue, onStartFresh }: { draft: Workout; onContinue: () => void; onStartFresh: () => void }) {
+function DraftRecoveryDialog({ drafts, onContinue, onStartFresh }: { drafts: Workout[]; onContinue: (draft: Workout) => void; onStartFresh: (draft: Workout) => void }) {
   return (
-    <div className="app-page bg-slate-50 flex items-center justify-center p-5">
-      <div className="w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-xl p-5 space-y-4">
+    <div className="app-page bg-slate-50 flex justify-center overflow-y-auto p-5">
+      <div className="my-auto w-full max-w-sm bg-white rounded-3xl border border-slate-100 shadow-xl p-5 space-y-4">
         <div className="w-10 h-1 bg-emerald-400 rounded-full" />
         <div>
           <p className="text-lg font-bold text-slate-900">发现未结束的训练</p>
-          <p className="text-sm text-slate-500 mt-1">{draft.date} · {draft.exercises.length} 个动作。选择继续将恢复原来的训练记录。</p>
+          <p className="text-sm text-slate-500 mt-1">选择一条训练继续，或逐条结束后新建。原有动作和组会保留。</p>
         </div>
-        <button onClick={onContinue} className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl font-semibold">继续上次训练</button>
-        <button onClick={onStartFresh} className="w-full py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-semibold">新建训练</button>
-        <p className="text-xs text-slate-400">新建训练会将旧草稿结束为最后一次记录时间，原有训练数据不会删除。</p>
+        {drafts.map((draft) => <div key={draft.id} className="space-y-2 border-t border-slate-100 pt-3">
+          <p className="text-sm text-slate-600">{draft.date} · {draft.exercises.length} 个动作</p>
+          <button onClick={() => onContinue(draft)} className="w-full py-3.5 bg-emerald-500 text-white rounded-2xl font-semibold">继续这条训练</button>
+          <button onClick={() => onStartFresh(draft)} className="w-full py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-semibold">结束这条训练</button>
+        </div>)}
+        <p className="text-xs text-slate-400">结束草稿会保留其动作和组，并以最后一次记录时间作为结束时间。</p>
       </div>
     </div>
   );

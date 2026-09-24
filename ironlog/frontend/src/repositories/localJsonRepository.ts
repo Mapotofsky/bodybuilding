@@ -22,6 +22,7 @@ import { recordingConfigEquals, recordingConfigOf, validateRecordingConfig } fro
 
 export class LocalJsonRepository {
   private snapshotPromise: Promise<DataSnapshot> | null = null;
+  private mutationTail: Promise<void> = Promise.resolve();
 
   constructor(private storePromise: Promise<DocumentStore>) {}
 
@@ -214,14 +215,21 @@ export class LocalJsonRepository {
   }
 
   async getLatestWorkoutDraft(): Promise<WorkoutDoc | null> {
+    return (await this.listWorkoutDrafts())[0] || null;
+  }
+
+  async listWorkoutDrafts(): Promise<WorkoutDoc[]> {
     const snapshot = await this.getSnapshot();
     return snapshot.workouts
       .filter((workout) => !workout.deletedAt && workout.endTime === null)
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || right.createdAt.localeCompare(left.createdAt))[0] || null;
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || right.createdAt.localeCompare(left.createdAt));
   }
 
   async createWorkout(body: Omit<WorkoutDoc, "id" | "createdAt" | "updatedAt" | "deletedAt" | "schemaVersion">): Promise<WorkoutDoc> {
     return this.mutate((snapshot) => {
+      if (body.endTime === null && snapshot.workouts.some((workout) => !workout.deletedAt && workout.endTime === null)) {
+        throw new Error("已有未结束的训练，请先继续或结束该训练");
+      }
       const workout: WorkoutDoc = withDoc({
         ...body,
         exercises: body.exercises.map((e) => ({
@@ -462,12 +470,21 @@ export class LocalJsonRepository {
   }
 
   private async mutate<T>(fn: (snapshot: DataSnapshot) => T): Promise<T> {
-    const snapshot = await this.getSnapshot();
-    const result = fn(snapshot);
-    snapshot.manifest.updatedAt = nowIso();
-    snapshot.manifest.shards = buildShardList(snapshot);
-    await this.persist(snapshot);
-    return result;
+    const previous = this.mutationTail;
+    let release!: () => void;
+    this.mutationTail = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    try {
+      const snapshot = structuredClone(await this.getSnapshot());
+      const result = fn(snapshot);
+      snapshot.manifest.updatedAt = nowIso();
+      snapshot.manifest.shards = buildShardList(snapshot);
+      await this.persist(snapshot);
+      this.snapshotPromise = Promise.resolve(snapshot);
+      return result;
+    } finally {
+      release();
+    }
   }
 
   private async persist(snapshot: DataSnapshot): Promise<void> {

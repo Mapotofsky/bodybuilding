@@ -175,6 +175,7 @@ export async function toWorkout(doc: WorkoutDoc): Promise<Workout> {
     date: doc.date,
     start_time: doc.startTime,
     end_time: doc.endTime,
+    rest_started_at: doc.restStartedAt ?? null,
     plan_template_id: doc.planTemplateId,
     template_name: template?.name || null,
     template_color: template?.color || null,

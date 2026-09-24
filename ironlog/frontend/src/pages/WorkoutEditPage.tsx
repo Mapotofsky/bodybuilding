@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
@@ -16,6 +16,7 @@ import { makeEmptySet } from "@/utils/workout";
 import ExercisePicker from "@/components/ExercisePicker";
 import SetFieldEditor, { type SetFieldDraft } from "@/components/SetFieldEditor";
 import type { RecordingSnapshot } from "@/utils/recordingPresentation";
+import { fromLocalDateTime, toLocalDateTime } from "@/utils/workoutTime";
 
 interface LocalSet extends WorkoutSet {
   fieldInputs: SetFieldDraft;
@@ -49,6 +50,7 @@ export default function WorkoutEditPage() {
   const [weightUnit, setWeightUnit] = useState<"kg" | "lb">("kg");
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
+  const originalTimes = useRef<{ start: string | null; end: string | null }>({ start: null, end: null });
 
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false);
@@ -67,8 +69,9 @@ export default function WorkoutEditPage() {
         setDate(w.date);
         setNote(w.note || "");
         setMood(w.mood);
-        setStartTime(w.start_time ? w.start_time.slice(0, 16) : "");
-        setEndTime(w.end_time ? w.end_time.slice(0, 16) : "");
+        originalTimes.current = { start: w.start_time, end: w.end_time };
+        setStartTime(toLocalDateTime(w.start_time));
+        setEndTime(toLocalDateTime(w.end_time));
         // Detect unit from first set
         const firstUnit = w.exercises[0]?.sets[0]?.unit;
         if (firstUnit === "lb") setWeightUnit("lb");
@@ -199,8 +202,8 @@ export default function WorkoutEditPage() {
         date,
         note: note || null,
         mood: mood || null,
-        start_time: startTime ? new Date(startTime).toISOString() : null,
-        end_time: endTime ? new Date(endTime).toISOString() : null,
+        start_time: fromLocalDateTime(startTime, originalTimes.current.start),
+        end_time: fromLocalDateTime(endTime, originalTimes.current.end),
         exercises: exercises.map((e, idx) => ({
           exercise_id: e.exercise_id,
           recording_mode: e.recording_mode,

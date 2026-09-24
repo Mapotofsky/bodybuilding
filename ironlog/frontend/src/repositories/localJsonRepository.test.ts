@@ -47,14 +47,33 @@ describe("workout aggregate persistence", () => {
     expect(renamed.exercises[0].id).toBe(created.exercises[0].id);
   });
 
-  it("finds the most recently updated unfinished workout as the draft", async () => {
+  it("prevents duplicate drafts while preserving the original workout and sets", async () => {
     const repository = new LocalJsonRepository(Promise.resolve(memoryStore(makeEmptySnapshot("device-test"))));
-    const first = await repository.createWorkout({ date: "2026-06-20", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [] });
-    const second = await repository.createWorkout({ date: "2026-06-21", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [] });
-    await repository.updateWorkout(first.id, { note: "newer" });
-    expect((await repository.getLatestWorkoutDraft())?.id).toBe(first.id);
-    await repository.updateWorkout(first.id, { endTime: "2026-06-22T01:00:00.000Z" });
-    expect((await repository.getLatestWorkoutDraft())?.id).toBe(second.id);
+    const body = { date: "2026-06-20", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
+      exercises: [{ id: "exercise-1", exerciseId: "ex-bench-press", ...weightedRecording(), sortOrder: 0, supersetGroup: null, sets: [{ ...set(1), id: "set-1" }] }] };
+    const [first, second] = await Promise.allSettled([repository.createWorkout(body), repository.createWorkout(body)]);
+    expect(first.status).toBe("fulfilled");
+    expect(second.status).toBe("rejected");
+    const original = (first as PromiseFulfilledResult<Awaited<ReturnType<typeof repository.createWorkout>>>).value;
+    expect((await repository.getWorkout(original.id))?.exercises[0].sets[0].id).toBe("set-1");
+    expect((await repository.listWorkouts()).map((workout) => workout.id)).toEqual([original.id]);
+    await repository.updateWorkout(original.id, { note: "newer" });
+    expect((await repository.getLatestWorkoutDraft())?.id).toBe(original.id);
+    await repository.updateWorkout(original.id, { endTime: "2026-06-22T01:00:00.000Z" });
+    expect(await repository.getLatestWorkoutDraft()).toBeNull();
+    expect((await repository.getWorkout(original.id))?.exercises[0].sets[0].id).toBe("set-1");
+  });
+
+  it("lists all pre-existing drafts for individual recovery without deleting any history", async () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    const original = new LocalJsonRepository(Promise.resolve(memoryStore(snapshot)));
+    const first = await original.createWorkout({ date: "2026-08-22", startTime: null, endTime: null, planTemplateId: null, note: "first", mood: null, exercises: [] });
+    const legacy = structuredClone(await original.getSnapshot());
+    legacy.workouts.push({ ...first, id: "legacy-second", note: "second", updatedAt: "2026-08-23T00:00:00.000Z" });
+    const repository = new LocalJsonRepository(Promise.resolve(memoryStore(legacy)));
+    expect((await repository.listWorkoutDrafts()).map((draft) => draft.id).sort()).toEqual(["legacy-second", first.id].sort());
+    await expect(repository.createWorkout({ date: "2026-08-24", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null, exercises: [] })).rejects.toThrow("已有未结束的训练");
+    expect((await repository.listWorkoutDrafts()).map((draft) => draft.id).sort()).toEqual(["legacy-second", first.id].sort());
   });
 
   it("creates custom IDs, keeps them stable on edit, and atomically migrates active template references", async () => {

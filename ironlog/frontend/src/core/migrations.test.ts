@@ -4,6 +4,18 @@ import { CURRENT_SCHEMA_VERSION, type DataSnapshot, type ExercisePerformanceReco
 import { buildShardList, makeEmptySnapshot, migrateSnapshot } from "./migrations";
 
 describe("local-first schema migration", () => {
+  it("upgrades a v8 active draft without inventing a rest boundary or changing its history", () => {
+    const v8 = makeEmptySnapshot("device-test");
+    v8.manifest.schemaVersion = 8;
+    const source = { id: "draft-v8", date: "2026-08-22", startTime: "2026-08-22T06:00:00.000Z", endTime: null,
+      planTemplateId: null, note: "保留", mood: null, exercises: [], createdAt: "2026-08-22T06:00:00.000Z",
+      updatedAt: "2026-08-22T06:01:00.000Z", deletedAt: null, schemaVersion: 8 };
+    v8.workouts.push(source);
+    const upgraded = migrateSnapshot(v8, "device-test");
+    expect(upgraded.workouts[0]).toMatchObject({ ...source, restStartedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION });
+    expect(v8.workouts[0]).not.toHaveProperty("restStartedAt");
+    expect(migrateSnapshot(upgraded, "device-test")).toEqual(upgraded);
+  });
   it("creates a new current-schema snapshot with the exact 87-item catalog", () => {
     const snapshot = makeEmptySnapshot("device-test");
 

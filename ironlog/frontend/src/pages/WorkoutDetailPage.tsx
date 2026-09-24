@@ -58,9 +58,13 @@ export default function WorkoutDetailPage() {
 
   const handleCopy = async () => {
     if (!workout || !copyDate) return;
-    const newWorkout = await copyWorkout(workout.id, copyDate);
-    navigate(`/workouts/${newWorkout.id}`, { replace: true });
-    setShowCopyModal(false);
+    try {
+      const newWorkout = await copyWorkout(workout.id, copyDate);
+      navigate(`/workouts/${newWorkout.id}`, { replace: true });
+      setShowCopyModal(false);
+    } catch (error) {
+      useToastStore.getState().add(error instanceof Error ? error.message : "复制训练失败", "error");
+    }
   };
 
   const handleShare = async () => {

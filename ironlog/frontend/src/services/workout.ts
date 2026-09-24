@@ -65,6 +65,7 @@ export interface WorkoutCreatePayload {
   date: string;
   start_time?: string | null;
   end_time?: string | null;
+  rest_started_at?: string | null;
   plan_template_id?: string | null;
   note?: string | null;
   mood?: number | null;
@@ -86,6 +87,10 @@ export async function getLatestWorkoutDraft(): Promise<Workout | null> {
   return draft ? toWorkout(draft) : null;
 }
 
+export async function listWorkoutDrafts(): Promise<Workout[]> {
+  return Promise.all((await localRepository.listWorkoutDrafts()).map(toWorkout));
+}
+
 export async function createWorkout(body: WorkoutCreatePayload): Promise<Workout> {
   const doc = await normalizeWorkoutPayload(body);
   const created = await localRepository.createWorkout(doc);
@@ -93,7 +98,21 @@ export async function createWorkout(body: WorkoutCreatePayload): Promise<Workout
   return toWorkout(created);
 }
 
-export async function updateWorkout(id: string, body: Partial<WorkoutCreatePayload>): Promise<Workout> {
+const workoutWriteTails = new Map<string, Promise<unknown>>();
+
+function queueWorkoutWrite<T>(id: string, write: () => Promise<T>): Promise<T> {
+  const previous = workoutWriteTails.get(id) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(write);
+  workoutWriteTails.set(id, next);
+  void next.finally(() => { if (workoutWriteTails.get(id) === next) workoutWriteTails.delete(id); }).catch(() => undefined);
+  return next;
+}
+
+export function updateWorkout(id: string, body: Partial<WorkoutCreatePayload>): Promise<Workout> {
+  return queueWorkoutWrite(id, () => updateWorkoutNow(id, body));
+}
+
+async function updateWorkoutNow(id: string, body: Partial<WorkoutCreatePayload>): Promise<Workout> {
   const existing = await localRepository.getWorkout(id);
   if (!existing) throw new Error("训练记录不存在");
   const merged = mergeWithExisting(existing, body);
@@ -107,9 +126,11 @@ export async function updateWorkout(id: string, body: Partial<WorkoutCreatePaylo
 
 /** Mark an unfinished auto-saved workout as completed at its last recorded activity. */
 export async function completeWorkoutDraft(id: string): Promise<Workout> {
-  const draft = await localRepository.getWorkout(id);
-  if (!draft || draft.endTime !== null) throw new Error("未找到可结束的训练草稿");
-  return updateWorkout(id, { end_time: draftCompletionTime(draft) });
+  return queueWorkoutWrite(id, async () => {
+    const draft = await localRepository.getWorkout(id);
+    if (!draft || draft.endTime !== null) throw new Error("未找到可结束的训练草稿");
+    return updateWorkoutNow(id, { end_time: draftCompletionTime(draft) });
+  });
 }
 
 export function draftCompletionTime(draft: Pick<WorkoutDoc, "createdAt" | "updatedAt">): string {
@@ -131,6 +152,7 @@ export async function copyWorkout(id: string, targetDate: string): Promise<Worko
     date: targetDate,
     start_time: null,
     end_time: null,
+    rest_started_at: null,
     exercises: payload.exercises.map((exercise) => ({
       ...exercise,
       id: "",
@@ -234,6 +256,7 @@ async function normalizeWorkoutPayload(body: WorkoutCreatePayload): Promise<Omit
     date: body.date,
     startTime: body.start_time ?? null,
     endTime: body.end_time ?? null,
+    restStartedAt: body.end_time == null ? body.rest_started_at ?? null : null,
     planTemplateId: body.plan_template_id ?? null,
     note: body.note ?? null,
     mood: body.mood ?? null,
@@ -266,6 +289,7 @@ function mergeWithExisting(existing: WorkoutDoc, update: Partial<WorkoutCreatePa
     date: update.date ?? source.date,
     start_time: update.start_time === undefined ? source.start_time : update.start_time,
     end_time: update.end_time === undefined ? source.end_time : update.end_time,
+    rest_started_at: update.rest_started_at === undefined ? source.rest_started_at : update.rest_started_at,
     plan_template_id: update.plan_template_id === undefined ? source.plan_template_id : update.plan_template_id,
     note: update.note === undefined ? source.note : update.note,
     mood: update.mood === undefined ? source.mood : update.mood,
@@ -324,6 +348,7 @@ function workoutToPayload(workout: WorkoutDoc): WorkoutCreatePayload {
     date: workout.date,
     start_time: workout.startTime,
     end_time: workout.endTime,
+    rest_started_at: workout.restStartedAt ?? null,
     plan_template_id: workout.planTemplateId,
     note: workout.note,
     mood: workout.mood,
@@ -380,6 +405,7 @@ function validateWorkoutHeader(body: WorkoutCreatePayload): void {
   }
   validateIsoTime(body.start_time, "开始时间");
   validateIsoTime(body.end_time, "结束时间");
+  validateIsoTime(body.rest_started_at, "休息开始时间");
   if (body.start_time && body.end_time && new Date(body.end_time) < new Date(body.start_time)) {
     throw new Error("结束时间不能早于开始时间");
   }

@@ -69,6 +69,22 @@ describe("updateWorkout merge semantics", () => {
     expect(saved.exercises?.[0].supersetGroup).toBe(7);
   });
 
+  it("serializes concurrent saves so a later partial edit retains the first edit and its sets", async () => {
+    let current = workoutDoc({ planTemplateId: null, note: null, mood: null, supersetGroup: null });
+    repository.getWorkout.mockImplementation(async () => structuredClone(current));
+    repository.updateWorkout.mockImplementation(async (_id: string, update: Partial<WorkoutDoc>) => {
+      await Promise.resolve();
+      current = { ...current, ...update, updatedAt: "2026-06-22T10:31:00.000Z" };
+      return structuredClone(current);
+    });
+    await Promise.all([
+      updateWorkout(current.id, { note: "保留首个保存" }),
+      updateWorkout(current.id, { mood: 5 }),
+    ]);
+    expect(current).toMatchObject({ note: "保留首个保存", mood: 5 });
+    expect(current.exercises[0].sets[0].id).toBe("workout-set-1");
+  });
+
   it("merges partial aggregate edits by nested IDs and preserves snapshots and unseen fields", async () => {
     const existing = workoutDoc({ planTemplateId: null, note: null, mood: null, supersetGroup: 7 });
     Object.assign(existing.exercises[0], { importedMarker: "keep-exercise" });

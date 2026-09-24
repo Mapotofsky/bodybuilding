@@ -27,6 +27,14 @@ function workout(id: string, date: string): WorkoutDoc {
 }
 
 describe("document file serialization", () => {
+  it("keeps an active rest boundary in the workout shard and after import", () => {
+    const snapshot = makeEmptySnapshot("device-test");
+    snapshot.workouts = [{ ...workout("rest-draft", "2026-08-29"), startTime: "2026-08-29T06:25:19.000Z", restStartedAt: "2026-08-29T06:26:00.000Z" }];
+    snapshot.manifest.shards = buildShardList(snapshot);
+    const files = snapshotToFiles(snapshot);
+    expect((files["workouts/2026-08.json"] as WorkoutDoc[])[0].restStartedAt).toBe("2026-08-29T06:26:00.000Z");
+    expect(migrateSnapshot(filesToSnapshot(files), "device-test").workouts[0].restStartedAt).toBe("2026-08-29T06:26:00.000Z");
+  });
   it("writes cross-month workouts to two month files without an index file", () => {
     const snapshot = makeEmptySnapshot("device-test");
     const juneWorkout = workout("workout-june", "2026-06-30");

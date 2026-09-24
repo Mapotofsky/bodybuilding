@@ -1,7 +1,7 @@
 # P3 详细设计文档：WebDAV 同步与 Android 平台
 
 > 对应概要设计：M3 同步部分、M4 Android 平台；M5/M6 设置同步与秘密隔离
-> 状态：已实现；当前 schema 8，v5/v6/v7 远端分片经 P2 migration 迁移
+> 状态：已实现；当前 schema 9，v5/v6/v7/v8 远端分片经 P2 migration 迁移
 > 前置依赖：P2 本地文档存储与数据迁移。
 
 ---

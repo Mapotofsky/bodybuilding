@@ -30,11 +30,11 @@ Vite 会输出本地地址，通常是 `http://localhost:5173/`。浏览器开�
 
 - 本地 Profile 和 Settings。
 - 当前默认动作库，包含农夫行走及其记录配置。
-- schemaVersion 为 8 的 manifest。
+- schemaVersion 为 9 的 manifest。
 
 ### 2.1 隔离测试数据重置
 
-已有本地与 WebDAV 快照必须按可能含用户数据处理。当前代码创建 v8 快照，并显式迁移 v5/v6/v7；v4 及更早和未来版本会明确拒绝，应用不会自动清理。正常升级不得使用本节步骤绕过 migration；完整兼容规则见 P2。
+已有本地与 WebDAV 快照必须按可能含用户数据处理。当前代码创建 v9 快照，并显式迁移 v5/v6/v7/v8；v4 及更早和未来版本会明确拒绝，应用不会自动清理。正常升级不得使用本节步骤绕过 migration；完整兼容规则见 P2。
 
 只有开发者已经确认目标是可丢弃的浏览器测试数据、Android Studio 模拟器或隔离 WebDAV 测试目录时，才可按下列步骤定向重置。默认动作目录由 `docs/data_import/candidates.md` 唯一生成；目录实施与验收见《默认动作库引入实施方案》。
 

@@ -77,13 +77,14 @@ describe("settings WebDAV sync", () => {
   it("serializes workout exercise type snapshots into the WebDAV month shard", () => {
     const snapshot = makeEmptySnapshot("device-test");
     snapshot.workouts = [{
-      id: "run-1", date: "2026-06-22", startTime: null, endTime: null, planTemplateId: null, note: null, mood: null,
+      id: "run-1", date: "2026-06-22", startTime: null, endTime: null, restStartedAt: "2026-06-22T10:01:00.000Z", planTemplateId: null, note: null, mood: null,
       exercises: [{ id: "run-exercise", exerciseId: "ex-running", recordingMode: "distance_duration", loadBasis: null, countBasis: "whole_set", loadDirection: null, rateMetric: "distance_per_time", sortOrder: 0, supersetGroup: null, sets: [{ id: "run-set", setNumber: 1, weight: null, reps: null, unit: "kg", durationSec: 600, distanceM: 1500, rpe: null, isWarmup: false, isFailure: false, restSeconds: null }] }],
       createdAt: FIRST_SYNC_AT, updatedAt: FIRST_SYNC_AT, deletedAt: null, schemaVersion: CURRENT_SCHEMA_VERSION,
     }];
 
     const files = snapshotToFiles(snapshot);
     expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].exercises[0]).toMatchObject({ recordingMode: "distance_duration", countBasis: "whole_set", rateMetric: "distance_per_time" });
+    expect((files["workouts/2026-06.json"] as DataSnapshot["workouts"])[0].restStartedAt).toBe("2026-06-22T10:01:00.000Z");
   });
 
   it("serializes equipment, provenance, and description newlines into the WebDAV exercise shard", () => {

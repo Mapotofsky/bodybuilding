@@ -29,7 +29,7 @@ export const STATIC_SHARD_PATHS = [
   "timeline-notes.json",
 ] as const;
 export const AVATAR_RESOURCE_PREFIX = "assets/avatar/";
-const COMPATIBLE_SCHEMA_VERSIONS = new Set([5, 6, 7, CURRENT_SCHEMA_VERSION]);
+const COMPATIBLE_SCHEMA_VERSIONS = new Set([5, 6, 7, 8, CURRENT_SCHEMA_VERSION]);
 const RESISTANCE_EXERCISE_IDS = new Set(["ex-elliptical-trainer", "ex-stationary-bike"]);
 
 export function workoutShardPath(date: string): string {
@@ -166,6 +166,8 @@ function normalizeProfile(value: ProfileDoc | undefined, fallback: ProfileDoc): 
 function normalizeWorkouts(value: WorkoutDoc[] | undefined, fallback: WorkoutDoc[], sourceSchemaVersion: number): WorkoutDoc[] {
   return normalizeArray<WorkoutDoc>(value, fallback).map((workout) => ({
     ...workout,
+    restStartedAt: sourceSchemaVersion < 9 || workout.endTime !== null ? null : workout.restStartedAt ?? null,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     exercises: workout.exercises.map((exercise) => {
       const config = normalizeRecordingConfig(exercise, sourceSchemaVersion);
       return {
@@ -188,7 +190,7 @@ function normalizeExercises(value: ExerciseDoc[] | undefined, sourceSchemaVersio
     const previous = byId.get(current.id);
     byId.delete(current.id);
     if (!previous) return current;
-    const merged = sourceSchemaVersion < CURRENT_SCHEMA_VERSION
+    const merged = sourceSchemaVersion < 8
       ? {
           ...previous,
           ...current,
@@ -262,7 +264,7 @@ function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | und
     const spec = getPerformanceMetricSpec(record.metricType);
     if (!spec || record.unit !== spec.unit) throw new Error("成绩指标或单位与当前 schema 不兼容");
     if (!record.input || typeof record.input !== "object") throw new Error("成绩输入上下文无效");
-    const input = sourceSchemaVersion < CURRENT_SCHEMA_VERSION
+    const input = sourceSchemaVersion < 8
       ? {
           ...record.input,
           ...normalizeRecordingConfig(record.input, sourceSchemaVersion),
@@ -271,7 +273,7 @@ function normalizePerformanceRecords(value: ExercisePerformanceRecordDoc[] | und
       : record.input;
     validatePerformanceInput(input);
     const migrated = { ...record, input, sourceSetId: record.sourceSetId ?? null, rm: record.rm ?? null };
-    if (sourceSchemaVersion < CURRENT_SCHEMA_VERSION && RESISTANCE_EXERCISE_IDS.has(record.exerciseId) && migrated.deletedAt == null) {
+    if (sourceSchemaVersion < 8 && RESISTANCE_EXERCISE_IDS.has(record.exerciseId) && migrated.deletedAt == null) {
       const deletedAt = nowIso();
       return { ...migrated, deletedAt, updatedAt: deletedAt };
     }

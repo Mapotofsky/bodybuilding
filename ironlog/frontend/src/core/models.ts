@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 export type DocId = string;
 export type ISODate = string;
@@ -159,6 +159,8 @@ export interface WorkoutDoc extends BaseDoc {
   date: ISODate;
   startTime: ISODateTime | null;
   endTime: ISODateTime | null;
+  /** Start of the currently active rest period; null when no rest is running. */
+  restStartedAt?: ISODateTime | null;
   planTemplateId: DocId | null;
   note: string | null;
   mood: number | null;
