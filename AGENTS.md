@@ -27,7 +27,7 @@
 
 ### 数据演进
 
-出现以下任一范围时，读取 [P2 本地文档存储与数据迁移](docs/详细设计文档_P2_本地文档存储与数据迁移.md)；涉及远端格式或合并时同时读取 [P3 WebDAV 同步与 Android 平台](docs/详细设计文档_P3_WebDAV同步与Android平台.md)，并使用 [ironlog-data-evolution](.agents/skills/ironlog-data-evolution/SKILL.md)：
+出现以下任一范围时，读取 [本地存储与迁移](docs/reference/本地存储与迁移.md)；涉及远端格式或合并时再读取 [WebDAV 同步](docs/reference/WebDAV同步.md)，涉及原生秘密存储时再读取 [Android 平台与凭据](docs/reference/Android平台与凭据.md)，并使用 [ironlog-data-evolution](.agents/skills/ironlog-data-evolution/SKILL.md)：
 
 - 持久化字段、schema、默认数据、内置目录或 migration；
 - JSON shard、manifest、WebDAV 序列化；
@@ -35,15 +35,15 @@
 
 ### Android 验证
 
-涉及 Capacitor、Android 原生插件、WebView 特有行为、APK、Gradle、AVD、系统权限、Keystore 或真机时，读取 [本地运行指南](docs/如何运行IronLog.md)、[P3](docs/详细设计文档_P3_WebDAV同步与Android平台.md)；涉及安装、签名或发布产物时再读取 [部署指南](docs/部署指南.md)，并使用 [ironlog-android-validation](.agents/skills/ironlog-android-validation/SKILL.md)。
+涉及 Capacitor、Android 原生插件、WebView 特有行为、APK、Gradle、AVD、系统权限、Keystore 或真机时，读取 [Android 平台与凭据](docs/reference/Android平台与凭据.md) 和 [开发与验证](docs/guides/开发与验证.md)；涉及安装、签名或发布产物时再读取 [发布与升级](docs/guides/发布与升级.md)，涉及非空数据覆盖升级时再读取 [本地存储与迁移](docs/reference/本地存储与迁移.md)，并使用 [ironlog-android-validation](.agents/skills/ironlog-android-validation/SKILL.md)。
 
 ### 文档治理
 
-涉及文档职责调整、跨文档事实对齐、合并、拆分、归档或权威位置变化时，使用 [ironlog-doc-governance](.agents/skills/ironlog-doc-governance/SKILL.md)。单文档错字、格式、失效链接及权威位置明确的局部事实修正直接处理。文档权威职责以 [概要设计文档](docs/概要设计文档.md) 的文档职责表为准。
+涉及文档职责调整、跨文档事实对齐、合并、拆分、归档或权威位置变化时，使用 [ironlog-doc-governance](.agents/skills/ironlog-doc-governance/SKILL.md)。单文档错字、格式、失效链接及权威位置明确的局部事实修正直接处理。任务入口见 [docs/README.md](docs/README.md)，产品与架构边界见 [产品与架构](docs/reference/产品与架构.md)。
 
 ### 普通任务
 
-- 普通前端或业务修改只读取当前功能直接相关的 P0–P7 文档，不预加载无关 Skill 或全部设计文档。
+- 普通前端或业务修改只读取当前功能所属的参考文档，不预加载无关 Skill 或全部设计文档。
 - 删除或重命名符号前搜索受影响引用；删除持久化字段或记录还必须走数据演进路由。
 - 跨域任务只组合当前请求实际需要的 Skill，不因一个 Skill 被加载而自动加载其他 Skill。
 

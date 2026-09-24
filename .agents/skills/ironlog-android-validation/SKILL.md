@@ -7,7 +7,7 @@ description: 为 IronLog 的 Capacitor、Android 原生插件、WebView 行为�
 
 ## 事实源与范围
 
-先读取 [本地运行指南](../../../docs/如何运行IronLog.md) 和 [P3 WebDAV 同步与 Android 平台](../../../docs/详细设计文档_P3_WebDAV同步与Android平台.md)。涉及签名、安装升级或交付产物时再读取 [部署指南](../../../docs/部署指南.md)。这些文档定义当前命令、applicationId、数据位置、插件、权限、版本和签名事实；本 Skill 只决定验证升级与安全门。
+先读取 [Android 平台与凭据](../../../docs/reference/Android平台与凭据.md) 和 [开发与验证](../../../docs/guides/开发与验证.md)。涉及 WebDAV 远端格式或合并时再读取 [WebDAV 同步](../../../docs/reference/WebDAV同步.md)；涉及签名、安装升级或交付产物时再读取 [发布与升级](../../../docs/guides/发布与升级.md)，非空数据覆盖升级还需读取[本地存储与迁移](../../../docs/reference/本地存储与迁移.md)。当前命令与版本以指南、脚本和版本元数据为准；本 Skill 只决定验证升级与安全门。
 
 ## 验证升级顺序
 
@@ -22,8 +22,8 @@ description: 为 IronLog 的 Capacitor、Android 原生插件、WebView 行为�
 - Web 资源或业务代码变化不自动触发 `android:sync`。
 - Capacitor 配置、Android 集成、原生插件注册、打包 Web 资源或 Android 交付物实际变化时，运行 `npm run android:sync`；它只证明 build 与资源同步，不等于 APK 已编译。
 - 需要验证 Android 编译、原生代码或 APK 时，在 `frontend/android` 运行目标明确的 Gradle 任务；普通 debug APK 使用 `assembleDebug`。
-- instrumentation 只在相关原生行为变化且有可用 AVD/设备时运行 P3/运行指南指定的 `:app:` 任务。没有连接设备时，只能报告 test APK 构建结果。
-- 正式签名、安装升级或发布检查使用部署指南的版本与 Keystore 规则，不把 debug 结果写成 release 结果。
+- instrumentation 只在相关原生行为变化且有可用 AVD/设备时运行开发指南指定的 `:app:` 任务。没有连接设备时，只能报告 test APK 构建结果。
+- 正式签名、安装升级或发布检查使用[发布与升级](../../../docs/guides/发布与升级.md)的版本与 Keystore 规则，不把 debug 结果写成 release 结果。
 
 ## 设备与外部系统隔离
 

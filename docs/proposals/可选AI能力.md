@@ -1,8 +1,8 @@
-# P5 详细设计文档：AI 智能体、联网资料与安全
+# 未实现方案：可选 AI 能力
 
-> 对应概要设计：M6 可选 AI 与安全
-> 状态：规划中；当前没有 provider、API key、AI UI、agent、联网检索或计划导入实现
-> 依赖：P0 训练数据边界，P1 计划/模板/动作引用，P2 设置/secret/批量提交，P3 同步与 Android
+> 状态：未实现。本文件记录候选方案，不是当前功能或字段契约；当前产品范围见[产品与架构](../reference/产品与架构.md)。
+> 已确定边界：本地数据仍是真源，用户确认前不写正式计划，秘密不进同步分片，外部能力失败不妨碍离线训练。
+> 待决事项：provider、联网架构、费用、缓存、审计、同意界面及导入后撤销策略见第 8 节。训练、动作引用、存储与同步规则分别见[核心训练](../reference/核心训练.md)、[计划与动作库](../reference/计划与动作库.md)、[本地存储与迁移](../reference/本地存储与迁移.md)和[WebDAV 同步](../reference/WebDAV同步.md)。
 
 ---
 
@@ -71,7 +71,7 @@ error 阻止预览确认与导入；warning 必须在预览中可见并经用户
 
 ## 4. 引用解析、未知动作与预览
 
-1. existing exerciseRef 的 exerciseId 必须解析为当前有效动作，或依据 P1 的有向替代链解析为有效目标；循环、tombstone 无替代、缺失目标均为 error。
+1. existing exerciseRef 的 exerciseId 必须解析为当前有效动作，或依据[计划与动作库](../reference/计划与动作库.md)的有向替代链解析为有效目标；循环、tombstone 无替代、缺失目标均为 error。
 2. unknown exerciseRef 逐项由用户选择：映射现有动作、创建候选自定义动作、或拒绝导入。拒绝后如模板没有动作或不再满足产品规则，必须重新校验。
 3. 创建候选自定义动作时，名称、分类、完整记录配置、description 复用现有 exercise service 的校验；真实 custom-ex ID 只在批准导入时由 repository 分配。
 4. 预览必须显示计划/模板/动作、每个映射决定、待创建动作、排程、warnings、来源、数据将写入本地的范围及“不覆盖现有计划”的默认策略。
@@ -86,7 +86,7 @@ error 阻止预览确认与导入；warning 必须在预览中可见并经用户
     AI 配置页 / AI 工作区 / 计划候选预览页
     -> services/ai（同意、最小化数据、provider 或 gateway 调用）
     -> services/planImport（严格校验、未知动作决议、预览状态）
-    -> P2 的 LocalJsonRepository 批量提交原语（待实现）
+    -> LocalJsonRepository 批量提交原语（待实现）
 
 页面不得持有 API key、直接调用 provider、直接写 DocumentStore 或调用 WebDAV。AI service 只能返回回答或候选；planImport service 只能在用户确认后调用 repository。provider/gateway、搜索和来源解析不得进入 core。
 
@@ -101,7 +101,7 @@ error 阻止预览确认与导入；warning 必须在预览中可见并经用户
     -> repository 批量写入一次
     -> 成功则提交；失败则不改变正式快照
 
-importApprovedPlan() 是 P5 定义的 service 工作流：重验候选与用户决议，形成“新建计划、模板和批准自定义动作”的变更集，并调用 P2 的 repository 批量提交原语。P5 不定义 snapshot 复制、ID 分配、manifest 更新或 DocumentStore 保存细节；页面不得依次调用 createExercise/createPlan/createTemplate 伪造原子性。
+importApprovedPlan() 是本方案拟定的 service 工作流：重验候选与用户决议，形成“新建计划、模板和批准自定义动作”的变更集，并调用尚未实现的 repository 批量提交原语。snapshot 复制、ID 分配、manifest 更新和 DocumentStore 保存细节应由[本地存储与迁移](../reference/本地存储与迁移.md)在实现前确定；页面不得依次调用 createExercise/createPlan/createTemplate 伪造原子性。
 
 默认冲突策略：只创建新计划、模板和批准的自定义动作；不覆盖任何既有计划、模板、动作或 Workout。名称重复只产生预览 warning，不得自动合并。
 
@@ -124,9 +124,9 @@ importApprovedPlan() 是 P5 定义的 service 工作流：重验候选与用户�
 
 ---
 
-## 8. 后置决策（不阻塞 P5 外开发）
+## 8. 实现前待决事项
 
-下列事项保留为 P5 后续决策，不阻塞 P0–P4 的开发，也不阻塞 P2 的通用批量提交原语或 P3 的同步/脱敏改进：
+下列事项须在启用对应 AI 能力或对外承诺保证前决定；它们不阻塞现有训练、存储和同步能力的维护：
 
 - AI provider 与是否使用外部 agent gateway。
 - 联网资料的来源判断治理、缓存与审计保留期限。
@@ -134,7 +134,7 @@ importApprovedPlan() 是 P5 定义的 service 工作流：重验候选与用户�
 - AI endpoint、预算和审计偏好是否跨设备同步。
 - AI 导入后撤销的操作记录与保留策略。
 
-这些事项在启用对应 AI 外部能力或对外承诺相关保证前必须决策；在此之前，P5 保持“规划中”，应用继续以无 AI 的离线能力运行。
+在这些事项决定并完成实现与验证之前，应用继续以无 AI 的离线能力运行。
 
 ## 9. 测试与验收
 

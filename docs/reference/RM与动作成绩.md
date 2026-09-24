@@ -1,14 +1,12 @@
-# P7 详细设计文档：RM 计算与动作成绩记录
+# RM 计算与动作成绩记录
 
-> 对应概要设计：P4.1 RM 计算、动作成绩记录和动作详情增强
-> 状态：当前 schema 8 实现基线；爬楼机频率已接入，阻力上下文完全排除出自动成绩事件
-> 前置依赖：P0 WorkoutDoc 聚合与训练完成/编辑/删除流程、P1 动作引用解析、P2 分片与 migration、P3 同步、P4.1 统计和分享图消费入口
+> 本文定义 RM、PR 和动作成绩事件的当前领域契约。训练事实见[核心训练](核心训练.md)，持久化兼容见[本地存储与迁移](本地存储与迁移.md)；阻力上下文不触发自动成绩事件。
 
 ---
 
 ## 1. 目标、边界与当前事实
 
-P7 提供两个能力：
+本领域包含两个能力：
 
 1. RM 计算器：从“小工具”集合页进入，支持手动输入重量、次数、RPE，展示四公式结果、均值、具体公式和倍率曲线。
 2. 动作成绩记录：从已完成训练派生真实 PR 与基于 RPE 修正 RM 刷新事件，持久化后供动作详情、统计页和分享图消费。
@@ -16,14 +14,14 @@ P7 提供两个能力：
 当前代码事实：
 
 - `WorkoutSetDoc.rpe` 已存在，service 校验范围为 1..10 或 null。
-- `WorkoutSetDoc.isWarmup` 已存在；P0 个人动作统计的表现指标排除热身组。
+- `WorkoutSetDoc.isWarmup` 已存在；核心训练 个人动作统计的表现指标排除热身组。
 - `WorkoutDoc` 是聚合文档，训练创建、编辑、复制、删除均通过 `services/workout.ts` 和 `LocalJsonRepository`。
 - `core/workoutMetrics.ts` 已提供重量单位换算和训练容量口径。
 - `core/rm.ts`、RM 计算器和力量/有氧 RPE 说明页已接入小工具。
 - `ExercisePerformanceRecordDoc` 已进入 core model、repository、DocumentStore、SyncService 和 `exercise-performance/YYYY-MM.json` 分片。
 - 动作详情、日历统计和训练详情 PNG 分享图已只读消费 PR/RM 刷新事件；动作趋势仍从 WorkoutDoc 派生。
 
-P7 不负责身体数据、时间段备注、统计页面布局、分享图模板或 AI。页面不得直接从训练页生成成绩事件；必须由训练 service 或维护工具统一调度。
+本文不负责身体数据、时间段备注、统计页面布局、分享图模板或 AI。页面不得直接从训练页生成成绩事件；必须由训练 service 或维护工具统一调度。
 
 ---
 
@@ -45,7 +43,7 @@ RM 估算只覆盖历史快照为 `recordingMode="weight_reps"` 且 `loadDirecti
 
 ### 2.2 公式
 
-首版固定四个公式，均使用 `effectiveReps`：
+当前固定四个公式，均使用 `effectiveReps`：
 
 ```text
 Epley:    weight * (1 + effectiveReps / 30)
@@ -208,7 +206,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 4. 与该动作该指标此前历史最佳比较。
 5. 只有刷新时写入成绩事件。
 
-动作替代重定向沿用 P1 规则：历史 `exerciseId` 可解析到当前有效目标时，成绩归并到解析后的目标动作；原始来源 workout/set ID 保留。
+动作替代重定向沿用 计划与动作库 规则：历史 `exerciseId` 可解析到当前有效目标时，成绩归并到解析后的目标动作；原始来源 workout/set ID 保留。
 
 ### 5.2 触发时机
 
@@ -232,7 +230,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 - 重算当前动作。
 - 维护工具重算全部成绩。
 
-重算流程先从历史 WorkoutDoc 派生目标事件集合，再以确定性 ID 替换对应范围内旧事件。重复重算不得产生重复事件。异常中断不得让正式 snapshot 留下半套事件；实现时应复用 P2 的批量提交原语或在 repository 层提供等价原子提交。
+重算流程先从历史 WorkoutDoc 派生目标事件集合，再以确定性 ID 替换对应范围内旧事件。重复重算不得产生重复事件。异常中断不得让正式 snapshot 留下半套事件；批量更新须由 repository 提供原子提交保障。
 
 ---
 
@@ -255,7 +253,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 
 ## 7. 动作详情增强
 
-动作详情页回答“这个动作我练得怎么样”。P7 在现有 P1 动作详情基础上新增：
+动作详情页回答“这个动作我练得怎么样”。动作详情在[计划与动作库](计划与动作库.md)的基础上展示：
 
 - 真实 PR 摘要。
 - 基于 RPE 修正 RM 摘要，1RM 预测展示为四公式均值 ± 标准差。
@@ -266,7 +264,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 - 年份 / 全部切换。
 - 手动重算或重建入口。
 
-动作详情页不承担公式教学；公式明细和倍率曲线只在 RM 工具页展开。肌群可视化仍基于 P1/P4.1 的 `primaryMuscleGroupIds` / `secondaryMuscleGroupIds`，不是 P7 数据模型。
+动作详情页不承担公式教学；公式明细和倍率曲线只在 RM 工具页展开。肌群可视化仍基于[计划与动作库](计划与动作库.md)与[日历与统计界面](日历与统计界面.md)消费的 `primaryMuscleGroupIds` / `secondaryMuscleGroupIds`，不是成绩事件数据模型。
 
 趋势曲线从 WorkoutDoc 派生，成绩事件只用于刷新历史最佳、当前最佳和摘要；不得为了趋势图保存每次训练候选点。
 
@@ -274,7 +272,7 @@ performance:<metricType>:<sourceWorkoutId>:<sourceWorkoutExerciseId>:<sourceSetI
 
 ## 8. 统计与分享图消费
 
-P4.1 统计页只读消费 P7 service：
+日历与统计界面 统计页只读消费 RM 与动作成绩 service：
 
 - 本周期新增真实 PR 数。
 - 本周期基于 RPE 修正 RM 刷新数。
@@ -289,7 +287,7 @@ Top 提升动作的 `previousBestValue` 从当前刷新事件之前的同动作�
 
 ## 9. 本地存储、migration 与同步
 
-P2 已新增：
+存储接入包括：
 
 - `DataSnapshot.exercisePerformanceRecords: ExercisePerformanceRecordDoc[]`
 - `isExercisePerformanceShardPath(path)`
@@ -307,11 +305,11 @@ P2 已新增：
 
 ## 10. 字段契约摘要
 
-完整矩阵见 P2。P7 新增字段必须覆盖：
+分片和 migration 接入见[本地存储与迁移](本地存储与迁移.md)。成绩事件字段须覆盖：
 
 | 字段 | 页面 | service/core | repository/migration | 同步 |
 |---|---|---|---|---|
-| `exerciseId` | 动作详情、统计摘要 | P1 替代解析归并 | 固定引用 | 月分片 |
+| `exerciseId` | 动作详情、统计摘要 | 按[计划与动作库](计划与动作库.md)的替代链解析归并 | 固定引用 | 月分片 |
 | `kind/metricType` | 指标标签、筛选 | 候选生成与比较 | 枚举校验 | 月分片 |
 | `value/unit` | 当前最佳、摘要、排序 | 规范单位计算；展示单位转换 | 固定单位 | 月分片 |
 | `achievedAt` | 排序、周期归属 | 来源训练日期/时间派生 | 决定分片 | 月分片 |
@@ -332,7 +330,7 @@ P2 已新增：
 - 农夫行走 `32 kg/手 × 40 m、whole_set` 生成 2560 kg·m；手提箱行走语义 `32 kg × 每侧 40 m、per_side` 也生成 2560 kg·m。两种每侧输入在速度和单位时间负载中均不得因左右倍率而被错误翻倍。
 - 辅助重量相同次数时更小重量胜、相同重量时更多次数胜，且不生成普通容量或 RM。
 - RIR 不进入 WorkoutDoc 或成绩事件。
-- 热身组不生成 PR/RM；训练总容量仍按 P0 口径。
+- 热身组不生成 PR/RM；训练总容量仍按 核心训练 口径。
 - 七种记录方式按注册策略生成；阻力上下文无论原始字段如何都不得生成自动 PR/RM。
 - 只保存刷新历史最佳事件，不保存每次训练候选点。
 - 训练完成、编辑、删除均触发相关动作重算；草稿不触发。
@@ -342,4 +340,6 @@ P2 已新增：
 - 切换 `SettingsDoc.weightUnit` 只影响展示，不改写规范 kg / kg_reps 事件值。
 - kg·m 和 kg·m/s 分别显示为“距离负载”和“单位时间负载”，不使用“功”或“功率”。
 
-本轮文档修改不运行 build/test/android sync；代码实现交付时按 AGENTS.md 执行项目级验证、grep 零残留和关键训练流程走查。
+
+
+
