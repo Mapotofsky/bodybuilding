@@ -35,7 +35,7 @@
 
 ### Android 验证
 
-涉及 Capacitor、Android 原生插件、WebView 特有行为、APK、Gradle、AVD、系统权限、Keystore 或真机时，读取 [Android 平台与凭据](docs/reference/Android平台与凭据.md) 和 [开发与验证](docs/guides/开发与验证.md)；涉及安装、签名或发布产物时再读取 [发布与升级](docs/guides/发布与升级.md)，涉及非空数据覆盖升级时再读取 [本地存储与迁移](docs/reference/本地存储与迁移.md)，并使用 [ironlog-android-validation](.agents/skills/ironlog-android-validation/SKILL.md)。
+修改 Capacitor、Android 原生插件、WebView 特有行为、APK/Gradle 配置、系统权限或 Keystore 集成，或实际执行 AVD/真机验证时，读取 [Android 平台与凭据](docs/reference/Android平台与凭据.md) 和 [开发与验证](docs/guides/开发与验证.md)；涉及安装、签名或发布产物时再读取 [发布与升级](docs/guides/发布与升级.md)，涉及非空数据覆盖升级时再读取 [本地存储与迁移](docs/reference/本地存储与迁移.md)，并使用 [ironlog-android-validation](.agents/skills/ironlog-android-validation/SKILL.md)。仅修正文档中提到这些主题的表述不触发 Android 验证。
 
 ### 文档治理
 
