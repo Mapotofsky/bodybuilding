@@ -1,9 +1,9 @@
 {
   "baseVersion": "0.1.0",
   "channel": "internal",
-  "buildNumber": 3,
+  "buildNumber": 4,
   "android": {
-    "versionCode": 3
+    "versionCode": 4
   },
-  "issuedVersionCodes": [1, 2, 3]
+  "issuedVersionCodes": [1, 2, 3, 4]
 }

@@ -10,7 +10,8 @@ const viewports = [
 const farmerFields = {
   weight: "每手重量 (kg)",
   distance: "距离 (m)",
-  duration: "用时 (秒)",
+  durationMinutes: "用时（分）",
+  durationSeconds: "用时（秒）",
 } as const;
 
 async function startFarmerWalk(page: Page) {
@@ -25,7 +26,7 @@ async function startFarmerWalk(page: Page) {
 async function fillFarmerSet(page: Page) {
   const weight = page.getByRole("textbox", { name: farmerFields.weight });
   const distance = page.getByRole("textbox", { name: farmerFields.distance });
-  const duration = page.getByRole("textbox", { name: farmerFields.duration });
+  const duration = page.getByRole("textbox", { name: farmerFields.durationSeconds });
 
   await weight.fill("32");
   await weight.fill("");
@@ -127,10 +128,11 @@ test.describe("农夫行走记录模式", () => {
     await expect(page.getByRole("heading", { name: "编辑训练" })).toBeVisible();
     await expect(page.getByRole("textbox", { name: farmerFields.weight })).toHaveValue("32");
     await expect(page.getByRole("textbox", { name: farmerFields.distance })).toHaveValue("40");
-    const duration = page.getByRole("textbox", { name: farmerFields.duration });
+    const duration = page.getByRole("textbox", { name: farmerFields.durationSeconds });
     await expect(duration).toHaveValue("28");
-    await duration.fill("");
+    await page.locator("[data-recording-mode='weight_distance_duration']").getByRole("button", { name: "清空" }).click();
     await expect(duration).toHaveValue("");
+    await expect(page.getByRole("textbox", { name: farmerFields.durationMinutes })).toHaveValue("");
     await duration.fill("28");
     await expectNoHorizontalOverflow(page, 28);
     await page.getByRole("button", { name: "保存", exact: true }).click();
@@ -167,7 +169,7 @@ test.describe("阻力档位复用可清空数值输入", () => {
       await expect(resistance).toHaveValue("0");
       await resistance.fill("");
       await expect(resistance).toHaveValue("");
-      await page.getByRole("textbox", { name: "用时 (秒)" }).fill("60");
+      await page.getByRole("textbox", { name: farmerFields.durationMinutes }).fill("1");
 
       const geometry = await page.evaluate(() => ({
         viewportWidth: window.innerWidth,
