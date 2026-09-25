@@ -125,8 +125,12 @@ describe("workout metrics", () => {
     expect(convertWeight(45.359237, "kg", "lb")).toBeCloseTo(100);
   });
 
-  it("formats strength volume with one decimal and kg/lb reps unit", () => {
+  it("formats strength volume at the tonne threshold without changing pounds", () => {
     expect(formatVolume(753.59237, "kg")).toBe("753.6 kg·次");
+    expect(formatVolume(999.9, "kg")).toBe("999.9 kg·次");
+    expect(formatVolume(999.99, "kg")).toBe("999.99 kg·次");
+    expect(formatVolume(1000, "kg")).toBe("1 t·次");
+    expect(formatVolume(1250, "kg")).toBe("1.25 t·次");
     expect(formatVolume(1234, "lb")).toBe("1234.0 lb·次");
     expect(formatOneDecimal(-0.01)).toBe("0.0");
   });

@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import type { Location } from "react-router-dom";
 import Layout from "@/components/Layout";
 import HomePage from "@/pages/HomePage";
 import WorkoutsPage from "@/pages/WorkoutsPage";
@@ -24,8 +25,11 @@ import ExerciseLibraryPage from "@/pages/ExerciseLibraryPage";
 import SyncPage from "@/pages/SyncPage";
 
 export default function App() {
+  const location = useLocation();
+  const background = (location.state as { trainingBackground?: Location } | null)?.trainingBackground;
   return (
-    <Routes>
+    <>
+    <Routes location={background || location}>
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="workouts" element={<WorkoutsPage />} />
@@ -53,5 +57,9 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    {background && <div className="absolute inset-0 z-50 app-screen app-main overflow-y-auto" data-app-main>
+      <Routes location={location}><Route path="/exercises/:id" element={<ExerciseDetailPage />} /></Routes>
+    </div>}
+    </>
   );
 }

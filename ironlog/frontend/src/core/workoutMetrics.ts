@@ -174,5 +174,11 @@ export function formatOneDecimal(value: number): string {
 }
 
 export function formatVolume(value: number, unit: WeightUnit): string {
+  if (unit === "kg" && Math.abs(value) >= 1000) {
+    return `${Number((value / 1000).toFixed(3))} t·次`;
+  }
+  if (unit === "kg" && Math.abs(value) < 1000 && Math.abs(value) >= 999.95) {
+    return `${Number(value.toFixed(2))} kg·次`;
+  }
   return `${formatOneDecimal(value)} ${unit}·次`;
 }

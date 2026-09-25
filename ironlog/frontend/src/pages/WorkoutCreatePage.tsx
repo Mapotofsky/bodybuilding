@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   getExercises,
   getExerciseHistory,
@@ -65,6 +65,7 @@ function parseNullableNumber(value: string): number | null {
 
 export default function WorkoutCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const templateIdParam = searchParams.get("template_id");
   const dateParam = searchParams.get("date");
@@ -850,7 +851,13 @@ export default function WorkoutCreatePage() {
                 <h2 className="text-xl font-bold text-slate-900">{currentExercise.name}</h2>
                 <p className="text-sm text-slate-500 mt-1">第 <span className="font-bold text-slate-800">{currentSetNum}</span> 组</p>
               </div>
-              <button className="p-2 text-slate-300 rounded-xl hover:bg-slate-50" title="动作百科（即将推出）">
+              <button type="button" className="p-2 text-slate-500 rounded-xl hover:bg-slate-50" title="查看动作" aria-label="查看动作" onClick={() => {
+                if (!allExercises.some((exercise) => exercise.id === currentExercise.id)) {
+                  useToastStore.getState().add("该动作已删除，无法查看详情", "error");
+                  return;
+                }
+                navigate(`/exercises/${currentExercise.id}`, { state: { trainingBackground: location } });
+              }}>
                 <BookOpen size={18} />
               </button>
             </div>
@@ -920,6 +927,7 @@ export default function WorkoutCreatePage() {
               onChange={(value) => {
                 setInputRpe(value);
                 const parsed = parseNullableNumber(value);
+                if ((currentExercise.recording_mode === "weight_reps" || currentExercise.recording_mode === "reps") && parsed === 10) setInputFailure(true);
                 setInputRpeError(parsed == null || (Number.isInteger(parsed) && parsed >= 1 && parsed <= 10) ? null : "RPE 必须是 1 到 10 的整数");
               }}
               step={1}
@@ -928,6 +936,7 @@ export default function WorkoutCreatePage() {
               inputMode="numeric"
               placeholder="未设置"
             />
+            {(currentExercise.recording_mode === "weight_reps" || currentExercise.recording_mode === "reps") && <p className="text-xs text-slate-400">设为 RPE 10 会勾选力竭，之后仍可手动调整</p>}
             {inputRpeError && <p role="alert" className="text-xs text-red-500">{inputRpeError}</p>}
           </div>
 

@@ -8,6 +8,8 @@
 
 `frontend/capacitor.config.ts` 定义 Android `appId`、`webDir` 和 scheme；实际值从该配置读取，不在本文另存版本快照。`AndroidManifest.xml` 声明联网权限。Android 9 及以下保存分享图时使用受 `maxSdkVersion=28` 限制的旧版写存储权限；Android 10 及以上使用 MediaStore，不申请广泛存储权限。分享图只写入 `Pictures/IronLog`，不读写业务 JSON、Keystore 或 WebDAV 配置。
 
+`SystemBars` 原生插件接收当前主题及路由推导的状态栏、系统导航区颜色和图标明暗。Android 15 及以上透明系统栏下，由宿主在系统栏区域绘制对应背景；WebView 内容和底部 Tab 保持原有安全区。键盘出现时以系统输入法导航区的可辨识度为先。
+
 ## 原生 WebDAV 传输
 
 浏览器开发以 `fetch` 请求 WebDAV，受 CORS 和服务端方法支持限制。Android 的 GET、PUT、DELETE 走 `CapacitorHttp`；MKCOL、MOVE、PROPFIND 走 `WebDavHttp` 原生插件。插件位于 `frontend/android/app/src/main/java/app/ironlog/local/WebDavHttpPlugin.java`，基于 OkHttp，只允许 DELETE、GET、MKCOL、MOVE、PROPFIND、PUT 六种方法，并设置连接、读取和写入超时。`MainActivity` 在 `super.onCreate` 前注册插件；重命名或删除插件前须追踪 TypeScript 的 `registerPlugin("WebDavHttp")` 引用。

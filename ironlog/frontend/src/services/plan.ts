@@ -243,6 +243,10 @@ export async function getTemplate(templateId: string): Promise<PlanTemplate> {
   return toTemplate(template);
 }
 
+export async function getTemplates(): Promise<PlanTemplate[]> {
+  return Promise.all((await localRepository.listTemplates()).map(toTemplate));
+}
+
 export async function getExerciseDetail(id: string): Promise<ExerciseDetail> {
   const exercise = await localRepository.get(id);
   if (!exercise) throw new Error("Exercise not found");

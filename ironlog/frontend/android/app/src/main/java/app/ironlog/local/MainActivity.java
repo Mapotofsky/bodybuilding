@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(WebDavHttpPlugin.class);
         registerPlugin(SecretStorePlugin.class);
         registerPlugin(ImageSaverPlugin.class);
+        registerPlugin(SystemBarsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

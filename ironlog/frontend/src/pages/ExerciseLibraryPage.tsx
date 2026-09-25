@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, Dumbbell, Plus, Search, Trash2, X } from "lucide-react";
-import { createExercise, deleteExercise, getExercises } from "@/services/exercise";
+import { createExercise, deleteExercise, getExercises, getExercisePrimaryStats, type ExercisePrimaryStat } from "@/services/exercise";
 import { CATEGORY_LABELS, EQUIPMENT_LABELS, RECORDING_MODE_LABELS, type EquipmentId, type Exercise, type ExerciseCategory } from "@/types";
 import { useConfirmStore } from "@/components/ConfirmDialog";
 import { useToastStore } from "@/components/Toast";
@@ -20,6 +20,7 @@ export default function ExerciseLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [primaryStats, setPrimaryStats] = useState<Record<string, ExercisePrimaryStat>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openSwipeId, setOpenSwipeId] = useState<string | null>(null);
@@ -59,10 +60,12 @@ export default function ExerciseLibraryPage() {
     Promise.all([
       getExercises(),
       getExercises({ q: q || undefined, category: category ? category as ExerciseCategory : undefined, equipment: equipment && equipment !== "other" ? equipment : undefined }),
+      getExercisePrimaryStats(),
     ])
-      .then(([all, filtered]) => {
+      .then(([all, filtered, stats]) => {
         if (!alive) return;
         setAllExercises(all);
+        setPrimaryStats(stats);
         const allCounts = countEquipmentUsage(all);
         setExercises(equipment === "other" ? filtered.filter((exercise) => matchesEquipmentFilter(exercise, equipment, allCounts)) : filtered);
       })
@@ -219,6 +222,7 @@ export default function ExerciseLibraryPage() {
               <SwipeExerciseCard
                 key={exercise.id}
                 exercise={exercise}
+                primaryStat={primaryStats[exercise.id]}
                 open={openSwipeId === exercise.id}
                 onOpen={() => setOpenSwipeId(exercise.id)}
                 onClose={() => setOpenSwipeId(null)}
@@ -290,6 +294,7 @@ export default function ExerciseLibraryPage() {
 
 function SwipeExerciseCard(props: {
   exercise: Exercise;
+  primaryStat?: ExercisePrimaryStat;
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -354,7 +359,7 @@ function SwipeExerciseCard(props: {
           props.open && canSwipe ? "-translate-x-20" : "translate-x-0"
         }`}
       >
-        <div className="grid grid-cols-[minmax(0,1fr)_1rem] gap-3 items-center">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center">
           <span className="min-w-0">
             <span className="block font-semibold text-slate-900 truncate">{props.exercise.name}</span>
             <span className="mt-1 flex flex-wrap gap-1.5">
@@ -364,7 +369,10 @@ function SwipeExerciseCard(props: {
               {props.exercise.is_custom && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">自定义</span>}
             </span>
           </span>
-          <ChevronRight size={16} className="text-slate-300" />
+          <span className="flex items-center gap-1.5">
+            {props.primaryStat && <span className="text-right text-xs text-slate-500"><span className="block">{props.primaryStat.label}</span><strong className="block text-sm text-slate-800">{props.primaryStat.value}</strong></span>}
+            <ChevronRight size={16} className="text-slate-300 shrink-0" />
+          </span>
         </div>
       </button>
     </div>

@@ -218,6 +218,7 @@ export default function WorkoutDetailPage() {
               </span>
             </div>
           )}
+          {workout.plan_template_id && !workout.template_name && <p className="mt-2 text-xs text-slate-500">原模板已删除</p>}
           <div className="flex flex-wrap gap-4 mt-3">
             <div className="text-center">
               <p className="text-xl font-bold text-slate-900">{workout.exercises.length}</p>

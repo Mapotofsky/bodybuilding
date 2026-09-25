@@ -5,6 +5,8 @@ import { localRepository } from "@/repositories/localJsonRepository";
 import { toExercise } from "@/services/localMappers";
 import { CATEGORY_LABELS, EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS, type Exercise } from "@/types";
 import { rebuildAllPerformanceRecords } from "@/services/performance";
+import { buildExercisePersonalStats } from "@/core/exerciseStats";
+import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 
 const VALID_CATEGORIES = new Set<ExerciseCategory>(Object.keys(CATEGORY_LABELS) as ExerciseCategory[]);
 const VALID_EQUIPMENT = new Set<EquipmentId>(Object.keys(EQUIPMENT_LABELS) as EquipmentId[]);
@@ -46,6 +48,57 @@ export async function getExercises(params?: {
   q?: string;
 }): Promise<Exercise[]> {
   return (await localRepository.list(params)).map(toExercise);
+}
+
+export interface ExercisePrimaryStat {
+  label: string;
+  value: string;
+}
+
+export async function getExercisePrimaryStats(): Promise<Record<string, ExercisePrimaryStat>> {
+  const [docs, workouts, settings] = await Promise.all([
+    localRepository.getSnapshot(), localRepository.listWorkouts(), localRepository.getSettings(),
+  ]);
+  const result: Record<string, ExercisePrimaryStat> = {};
+  for (const exercise of docs.exercises) {
+    if (exercise.deletedAt) continue;
+    const performance = buildExercisePersonalStats({ exerciseId: exercise.id, exercises: docs.exercises, workouts, weightUnit: settings.weightUnit }).performance;
+    const stat = primaryExerciseStat({
+      best_load: performance.bestLoad, best_set_volume: performance.bestSetVolume,
+      best_reps: performance.bestReps, best_distance_m: performance.bestDistanceM,
+      best_duration_sec: performance.bestDurationSec, best_speed_mps: performance.bestSpeedMps,
+      best_load_distance_kg_m: performance.bestLoadDistanceKgM,
+      best_load_duration_kg_sec: performance.bestLoadDurationKgSec,
+      best_load_distance_rate_kg_mps: performance.bestLoadDistanceRateKgMps,
+      load_basis: performance.loadBasis, count_basis: performance.countBasis,
+      load_direction: performance.loadDirection, display_unit: performance.displayUnit,
+    });
+    if (stat) result[exercise.id] = stat;
+  }
+  return result;
+}
+
+export function primaryExerciseStat(stats: {
+  best_load: number | null; best_set_volume: number | null; best_reps: number | null;
+  best_distance_m: number | null; best_duration_sec: number | null; best_speed_mps: number | null;
+  best_load_distance_kg_m: number | null; best_load_duration_kg_sec: number | null;
+  best_load_distance_rate_kg_mps: number | null; load_basis: LoadBasis | null;
+  count_basis: CountBasis | null; load_direction: LoadDirection | null; display_unit: WeightUnit;
+}): ExercisePrimaryStat | null {
+  const rounded = (value: number) => String(Math.round(value * 10) / 10);
+  if (stats.best_load != null) return {
+    label: `${stats.load_basis === "per_hand" ? "每手" : ""}${stats.load_direction === "lower_better" ? "最低辅助重量" : "最大重量"}`,
+    value: `${rounded(stats.best_load)} ${stats.display_unit}${stats.load_basis === "per_hand" ? "/手" : ""}`,
+  };
+  if (stats.best_set_volume != null) return { label: "最大单组容量", value: formatVolume(stats.best_set_volume, stats.display_unit) };
+  if (stats.best_reps != null) return { label: stats.count_basis === "per_side" ? "每侧最大次数" : "最大次数", value: `${stats.best_reps} 次` };
+  if (stats.best_distance_m != null) return { label: stats.count_basis === "per_side" ? "每侧最大距离" : "最大距离", value: `${rounded(stats.best_distance_m)} m` };
+  if (stats.best_duration_sec != null) return { label: stats.count_basis === "per_side" ? "每侧最长时间" : "最长时间", value: `${stats.best_duration_sec} 秒` };
+  if (stats.best_speed_mps != null) return { label: "最快速度", value: `${rounded(stats.best_speed_mps)} m/s` };
+  if (stats.best_load_distance_kg_m != null) return { label: "最大距离负载", value: `${formatOneDecimal(convertWeight(stats.best_load_distance_kg_m, "kg", stats.display_unit))} ${stats.display_unit}·m` };
+  if (stats.best_load_duration_kg_sec != null) return { label: "最大持续负载", value: `${formatOneDecimal(convertWeight(stats.best_load_duration_kg_sec, "kg", stats.display_unit))} ${stats.display_unit}·s` };
+  if (stats.best_load_distance_rate_kg_mps != null) return { label: "最大单位时间负载", value: `${rounded(convertWeight(stats.best_load_distance_rate_kg_mps, "kg", stats.display_unit))} ${stats.display_unit}·m/s` };
+  return null;
 }
 
 export async function createExercise(body: CreateExerciseInput): Promise<Exercise> {

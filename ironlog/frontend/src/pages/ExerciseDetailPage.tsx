@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { Check, ChevronLeft, Dumbbell, Gauge, NotebookText, Pencil, Trash2, TrendingUp, X } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getExerciseDetail } from "@/services/plan";
-import { deleteExercise, getExerciseHistory, getExercises, updateExercise } from "@/services/exercise";
+import { deleteExercise, getExerciseHistory, getExercises, primaryExerciseStat, updateExercise } from "@/services/exercise";
 import type { ContextKind, CountBasis, EquipmentId, Exercise, ExerciseCategory, ExerciseDetail, LoadBasis, LoadDirection, MuscleGroupId, RateMetric, RecordingMode } from "@/types";
 import type { ExerciseHistoryRecord } from "@/services/exercise";
 import { getExercisePerformanceRecords, getExercisePerformanceTrend, rebuildPerformanceForExercise, type ExercisePerformanceTrend, type PerformanceRecord } from "@/services/performance";
@@ -15,7 +15,7 @@ import { useToastStore } from "@/components/Toast";
 import CustomExerciseForm, { type CustomExerciseFormValue } from "@/components/CustomExerciseForm";
 import MuscleHighlightMap from "@/components/MuscleHighlightMap";
 import { CHART_TOOLTIP_CONTENT_STYLE, CHART_TOOLTIP_ITEM_STYLE, CHART_TOOLTIP_LABEL_STYLE } from "@/components/chartTooltip";
-import { convertWeight, formatOneDecimal } from "@/core/workoutMetrics";
+import { convertWeight, formatOneDecimal, formatVolume } from "@/core/workoutMetrics";
 import { useAndroidBackDismiss } from "@/navigation/androidBackLayers";
 import { comparePerformanceValues } from "@/core/performanceMetrics";
 import {
@@ -132,6 +132,10 @@ export default function ExerciseDetailPage() {
   }
 
   function goBack() {
+    if ((location.state as { trainingBackground?: unknown } | null)?.trainingBackground) {
+      navigate(-1);
+      return;
+    }
     const from = searchParams.get("from");
     navigate(from && from.startsWith("/exercises") ? from : "/exercises");
   }
@@ -556,7 +560,7 @@ export function bestStatCards(stats: ExerciseDetail["stats"]["performance"]): Ar
     });
   }
   if (stats.best_set_volume != null) {
-    cards.push({ icon: <Gauge size={14} />, label: "最大单组容量", value: formatOneDecimal(stats.best_set_volume), unit: `${stats.display_unit}·次` });
+    cards.push({ icon: <Gauge size={14} />, label: "最大单组容量", value: formatVolume(stats.best_set_volume, stats.display_unit) });
   }
   if (stats.best_reps != null) cards.push({ icon: <TrendingUp size={14} />, label: stats.count_basis === "per_side" ? "每侧最大次数" : "最大次数", value: stats.best_reps, unit: "次" });
   if (stats.best_distance_m != null) cards.push({ icon: <TrendingUp size={14} />, label: stats.count_basis === "per_side" ? "每侧最大距离" : "最大距离", value: round(stats.best_distance_m), unit: "m" });
@@ -565,6 +569,8 @@ export function bestStatCards(stats: ExerciseDetail["stats"]["performance"]): Ar
   if (stats.best_load_distance_kg_m != null) cards.push({ icon: <Gauge size={14} />, label: "最大距离负载", value: formatOneDecimal(convertWeight(stats.best_load_distance_kg_m, "kg", stats.display_unit)), unit: `${stats.display_unit}·m` });
   if (stats.best_load_duration_kg_sec != null) cards.push({ icon: <Gauge size={14} />, label: "最大持续负载", value: formatOneDecimal(convertWeight(stats.best_load_duration_kg_sec, "kg", stats.display_unit)), unit: `${stats.display_unit}·s` });
   if (stats.best_load_distance_rate_kg_mps != null) cards.push({ icon: <Gauge size={14} />, label: "最大单位时间负载", value: round(convertWeight(stats.best_load_distance_rate_kg_mps, "kg", stats.display_unit)), unit: `${stats.display_unit}·m/s` });
+  const primary = primaryExerciseStat(stats);
+  if (primary && cards.length > 0) cards[0] = { icon: cards[0].icon, label: primary.label, value: primary.value };
   return cards;
 }
 

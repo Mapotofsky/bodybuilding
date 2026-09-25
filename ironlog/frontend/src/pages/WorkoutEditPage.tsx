@@ -3,7 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getExercises } from "@/services/exercise";
 import { getWorkout, updateWorkout } from "@/services/workout";
 import { getSettings } from "@/services/settings";
-import type { ContextKind, CountBasis, Exercise, LoadBasis, LoadDirection, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
+import { getTemplates } from "@/services/plan";
+import type { ContextKind, CountBasis, Exercise, LoadBasis, LoadDirection, PlanTemplate, RateMetric, RecordingMode, Workout, WorkoutSet } from "@/types";
 import { CATEGORY_LABELS } from "@/types";
 import {
   ArrowLeft,
@@ -17,9 +18,11 @@ import ExercisePicker from "@/components/ExercisePicker";
 import SetFieldEditor, { type SetFieldDraft } from "@/components/SetFieldEditor";
 import type { RecordingSnapshot } from "@/utils/recordingPresentation";
 import { fromLocalDateTime, toLocalDateTime } from "@/utils/workoutTime";
+import MinutesSecondsInput from "@/components/ui/MinutesSecondsInput";
 
 interface LocalSet extends WorkoutSet {
   fieldInputs: SetFieldDraft;
+  restInput: string;
 }
 
 interface LocalExercise {
@@ -50,7 +53,11 @@ export default function WorkoutEditPage() {
   const [weightUnit, setWeightUnit] = useState<"kg" | "lb">("kg");
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
+  const [isDraft, setIsDraft] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const originalTimes = useRef<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const originalTemplateId = useRef<string | null>(null);
 
   // Exercise picker state
   const [showPicker, setShowPicker] = useState(false);
@@ -58,6 +65,7 @@ export default function WorkoutEditPage() {
 
   useEffect(() => {
     getExercises().then(setAllExercises);
+    getTemplates().then(setTemplates).catch(() => useToastStore.getState().add("读取模板失败", "error"));
     getSettings().then((settings) => setWeightUnit(settings.weight_unit)).catch(() => undefined);
   }, []);
 
@@ -69,9 +77,12 @@ export default function WorkoutEditPage() {
         setDate(w.date);
         setNote(w.note || "");
         setMood(w.mood);
+        setTemplateId(w.plan_template_id);
+        originalTemplateId.current = w.plan_template_id;
         originalTimes.current = { start: w.start_time, end: w.end_time };
         setStartTime(toLocalDateTime(w.start_time));
         setEndTime(toLocalDateTime(w.end_time));
+        setIsDraft(w.end_time == null);
         // Detect unit from first set
         const firstUnit = w.exercises[0]?.sets[0]?.unit;
         if (firstUnit === "lb") setWeightUnit("lb");
@@ -104,6 +115,7 @@ export default function WorkoutEditPage() {
               rest_seconds: s.rest_seconds ?? null,
               context_value: s.context_value,
               fieldInputs: setFieldInputs(s),
+              restInput: s.rest_seconds == null ? "" : String(s.rest_seconds),
             })),
           }))
         );
@@ -175,7 +187,7 @@ export default function WorkoutEditPage() {
           ? {
               ...e,
               sets: e.sets.map((s, i) =>
-                i === setIdx ? { ...s, [field]: value } : s
+                i === setIdx ? { ...s, [field]: value, ...(field === "rpe" && (e.recording_mode === "weight_reps" || e.recording_mode === "reps") && value === 10 ? { is_failure: true } : {}) } : s
               ),
             }
           : e
@@ -194,16 +206,29 @@ export default function WorkoutEditPage() {
     }));
   };
 
+  const updateRestInput = (tempId: string, setIdx: number, value: string) => {
+    setExercises((previous) => previous.map((exercise) => exercise.tempId !== tempId ? exercise : {
+      ...exercise,
+      sets: exercise.sets.map((set, index) => index !== setIdx ? set : { ...set, restInput: value }),
+    }));
+  };
+
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
     try {
+      for (const exercise of exercises) for (const set of exercise.sets) {
+        const rest = parseNullableNumber(set.restInput);
+        if (rest != null && (!Number.isInteger(rest) || rest < 0 || rest > 86400)) throw new Error("组后休息须为 0 到 86400 的整数秒");
+      }
+      if (templateId && !templates.some((template) => template.id === templateId) && templateId !== originalTemplateId.current) throw new Error("所选模板已不存在");
       const payload = {
         date,
         note: note || null,
         mood: mood || null,
+        plan_template_id: templateId,
         start_time: fromLocalDateTime(startTime, originalTimes.current.start),
-        end_time: fromLocalDateTime(endTime, originalTimes.current.end),
+        end_time: isDraft ? null : fromLocalDateTime(endTime, originalTimes.current.end),
         exercises: exercises.map((e, idx) => ({
           exercise_id: e.exercise_id,
           recording_mode: e.recording_mode,
@@ -226,7 +251,7 @@ export default function WorkoutEditPage() {
             rpe: s.rpe,
             is_warmup: s.is_warmup,
             is_failure: s.is_failure,
-            rest_seconds: s.rest_seconds,
+            rest_seconds: parseNullableNumber(s.restInput),
             context_value: parseNullableNumber(s.fieldInputs.contextValue ?? ""),
           })),
         })),
@@ -308,13 +333,23 @@ export default function WorkoutEditPage() {
             <input
               type="datetime-local"
               value={endTime}
+              disabled={isDraft}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm"
+              className="w-full min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm disabled:bg-slate-50"
             />
+            {isDraft && <p className="mt-1 text-xs text-slate-400">训练结束后才能填写结束时间</p>}
           </div>
         </div>
 
         {/* Unit Toggle */}
+        <label className="block text-sm text-slate-500">
+          关联模板
+          <select value={templateId ?? ""} onChange={(event) => setTemplateId(event.target.value || null)} className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-800">
+            <option value="">不关联模板</option>
+            {templateId && !templates.some((template) => template.id === templateId) && <option value={templateId} disabled>原模板已删除</option>}
+            {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+          </select>
+        </label>
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-500">重量单位：</span>
           <div className="flex bg-slate-100 rounded-lg p-0.5">
@@ -393,6 +428,8 @@ export default function WorkoutEditPage() {
                     className="w-full min-w-0 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-center text-xs"
                   />
                 </div>
+                {(ex.recording_mode === "weight_reps" || ex.recording_mode === "reps") && <p className="text-xs text-slate-400">设为 RPE 10 会勾选力竭，之后仍可手动调整</p>}
+                <MinutesSecondsInput label="组后休息（留空为未记录）" value={s.restInput} onChange={(value) => updateRestInput(ex.tempId, si, value)} compact />
               </div>
             ))}
 
@@ -459,6 +496,7 @@ function editableSet(set: WorkoutSet): LocalSet {
   return {
     ...set,
     fieldInputs: setFieldInputs(set),
+    restInput: set.rest_seconds == null ? "" : String(set.rest_seconds),
   };
 }
 

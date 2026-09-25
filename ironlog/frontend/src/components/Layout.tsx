@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, CalendarDays, User, ClipboardList, Dumbbell } from "lucide-react";
 import { getSettings } from "@/services/settings";
-import { applyThemeId } from "@/theme/applyTheme";
+import { applyThemeId, updateSystemBars } from "@/theme/applyTheme";
 import { scrollTargetsToTop } from "@/utils/scroll";
 
 const NAV_ITEMS = [
@@ -26,6 +26,7 @@ export default function Layout() {
 
   useLayoutEffect(() => {
     scrollTargetsToTop(mainRef.current, window);
+    updateSystemBars(location.pathname);
   }, [location.pathname]);
 
   return (

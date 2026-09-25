@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import SetFieldEditor, { validateSetFieldDraft } from "./SetFieldEditor";
+import { joinMinutesSeconds, splitSeconds } from "./ui/MinutesSecondsInput";
 
 const farmerRecording = {
   recording_mode: "weight_distance_duration",
@@ -39,10 +40,11 @@ describe("SetFieldEditor", () => {
     );
 
     expect(markup.indexOf("每手重量 (kg)")).toBeLessThan(markup.indexOf("距离 (m)"));
-    expect(markup.indexOf("距离 (m)")).toBeLessThan(markup.indexOf("用时 (秒)"));
+    expect(markup.indexOf("距离 (m)")).toBeLessThan(markup.indexOf("用时"));
     expect(markup).toContain('aria-label="每手重量 (kg)"');
     expect(markup).toContain('aria-label="距离 (m)"');
-    expect(markup).toContain('aria-label="用时 (秒)"');
+    expect(markup).toContain('aria-label="用时（分）"');
+    expect(markup).toContain('aria-label="用时（秒）"');
   });
 
   it("validates non-empty draft values immediately while allowing a blank placeholder", () => {
@@ -62,7 +64,8 @@ describe("SetFieldEditor", () => {
     );
 
     expect(markup).toContain('aria-label="每侧距离 (m)"');
-    expect(markup).toContain('aria-label="每侧用时 (秒)"');
+    expect(markup).toContain('aria-label="每侧用时（分）"');
+    expect(markup).toContain('aria-label="每侧用时（秒）"');
     expect(markup).not.toContain("左侧");
     expect(markup).not.toContain("右侧");
   });
@@ -70,5 +73,14 @@ describe("SetFieldEditor", () => {
   it("accepts blank and zero as distinct valid resistance drafts", () => {
     expect(validateSetFieldDraft(resistanceRecording, { weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "" })).toBeNull();
     expect(validateSetFieldDraft(resistanceRecording, { weight: "", reps: "", distanceM: "1000", durationSec: "600", contextValue: "0" })).toBeNull();
+  });
+
+  it("keeps duration values in seconds while presenting minutes and seconds", () => {
+    expect(splitSeconds("125")).toEqual({ minutes: "2", seconds: "5" });
+    expect(joinMinutesSeconds("2", "5")).toBe("125");
+    expect(joinMinutesSeconds("", "")).toBe("");
+    expect(joinMinutesSeconds("0", "0")).toBe("0");
+    expect(joinMinutesSeconds("1", "60")).toBeNull();
+    expect(joinMinutesSeconds("1440", "1")).toBeNull();
   });
 });

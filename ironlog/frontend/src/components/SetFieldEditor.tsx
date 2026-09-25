@@ -4,6 +4,7 @@ import type { WeightUnit } from "@/core/models";
 import type { RecordingSnapshot } from "@/utils/recordingPresentation";
 import { weightFieldLabel } from "@/utils/recordingPresentation";
 import StepInput from "@/components/ui/StepInput";
+import MinutesSecondsInput from "@/components/ui/MinutesSecondsInput";
 
 export interface SetFieldDraft {
   weight: string;
@@ -73,7 +74,7 @@ function RecordingFieldInput({ field, recording, weightUnit, value, onChange }: 
     case "distanceM":
       return <StepInput label={recording.count_basis === "per_side" ? "每侧距离 (m)" : "距离 (m)"} value={value} onChange={onChange} step={10} inputMode="decimal" />;
     case "durationSec":
-      return <StepInput label={durationLabel(recording)} value={value} onChange={onChange} step={10} inputMode="numeric" />;
+      return <MinutesSecondsInput label={durationLabel(recording)} value={value} onChange={onChange} />;
   }
 }
 
@@ -116,5 +117,5 @@ export function validateSetFieldDraft(recording: RecordingSnapshot, value: SetFi
 
 function durationLabel(recording: RecordingSnapshot): string {
   const base = recording.recording_mode === "duration" || recording.recording_mode === "weight_duration" ? "保持时间" : "用时";
-  return `${recording.count_basis === "per_side" ? "每侧" : ""}${base} (秒)`;
+  return `${recording.count_basis === "per_side" ? "每侧" : ""}${base}`;
 }
